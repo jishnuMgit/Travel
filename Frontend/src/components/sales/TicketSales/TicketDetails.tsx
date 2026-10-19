@@ -1,0 +1,1323 @@
+import React, { useEffect, useRef, useState } from "react";
+import Select from "react-select";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import selectComponents from "../../comman/selectComponents";
+
+dayjs.extend(customParseFormat);
+
+/* =====================================================================
+   FILE MAP
+   1. Types, constants and sample options
+   2. Shared building blocks (Field, Combo, PairCombo, MoneyInput, ...)
+   3. Form parts   : TicketTopBar, TicketDetails, TicketRoutePanel,
+                     TicketAmountsPanel, TicketActions
+   4. TicketDetails   : owns the state and renders the parts in order
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. TYPES, CONSTANTS AND SAMPLE OPTIONS
+   --------------------------------------------------------------------- */
+type Option = { value: string; label: string };
+
+const DATE_FORMAT = "DD-MM-YYYY";
+const TODAY = dayjs().format(DATE_FORMAT);
+
+/* Sample option lists. Replace with data from your API. */
+const toOptions = (values: string[]): Option[] =>
+  values.map((v) => ({ value: v, label: v }));
+
+const ticketPrefixOptions = toOptions(["B", "T", "R"]);
+const airlineIdOptions: Option[] = [
+  { value: "SV", label: "SV" },
+  { value: "EK", label: "EK" },
+  { value: "QR", label: "QR" },
+];
+const airlineNameOptions: Option[] = [
+  { value: "SV", label: "SAUDIA" },
+  { value: "EK", label: "EMIRATES" },
+  { value: "QR", label: "QATAR AIRWAYS" },
+];
+const branchIdOptions: Option[] = [
+  { value: "JD", label: "JD" },
+  { value: "RY", label: "RY" },
+];
+const branchNameOptions: Option[] = [
+  { value: "JD", label: "JEDDAH" },
+  { value: "RY", label: "RIYADH" },
+];
+const iataIdOptions: Option[] = [
+  { value: "I1", label: "I1" },
+  { value: "I2", label: "I2" },
+];
+const iataNameOptions: Option[] = [
+  { value: "I1", label: "IATA ONE" },
+  { value: "I2", label: "IATA TWO" },
+];
+const supplierIdOptions: Option[] = [
+  { value: "S01", label: "S01" },
+  { value: "S02", label: "S02" },
+];
+const supplierNameOptions: Option[] = [
+  { value: "S01", label: "SUPPLIER ONE" },
+  { value: "S02", label: "SUPPLIER TWO" },
+];
+const supPaymentIdOptions: Option[] = [
+  { value: "CASH", label: "CASH" },
+  { value: "CRD", label: "CRD" },
+];
+const supPaymentNameOptions: Option[] = [
+  { value: "CASH", label: "CASH PAYMENT" },
+  { value: "CRD", label: "CREDIT PAYMENT" },
+];
+const staffIdOptions: Option[] = [
+  { value: "ST1", label: "ST1" },
+  { value: "ST2", label: "ST2" },
+];
+const staffNameOptions: Option[] = [
+  { value: "ST1", label: "STAFF ONE" },
+  { value: "ST2", label: "STAFF TWO" },
+];
+const gdsOptions = toOptions(["AMADEUS", "SABRE", "GALILEO"]);
+const diOptions = toOptions(["D", "I"]);
+const yesNoOptions = toOptions(["No", "Yes"]);
+const paxTypeOptions = toOptions(["Adult", "Child", "Infant"]);
+const serviceOptions = toOptions(["TKT", "EMD", "MCO"]);
+const tripOptions = toOptions(["One Way", "Round Trip"]);
+const fopOptions = toOptions(["CASH", "CREDIT", "CC", "EP"]);
+const ccTypeOptions = toOptions(["NA", "VISA", "MASTER"]);
+const merchantOptions = toOptions(["NA", "MERCHANT 1", "MERCHANT 2"]);
+const alComTypeOptions = toOptions(["P", "A"]); // P = percent, A = amount
+
+type FormState = {
+  ticketPrefix: string | null;
+  ticketNo: string;
+  airline: string | null;
+  branch: string | null;
+  iata: string | null;
+
+  date: string;
+  bspDate: string;
+  flightDate: string;
+  di: string | null;
+  voidFlag: string | null;
+
+  supplier: string | null;
+  supPayment: string | null;
+
+  pax: string;
+  staff: string | null;
+
+  mobile: string;
+  paxType: string | null;
+  service: string | null;
+  pnrNo: string;
+
+  email: string;
+  paxId: string;
+  trip: string | null;
+  returnDate: string;
+  tourCode: string;
+
+  route: string;
+  travelClass: string;
+  fop: string | null;
+  destination: string;
+  cnj: string | null;
+  gds: string | null;
+  ccType: string | null;
+  carrier: string;
+  fareBasis: string;
+  merchant: string | null;
+  fopCash: string;
+  fopCc: string;
+  fopEp: string;
+
+  gFare: string;
+  sFare: string;
+  tax: string;
+  k7: string;
+  supFee: string;
+  alComType: string | null;
+  alCom: string;
+};
+
+type SetField = <K extends keyof FormState>(
+  key: K,
+  value: FormState[K],
+) => void;
+
+/** props shared by every form part */
+type PartProps = { form: FormState; set: SetField };
+
+type Computed = {
+  feeVat: number;
+  supCom: number;
+  alComAmt: number;
+  alCVat: number;
+  supplierAmt: number;
+  net: number;
+};
+
+const initialForm = (): FormState => ({
+  ticketPrefix: "B",
+  ticketNo: "",
+  airline: null,
+  branch: "JD",
+  iata: null,
+
+  date: TODAY,
+  bspDate: "",
+  flightDate: "",
+  di: "I",
+  voidFlag: "No",
+
+  supplier: null,
+  supPayment: null,
+
+  pax: "",
+  staff: null,
+
+  mobile: "",
+  paxType: "Adult",
+  service: "TKT",
+  pnrNo: "",
+
+  email: "",
+  paxId: "",
+  trip: null,
+  returnDate: "",
+  tourCode: "",
+
+  route: "",
+  travelClass: "",
+  fop: "CASH",
+  destination: "",
+  cnj: "No",
+  gds: null,
+  ccType: "NA",
+  carrier: "",
+  fareBasis: "",
+  merchant: "NA",
+  fopCash: "0.00",
+  fopCc: "0.00",
+  fopEp: "0.00",
+
+  gFare: "0.00",
+  sFare: "0.00",
+  tax: "0.00",
+  k7: "0.00",
+  supFee: "0.00",
+  alComType: "P",
+  alCom: "0.00",
+});
+
+/* Label widths. Every row uses the same widths per column, so the controls
+   line up vertically (column groups: A, B, C, D, E). */
+const LA = "w-[64px]"; // Date, Supplier, Pax., Mobile, E-mail
+const LB = "w-[72px]"; // BSP Date, Pax Type, Pax ID
+const LC = "w-[92px]"; // Flight Date, Sup. Payment, Staff, Service, Trip
+const LD = "w-[92px]"; // D/I, Orig. Tkt.No., Return Date
+const LE = "w-[72px]"; // Void, PNR No., Tour Code
+const Lx = "w-[72px]"; 
+/* ---------------------------------------------------------------------
+   2. SHARED BUILDING BLOCKS
+   --------------------------------------------------------------------- */
+const selectClassNames = {
+  control: ({
+    isFocused,
+    isDisabled,
+  }: {
+    isFocused: boolean;
+    isDisabled: boolean;
+  }) => `
+    !min-h-[28px] !h-[28px] !rounded-[4px] !border !shadow-none !text-[12px]
+    hover:!border-[#aab8c5]
+    ${isDisabled ? "!bg-[#f0f3f6]" : "!bg-white"}
+    ${isFocused ? "!border-[#91a7b9]" : "!border-[#cfd7df]"}
+  `,
+  valueContainer: () => "!h-[26px] !py-0 !px-[5px] !overflow-hidden",
+  singleValue: () => "!m-0 !text-[12px] !text-[#24364d]",
+  placeholder: () => "!m-0 !text-[12px] !text-[#7a8794]",
+  input: () => "!m-0 !p-0 !text-[12px] !text-[#24364d]",
+  indicatorsContainer: () => "!h-[26px]",
+  dropdownIndicator: () => "!p-[2px] !text-[#657486]",
+  indicatorSeparator: () => "!hidden",
+  clearIndicator: () => "!p-[2px]",
+  menu: () =>
+    "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md !min-w-[110px]",
+  menuList: () => "!p-0 !max-h-[180px]",
+  option: ({
+    isFocused,
+    isSelected,
+  }: {
+    isFocused: boolean;
+    isSelected: boolean;
+  }) => `
+    !cursor-pointer !px-[6px] !py-[4px] !text-[12px] !text-[#24364d]
+    ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
+  `,
+};
+
+const selectProps = {
+  isSearchable: false,
+  isClearable: false,
+  placeholder: "",
+  classNames: selectClassNames,
+  menuPosition: "fixed" as const,
+  menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
+};
+
+const inputClass =
+  "h-[28px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-white px-2 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9]";
+
+const readOnlyClass =
+  "h-[28px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
+const readOnlyClass1 =
+  "h-[28px] w-[80%] min-w-0 ml-[15px] rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
+
+const panelClass = "border border-[#e0e5ea] bg-[#fcfdfe] p-3";
+
+/** label + controls on one line; pass a width class so columns line up */
+const Field: React.FC<{
+  label: string;
+  htmlFor?: string;
+  className?: string;
+  labelClassName?: string;
+  children: React.ReactNode;
+}> = ({ label, htmlFor, className = "", labelClassName = "", children }) => (
+  <div className={`flex min-w-0 items-center gap-2 ${className}`}>
+    <label
+      htmlFor={htmlFor}
+      className={`shrink-0 whitespace-nowrap text-right text-[12px] text-[#405066] ${labelClassName}`}
+    >
+      {label}
+    </label>
+    <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
+  </div>
+);
+
+/** single react-select */
+const Combo: React.FC<{
+  id: string;
+  options: Option[];
+  value: string | null;
+  onChange: (value: string | null) => void;
+  className?: string;
+}> = ({ id, options, value, onChange, className = "w-full" }) => (
+  <div className={`min-w-0 ${className}`}>
+    <Select
+      inputId={id}
+      instanceId={id}
+      components={selectComponents}
+      options={options}
+      value={options.find((o) => o.value === value) ?? null}
+      onChange={(option) => onChange(option?.value ?? null)}
+      {...selectProps}
+    />
+  </div>
+);
+
+/** ID select + name select that always show the same record */
+const PairCombo: React.FC<{
+  idId: string;
+  nameId: string;
+  idOptions: Option[];
+  nameOptions: Option[];
+  value: string | null;
+  onChange: (value: string | null) => void;
+  idWidth?: string;
+}> = ({
+  idId,
+  nameId,
+  idOptions,
+  nameOptions,
+  value,
+  onChange,
+  idWidth = "w-[92px]",
+}) => (
+  <>
+    <Combo
+      id={idId}
+      options={idOptions}
+      value={value}
+      onChange={onChange}
+      className={`${idWidth} shrink-0`}
+    />
+    <Combo
+      id={nameId}
+      options={nameOptions}
+      value={value}
+      onChange={onChange}
+      className="flex-1"
+    />
+  </>
+);
+
+const formatMoney = (value: number) =>
+  value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+/** editable amount: right aligned, 2 decimals after leaving the box */
+const MoneyInput: React.FC<{
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ id, value, onChange }) => (
+  <input
+    id={id}
+    inputMode="decimal"
+    value={value}
+    onFocus={(event) => event.target.select()}
+    onChange={(event) => {
+      if (/^\d*\.?\d{0,2}$/.test(event.target.value)) onChange(event.target.value);
+    }}
+    onBlur={() => {
+      const parsed = parseFloat(value);
+      onChange(Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00");
+    }}
+    className={`${inputClass} text-right `}
+  />
+);
+
+
+const FareMoneyInput: React.FC<{
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ id, value, onChange }) => (
+  <input
+    id={id}
+    inputMode="decimal"
+    value={value}
+    onFocus={(event) => event.target.select()}
+    onChange={(event) => {
+      if (/^\d*\.?\d{0,2}$/.test(event.target.value)) onChange(event.target.value);
+    }}
+    onBlur={() => {
+      const parsed = parseFloat(value);
+      onChange(Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00");
+    }}
+    className={`${inputClass} text-right mr-10`}
+  />
+);
+
+/** read-only calculated amount */
+const MoneyReadOnly: React.FC<{
+  id: string;
+  value: number;
+  alwaysRed?: boolean;
+}> = ({ id, value, alwaysRed = false }) => (
+  <input
+    id={id}
+    readOnly
+    tabIndex={-1}
+    value={formatMoney(value)}
+    className={`${readOnlyClass} text-right ${alwaysRed ? "text-[#c0392b]" : ""}`}
+  />
+);
+
+/** compact MUI date picker */
+const AppDatePicker: React.FC<{
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ id, label, value, onChange }) => (
+  <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <DatePicker
+      value={value ? dayjs(value, DATE_FORMAT) : null}
+      onChange={(newValue) => {
+        onChange(newValue?.isValid() ? newValue.format(DATE_FORMAT) : "");
+      }}
+      format={DATE_FORMAT}
+      slotProps={{
+        textField: { id, slotProps: { htmlInput: { "aria-label": label } } },
+        openPickerButton: { sx: { padding: "2px", margin: 0 } },
+        inputAdornment: { sx: { margin: 0, padding: 0 } },
+      }}
+      sx={{
+        width: "100%",
+        minWidth: 0,
+        "& .MuiPickersTextField-root": { width: "100%" },
+        "& .MuiPickersInputBase-root": {
+          width: "100%",
+          height: "28px",
+          minHeight: "28px",
+          boxSizing: "border-box",
+          borderRadius: "4px",
+          backgroundColor: "#ffffff",
+          fontSize: "12px",
+          padding: 0,
+          overflow: "hidden",
+        },
+        "& .MuiPickersInputBase-sectionsContainer": {
+          paddingLeft: "8px !important",
+          paddingRight: "0px !important",
+          marginBottom: "-5px !important",
+          marginLeft: "0px !important",
+          boxSizing: "border-box",
+          overflow: "hidden",
+        },
+        "& .MuiPickersInputBase-sectionContent": {
+          fontSize: "12px",
+          color: "#344054",
+        },
+        "& .MuiPickersInputBase-input": {
+          minWidth: 0,
+          width: "100%",
+          fontSize: "12px",
+          padding: 0,
+          height: "28px",
+          boxSizing: "border-box",
+        },
+        "& .MuiInputAdornment-root": { margin: 0, padding: 0 },
+        "& .MuiIconButton-root": {
+          width: "22px",
+          height: "22px",
+          padding: "2px",
+          margin: 0,
+        },
+        "& .MuiSvgIcon-root": { fontSize: "15px" },
+        // blank look (no "DD-MM-YYYY" hint) while empty and not focused
+        ...(!value && {
+          "&:not(:focus-within) .MuiPickersInputBase-sectionsContainer *": {
+            color: "transparent",
+          },
+        }),
+        "& .MuiPickersOutlinedInput-notchedOutline": {
+          borderColor: "#B7C7D7 !important",
+        },
+        "& .MuiPickersInputBase-root:hover .MuiPickersOutlinedInput-notchedOutline":
+          { borderColor: "#B7C7D7 !important" },
+        "& .MuiPickersInputBase-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
+          { borderColor: "#B7C7D7 !important", borderWidth: "1px" },
+        "& .MuiPickersInputBase-root.Mui-error .MuiPickersOutlinedInput-notchedOutline":
+          { borderColor: "#B7C7D7 !important" },
+        "& .MuiPickersInputBase-root.Mui-error:hover .MuiPickersOutlinedInput-notchedOutline":
+          { borderColor: "#B7C7D7 !important" },
+        "& .MuiPickersInputBase-root.Mui-error.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
+          { borderColor: "#B7C7D7 !important" },
+      }}
+    />
+  </LocalizationProvider>
+);
+
+/* ---------------------------------------------------------------------
+   3. FORM PARTS
+   --------------------------------------------------------------------- */
+
+/* 3a. Top bar: ticket no, airline, branch, IATA ------------------------ */
+const TicketTopBar: React.FC<
+  PartProps & {
+    ticketNoRef: React.RefObject<HTMLInputElement | null>;
+    onSearch: () => void;
+  }
+> = ({ form, set, ticketNoRef, onSearch }) => (
+  <div className="grid grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-12">
+    <Field
+      label="Ticket No. :"
+      htmlFor="txtTicketNo"
+      className="lg:col-span-3"
+    >
+      <Combo
+        id="lkpTktType"
+        options={ticketPrefixOptions}
+        value={form.ticketPrefix}
+        onChange={(v) => set("ticketPrefix", v)}
+        className="w-16 shrink-0"
+      />
+      <div className="relative min-w-0 flex-1">
+        <input
+          ref={ticketNoRef}
+          id="txtTktSLNo"
+          value={form.ticketNo}
+          onChange={(event) => set("ticketNo", event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") onSearch();
+          }}
+          className={`${inputClass} pr-8`}
+        />
+        <button
+          id="btnSearchTicket"
+          type="button"
+          aria-label="Search ticket"
+          title="Search"
+          onClick={onSearch}
+          className="absolute right-1 top-1/2 flex h-5.5 w-6 -translate-y-1/2 items-center justify-center rounded-[3px] text-[#405066] hover:bg-[#eef3f7]"
+        >
+          <svg
+            viewBox="0 0 20 20"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <path d="M13 13l4.5 4.5" />
+          </svg>
+        </button>
+      </div>
+    </Field>
+
+    <Field label="Airline :" className="lg:col-span-3">
+      <PairCombo
+        idId="lkpAirlineNo"
+        nameId="lkpAirlineName"
+        idOptions={airlineIdOptions}
+        nameOptions={airlineNameOptions}
+        value={form.airline}
+        onChange={(v) => set("airline", v)}
+        idWidth="w-[70px]"
+      />
+    </Field>
+
+    <Field label="Branch :" className="lg:col-span-3">
+      <PairCombo
+        idId="lkpBranchID"
+        nameId="lkpBranchName"
+        idOptions={branchIdOptions}
+        nameOptions={branchNameOptions}
+        value={form.branch}
+        onChange={(v) => set("branch", v)}
+        idWidth="w-[76px]"
+      />
+    </Field>
+
+    <Field label="IATA :" className="lg:col-span-3">
+     <div className="lg:w-75 w-40 " >
+        <Combo
+        id="lkpIATACode"
+        options={yesNoOptions}
+        value={form.voidFlag}
+        onChange={(v) => set("voidFlag", v)}
+      />
+      </div>
+    </Field>
+  </div>
+);
+
+/* 3b. Ticket details box ------------------------------------------------
+   12-column grid with five column groups on every row:
+   A = 3 cols, B = 3 cols, C = 2 cols, D = 2 cols, E = 2 cols
+   (wide fields span several groups, e.g. Supplier = A+B).              */
+const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
+  <div
+    className={`${panelClass} grid grid-cols-1 items-center gap-y-2.5 sm:grid-cols-2 lg:grid-cols-12`}
+  >
+    {/* row 1 : A Date | B BSP Date | C Flight Date | D D/I | E Void */}
+    <Field label="Date :" labelClassName={LA} className="lg:col-span-2">
+      <div className="w-35">
+        <AppDatePicker
+        id="dtpDate"
+        label="Date"
+        value={form.date}
+        onChange={(v) => set("date", v)}
+      />
+      </div>
+    </Field>
+    <Field label="BSP Date :" labelClassName={LB} className="lg:col-span-2 ">
+      <div className="w-35 ">
+        <AppDatePicker
+        id="dtpBspDate"
+        label="BSP Date"
+        value={form.bspDate}
+        onChange={(v) => set("bspDate", v)}
+      />
+      </div>
+    </Field>
+   
+    <Field label="Flight Date :" labelClassName={LC} className="lg:col-span-2 ">
+      <div className="w-35">
+        <AppDatePicker
+        id="dtpFlightDate"
+        label="Flight Date"
+        value={form.flightDate}
+        onChange={(v) => set("flightDate", v)}
+      />
+      </div>
+    </Field>
+    <Field label="Return Date :" labelClassName={LC} className="lg:col-span-2 pl-8 ">
+      <div className="w-35 ">
+        <AppDatePicker
+       id="dtpReturnDate"
+        label="Return Date"
+        value={form.returnDate}
+        onChange={(v) => set("returnDate", v)}
+      />
+      </div>
+    </Field>
+    <Field
+      label="PNR  :"
+      htmlFor="txtPnr"
+      labelClassName={Lx}
+      className="lg:col-span-2 ml-10 w-full"
+    >
+      <input
+        id="txtPnrNo"
+        value={form.pnrNo}
+        onChange={(event) => set("pnrNo", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    <Field label="D/I :" labelClassName={LD} className="lg:col-span-2">
+      <Combo
+        id="lkpDI"
+        options={diOptions}
+        value={form.di}
+        onChange={(v) => set("di", v)}
+      />
+    </Field>
+      {/* Void : */}
+     
+
+    {/* row 2 : A+B Supplier | C+D+E Sup. Payment */}
+    <Field
+      label="Supplier :"
+      labelClassName={LA}
+      className="sm:col-span-2 lg:col-span-6"
+    >
+      <PairCombo
+        idId="lkpSupplierID"
+        nameId="lkpSupplierName"
+        idOptions={supplierIdOptions}
+        nameOptions={supplierNameOptions}
+        value={form.supplier}
+        onChange={(v) => set("supplier", v)}
+      />
+    </Field>
+    <Field
+      label="Sup. Payment :"
+      labelClassName={LC}
+      className="sm:col-span-2 lg:col-span-6"
+    >
+      <PairCombo
+        idId="lkpSupPaymentID"
+        nameId="lkpSupPaymentName"
+        idOptions={supPaymentIdOptions}
+        nameOptions={supPaymentNameOptions}
+        value={form.supPayment}
+        onChange={(v) => set("supPayment", v)}
+      />
+    </Field>
+
+    {/* row 3 : A+B Pax. | C+D Staff | E Booking Staff Sign */}
+    <Field
+      label="Pax Name :"
+      htmlFor="txtPaxName"
+      labelClassName={LA}
+      className="sm:col-span-2 lg:col-span-6"
+    >
+      <input
+        id="txtPaxName"
+        value={form.pax}
+        onChange={(event) => set("pax", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    <Field
+      label="Staff :"
+      labelClassName={LC}
+      className="sm:col-span-2 lg:col-span-4"
+    >
+      <PairCombo
+        idId="lkpStaffID"
+        nameId="lkpStaffName"
+        idOptions={staffIdOptions}
+        nameOptions={staffNameOptions}
+        value={form.staff}
+        onChange={(v) => set("staff", v)}
+        idWidth="w-[72px]"
+      />
+    </Field>
+    <Field
+      label="Booking GDS Login"
+      className="sm:col-span-2 lg:col-span-2 pl-10"
+    >
+      <input
+        id="txtBookingGDSLogin"
+        readOnly
+        tabIndex={-1}
+        value={form.staff ?? ""}
+        className={readOnlyClass1}
+      />
+    </Field>
+
+    {/* row 4 : A Mobile | B Pax Type | C Service | D Orig. Tkt.No. | E PNR No. */}
+    <Field label="Pax Type :" labelClassName={LB} className="lg:col-span-2 -ml-2">
+      <Combo
+        id="lkpPaxType"
+        options={paxTypeOptions}
+        value={form.paxType}
+        onChange={(v) => set("paxType", v)}
+      />
+    </Field>
+     <Field
+      label="Pax ID :"
+      htmlFor="txtPaxNameId"
+      labelClassName={LB}
+      className="lg:col-span-2"
+    >
+      <input
+        id="txtPaxNameId"
+        value={form.paxId}
+        onChange={(event) => set("paxId", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    
+    
+    <Field label="Service :" labelClassName={LC} className="lg:col-span-2">
+      <Combo
+        id="lkpService"
+        options={serviceOptions}
+        value={form.service}
+        onChange={(v) => set("service", v)}
+      />
+    </Field>
+    
+    <Field label="Orig. Tkt.No. :" labelClassName={LD} className="lg:col-span-2">
+      <input
+        id="txtOrigTktNo"
+        readOnly
+        tabIndex={-1}
+        value=""
+        className={readOnlyClass}
+      />
+    </Field>
+    <Field
+      label="PNR No. :"
+      htmlFor="txtPnrNo"
+      labelClassName={LE}
+      className="lg:col-span-2"
+    >
+      <input
+        id="txtPnrNo"
+        value={form.pnrNo}
+        onChange={(event) => set("pnrNo", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+ <Field
+  label="Sales GDS Login"
+  className="pl-10 sm:col-span-2 lg:col-span-2"
+>
+  <input
+    id="txtSalesGDSLogin"
+    readOnly
+    tabIndex={-1}
+    value={form.staff ?? ""}
+    className={`${readOnlyClass1} !w-[100%] min-w-0 !ml-7.5`}
+  />
+</Field>
+
+    {/* row 5 : A E-mail | B Pax ID | C Trip | D Return Date | E Tour Code */}
+     <Field
+      label="Mobile :"
+      htmlFor="txtMobile"
+      labelClassName={LA}
+      className="lg:col-span-3"
+    >
+      <input
+        id="txtMobile"
+        value={form.mobile}
+        onChange={(event) => set("mobile", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    
+    <Field
+      label="E-mail :"
+      htmlFor="txtEmail"
+      labelClassName={LA}
+      className="lg:col-span-3"
+    >
+      <input
+        id="txtEmail"
+        type="email"
+        value={form.email}
+        onChange={(event) => set("email", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+   
+    <Field label="Trip :" labelClassName={LC} className="lg:col-span-2">
+      <Combo
+        id="lkpTrip"
+        options={tripOptions}
+        value={form.trip}
+        onChange={(v) => set("trip", v)}
+      />
+    </Field>
+    {/* return date */}
+    <Field label="Void :" labelClassName={LE} className="lg:col-span-2 ml-5">
+      <div className="w-40">
+        <Combo
+        id="lkpVoid"
+        options={yesNoOptions}
+        value={form.voidFlag}
+        onChange={(v) => set("voidFlag", v)}
+      />
+      </div>
+    </Field>
+    <Field
+      label="Tour Code :"
+      htmlFor="txtTourCode"
+      labelClassName={LE}
+      className="lg:col-span-2"
+    >
+      <input
+        id="txtTourCode"
+        value={form.tourCode}
+        onChange={(event) => set("tourCode", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+  </div>
+);
+
+/* 3c. Route / payment panel (left) --------------------------------------
+   12-column grid, every row split 5 | 3 | 4 so the columns line up.     */
+
+/* Route and Fare Details Panel */
+
+// Label widths: every row in a column uses the same width, so the boxes line up.
+/* 3c. Route / payment panel ------------------------------------------ */
+
+// Fixed label widths to match the original WinForms layout
+const L1 = "w-[68px] shrink-0 ";
+const L2 = "w-[72px] shrink-0";
+const L3 = "w-[64px] shrink-0";
+
+// Text input
+const inputClassforTicketRoutePanel =
+  "h-[26px] w-[127%] min-w-0 rounded-[2px] border border-[#cbd2dc] bg-white px-2 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9]";
+
+// Small read-only box next to GDS
+const greyBoxClass =
+  "h-[26px] w-[26px] shrink-0 rounded-[2px] border border-[#cbd2dc] bg-[#e5e7eb]";
+
+/* Three fixed columns matching the WinForms screen */
+const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
+  <div
+    className={`${panelClass} grid grid-cols-1 items-center gap-x-3 gap-y-1 sm:grid-cols-2 lg:grid-cols-[1.1fr_0.9fr_0.8fr]`}
+  >
+    {/* Row 1: Route | Class | FOP */}
+
+    <Field
+      label="Route :"
+      htmlFor="txtRoute"
+      labelClassName={L1}
+      className="min-w-0"
+    >
+     <div className="">
+       <input
+        id="txtRoute"
+        value={form.route}
+        onChange={(e) => set("route", e.target.value)}
+        className={inputClassforTicketRoutePanel}
+      />
+     </div>
+    </Field>
+
+    <Field
+      label="Class :"
+      htmlFor="txtClass"
+      labelClassName={L2}
+      className="min-w-0"
+    >
+      <input
+        id="txtClass"
+        value={form.travelClass}
+        onChange={(e) => set("travelClass", e.target.value)}
+        className={inputClassforTicketRoutePanel}
+      />
+    </Field>
+
+    <Field label="FOP :" labelClassName={L3} className="min-w-0">
+      <Combo
+        id="lkpFOP"
+        options={fopOptions}
+        value={form.fop}
+        onChange={(v) => set("fop", v)}
+        className="w-full min-w-0"
+      />
+    </Field>
+
+    {/* Row 2: Destination | CNJ + GDS | CC Type */}
+
+    <Field
+      label="Destination :"
+      htmlFor="txtDestination"
+      labelClassName={L1}
+      className="min-w-0"
+    >
+     <div className="w-100 flex">
+       <div className="w-15"> 
+        <input
+        id="txtDestination"
+        value={form.destination}
+        onChange={(e) => set("destination", e.target.value)}
+        className={inputClassforTicketRoutePanel}
+      />
+       </div>
+       <Field label="CNJ. :" className="min-w-0 flex-1 ml-5">
+        <Combo
+          id="lkpCNJ"
+          options={yesNoOptions}
+          value={form.cnj}
+          onChange={(v) => set("cnj", v)}
+          className="w-12.5 min-w-0"
+        />
+      </Field>
+     </div>
+    </Field>
+
+    <div className="flex min-w-0 items-center gap-2">
+     
+
+      <Field label="GDS :" className="min-w-0 flex-1 ml-10">
+        <div className="flex min-w-0 items-center gap-1">
+          <Combo
+            id="lkpGDS"
+            options={gdsOptions}
+            value={form.gds}
+            onChange={(v) => set("gds", v)}
+            className="min-w-0 flex-1 w-20"
+          />
+
+          <input
+            id="txtGdsCode"
+            readOnly
+            tabIndex={-1}
+            aria-label="GDS code"
+            value=""
+            className={greyBoxClass}
+          />
+        </div>
+      </Field>
+    </div>
+
+    <Field label="CC Type :" labelClassName={L3} className="min-w-0">
+      <Combo
+        id="lkpCCType"
+        options={ccTypeOptions}
+        value={form.ccType}
+        onChange={(v) => set("ccType", v)}
+        className="w-[70%] min-w-0 "
+      />
+    </Field>
+
+    {/* Row 3: Carrier | Fare Basis | Merchant */}
+
+    <Field
+      label="Carrier :"
+      htmlFor="txtCarrier"
+      labelClassName={L1}
+      className="min-w-0"
+    >
+      <input
+        id="txtCarrier"
+        value={form.carrier}
+        onChange={(e) => set("carrier", e.target.value)}
+        className={inputClassforTicketRoutePanel}
+      />
+    </Field>
+
+    <Field
+      label="Fare Basis :"
+      htmlFor="txtFareBasis"
+      labelClassName={L2}
+      className="min-w-0"
+    >
+      <input
+        id="txtFareBasis"
+        value={form.fareBasis}
+        onChange={(e) => set("fareBasis", e.target.value)}
+        className={inputClassforTicketRoutePanel}
+      />
+    </Field>
+
+    <Field label="Merchant :" labelClassName={L3} className="min-w-0">
+      <Combo
+        id="lkpMerchant"
+        options={merchantOptions}
+        value={form.merchant}
+        onChange={(v) => set("merchant", v)}
+        className="w-[70%] min-w-0"
+      />
+    </Field>
+
+    {/* Row 4: FOP Cash | FOP CC | FOP EP */}
+
+    <Field
+      label="FOP Cash :"
+      htmlFor="txtFopCash"
+      labelClassName={L1}
+      className="min-w-0"
+    >
+      <div className="w-[70%]">
+        <MoneyInput
+        id="txtFopCash"
+        value={form.fopCash}
+        onChange={(v) => set("fopCash", v)}
+      />
+      </div>
+    </Field>
+
+    <Field
+      label="FOP CC :"
+      htmlFor="txtFopCc"
+      labelClassName={L2}
+      className="min-w-0"
+    >
+      <MoneyInput
+        id="txtFopCc"
+        value={form.fopCc}
+        onChange={(v) => set("fopCc", v)}
+      />
+    </Field>
+
+    <Field
+      label="FOP EP :"
+      htmlFor="txtFopEp"
+      labelClassName={L3}
+      className="min-w-0"
+    >
+      <MoneyInput
+        id="txtFopEp"
+        value={form.fopEp}
+        onChange={(v) => set("fopEp", v)}
+      />
+    </Field>
+  </div>
+);
+/* 3d. Fares and commissions panel ---------------------------------- */
+const R1 = "w-[84px]  -ml-10 ";
+const R2 = "w-[94px] -ml-10 shrink-0";
+const R3 = "w-[78px] shrink-0";
+
+const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
+  form,
+  set,
+  computed,
+}) => (
+  <div
+    className={`${panelClass} grid grid-cols-3 items-center gap-x-2 gap-y-1.5 `}
+  >
+    {/* Row 1 */}
+    <Field label="G. Fare :" htmlFor="txtGFare"  labelClassName={R1}>
+      <FareMoneyInput
+        id="txtGFare"
+        
+        value={form.gFare}
+        onChange={(v) => set("gFare", v)}
+      />
+    </Field>
+
+    <Field label="Sup. Fee. :" htmlFor="txtSupFee" labelClassName={R2}>
+      <div className="w-27 shrink-0">
+        <MoneyInput
+          id="txtSupFee"
+          value={form.supFee}
+          onChange={(v) => set("supFee", v)}
+        />
+      </div>
+    </Field>
+
+    <Field label="Fee VAT :" labelClassName={R3}>
+      <MoneyReadOnly id="txtFeeVat" value={computed.feeVat} />
+    </Field>
+
+    {/* Row 2 */}
+    <Field label="S. Fare :" htmlFor="txtSFare" labelClassName={R1}>
+      <FareMoneyInput
+        id="txtSFare"
+        value={form.sFare}
+        onChange={(v) => set("sFare", v)}
+      />
+    </Field>
+
+    <Field label="A/L Com. :" labelClassName={R2}>
+      <div className="flex min-w-0 items-center gap-1">
+        <div className="w-12 shrink-0">
+          <Combo
+            id="lkpALComType"
+            options={alComTypeOptions}
+            value={form.alComType}
+            onChange={(v) => set("alComType", v)}
+            className="w-full"
+          />
+        </div>
+
+        <div className="w-14 shrink-0">
+          <MoneyInput
+            id="txtALCom"
+            value={form.alCom}
+            onChange={(v) => set("alCom", v)}
+          />
+        </div>
+      </div>
+    </Field>
+
+    <Field label="Sup. Com. :" labelClassName={R3}>
+      <MoneyReadOnly id="txtSupCom" value={computed.supCom} />
+    </Field>
+
+    {/* Row 3 */}
+    <Field label="Tax :" htmlFor="txtTax" labelClassName={R1}>
+      <FareMoneyInput
+        id="txtTax"
+        value={form.tax}
+        onChange={(v) => set("tax", v)}
+      />
+    </Field>
+
+    <Field label="A/L Com. Amt. :" labelClassName={R2}>
+      <div className="w-27 shrink-0">
+        <MoneyReadOnly
+          id="txtALComAmt"
+          value={computed.alComAmt}
+        />
+      </div>
+    </Field>
+
+    <Field label="A/L C. VAT :" labelClassName={R3}>
+      <MoneyReadOnly id="txtALCVat" value={computed.alCVat} />
+    </Field>
+
+    {/* Row 4 */}
+    <Field label="K7 :" htmlFor="txtK7" labelClassName={R1}>
+      <FareMoneyInput
+        id="txtK7"
+        value={form.k7}
+        onChange={(v) => set("k7", v)}
+      />
+    </Field>
+
+    <Field label="Supplier Amt. :" labelClassName={R2}>
+      <div className="w-27 shrink-0">
+        <MoneyReadOnly
+          id="txtSupplierAmt"
+          value={computed.supplierAmt}
+        />
+      </div>
+    </Field>
+
+    <Field label="Net :" labelClassName={R3}>
+      <MoneyReadOnly
+        id="txtNet"
+        value={computed.net}
+        alwaysRed
+      />
+    </Field>
+  </div>
+);
+/* 3e. Action buttons ----------------------------------------------------- */
+
+
+/* ---------------------------------------------------------------------
+   4. MAIN PAGE : owns the state and renders the parts in one place
+   --------------------------------------------------------------------- */
+type TicketDetailsProps = {
+  onClose?: () => void;
+};
+
+const TicketDetails: React.FC<TicketDetailsProps> = ({ onClose }) => {
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [error, setError] = useState("");
+  const ticketNoRef = useRef<HTMLInputElement>(null);
+
+  const set: SetField = (key, value) => {
+    setError("");
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  useEffect(() => {
+    ticketNoRef.current?.focus();
+  }, []);
+
+  /* Calculated (read-only) amounts. Fill these from your pricing rules;
+     they stay at 0.00 because the rules are not shown in the screenshot. */
+  const computed: Computed = {
+    feeVat: 0,
+    supCom: 0,
+    alComAmt: 0,
+    alCVat: 0,
+    supplierAmt: 0,
+    net: 0,
+  };
+
+  const handleSearch = () => {
+    console.log("search ticket", `${form.ticketPrefix ?? ""}${form.ticketNo}`);
+  };
+
+  const handleSave = () => {
+    if (!form.ticketNo.trim()) {
+      setError("Enter the ticket number.");
+      ticketNoRef.current?.focus();
+      return;
+    }
+    setError("");
+    console.log(form);
+  };
+
+  const handleCancel = () => {
+    setForm(initialForm());
+    setError("");
+    ticketNoRef.current?.focus();
+  };
+
+  const handleClose = () => {
+    handleCancel();
+    onClose?.();
+  };
+
+  return (
+    <div className="flex min-h-full w-full items-center justify-center bg-white px-4 py-4">
+      <div className="min-h-fit w-full max-w-375 bg-white p-0">
+        <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
+          <header className="flex h-7.5 items-center justify-start bg-[#9fdfbc]">
+            <h1 className="m-0 ml-3.5 text-[17px] font-semibold text-[#24364d]">
+              Ticket Sales
+            </h1>
+          </header>
+
+          <section className="flex flex-col gap-3 px-3.5 pb-6 pt-3">
+            <TicketTopBar
+              form={form}
+              set={set}
+              ticketNoRef={ticketNoRef}
+              onSearch={handleSearch}
+            />
+
+            <TicketDetailsFields form={form} set={set} />
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.1fr_1fr]">
+              <TicketRoutePanel form={form} set={set} />
+              <TicketAmountsPanel form={form} set={set} computed={computed} />
+            </div>
+
+            {error && (
+              <p role="alert" className="m-0 text-[12px] text-[#c0392b]">
+                {error}
+              </p>
+            )}
+
+          
+          </section>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default TicketDetails;
