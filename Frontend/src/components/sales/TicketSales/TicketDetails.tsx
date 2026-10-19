@@ -519,56 +519,41 @@ const TicketTopBar: React.FC<
     onSearch: () => void;
   }
 > = ({ form, set, ticketNoRef, onSearch }) => (
-  <div className="grid grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-12">
-    <Field
-      label="Ticket No. :"
-      htmlFor="txtTicketNo"
-      className="lg:col-span-3"
-    >
-      <Combo
-        id="lkpTktType"
-        options={ticketPrefixOptions}
-        value={form.ticketPrefix}
-        onChange={(v) => set("ticketPrefix", v)}
-        className="w-16 shrink-0"
-      />
-      <div className="relative min-w-0 flex-1">
-        <input
-          ref={ticketNoRef}
-          id="txtTktSLNo"
-          value={form.ticketNo}
-          onChange={(event) => set("ticketNo", event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") onSearch();
-          }}
-          className={`${inputClass} pr-8`}
-        />
-        <button
-          id="btnSearchTicket"
-          type="button"
-          aria-label="Search ticket"
-          title="Search"
-          onClick={onSearch}
-          className="absolute right-1 top-1/2 flex h-5.5 w-6 -translate-y-1/2 items-center justify-center rounded-[3px] text-[#405066] hover:bg-[#eef3f7]"
-        >
-          <svg
-            viewBox="0 0 20 20"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <circle cx="8.5" cy="8.5" r="5.5" />
-            <path d="M13 13l4.5 4.5" />
-          </svg>
-        </button>
-      </div>
-    </Field>
+  <div className="grid grid-cols-1 items-center gap-x-3 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-12">
 
-    <Field label="Airline :" className="lg:col-span-3">
+    {/* Ticket No */}
+   <Field
+  label="Ticket No. :"
+  htmlFor="txtTktSLNo"
+  className="min-w-0 lg:col-span-2"
+>
+  <div className="flex min-w-0 items-center gap-2 " >
+    <Combo
+      id="lkpTktType"
+      options={ticketPrefixOptions}
+      value={form.ticketPrefix}
+      onChange={(v) => set("ticketPrefix", v)}
+      className="w-[60px] shrink-0"
+    />
+
+    <input
+      ref={ticketNoRef}
+      id="txtTktSLNo"
+      value={form.ticketNo}
+      onChange={(event) => set("ticketNo", event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onSearch();
+      }}
+      className={`${inputClass} !w-[180%] min-w-0`}
+    />
+  </div>
+</Field>
+
+    {/* Airline */}
+    <Field
+      label="Airline :"
+      className="min-w-0 lg:col-span-3 ml-10"
+    >
       <PairCombo
         idId="lkpAirlineNo"
         nameId="lkpAirlineName"
@@ -580,7 +565,26 @@ const TicketTopBar: React.FC<
       />
     </Field>
 
-    <Field label="Branch :" className="lg:col-span-3">
+    {/* PNR */}
+    <Field
+      label="PNR :"
+      htmlFor="txtPnrNo"
+      labelClassName={Lx}
+      className="min-w-0 lg:col-span-2"
+    >
+      <input
+        id="txtPnrNo"
+        value={form.pnrNo}
+        onChange={(event) => set("pnrNo", event.target.value)}
+        className={`${inputClass} w-full min-w-0`}
+      />
+    </Field>
+
+    {/* Branch */}
+    <Field
+      label="Branch :"
+      className="min-w-0 lg:col-span-3"
+    >
       <PairCombo
         idId="lkpBranchID"
         nameId="lkpBranchName"
@@ -592,16 +596,22 @@ const TicketTopBar: React.FC<
       />
     </Field>
 
-    <Field label="IATA :" className="lg:col-span-3">
-     <div className="lg:w-75 w-40 " >
-        <Combo
-        id="lkpIATACode"
-        options={yesNoOptions}
-        value={form.voidFlag}
-        onChange={(v) => set("voidFlag", v)}
+    {/* IATA */}
+    <Field
+      label="IATA :"
+      className="min-w-0 lg:col-span-2"
+    >
+      <PairCombo
+        idId="lkpIATACode"
+        nameId="lkpIATAName"
+        idOptions={iataIdOptions}
+        nameOptions={iataNameOptions}
+        value={form.iata}
+        onChange={(v) => set("iata", v)}
+        idWidth="w-[76px]"
       />
-      </div>
     </Field>
+
   </div>
 );
 
@@ -655,19 +665,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
       </div>
     </Field>
-    <Field
-      label="PNR  :"
-      htmlFor="txtPnr"
-      labelClassName={Lx}
-      className="lg:col-span-2 ml-10 w-full"
-    >
-      <input
-        id="txtPnrNo"
-        value={form.pnrNo}
-        onChange={(event) => set("pnrNo", event.target.value)}
-        className={inputClass}
-      />
-    </Field>
+    
     <Field label="D/I :" labelClassName={LD} className="lg:col-span-2">
       <Combo
         id="lkpDI"
