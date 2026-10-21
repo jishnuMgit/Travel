@@ -801,14 +801,6 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     </Field>
     
     
-    <Field label="Service :" labelClassName={LC} className="min-w-0 lg:col-span-2">
-      <Combo
-        id="lkpService"
-        options={serviceOptions}
-        value={form.service}
-        onChange={(v) => set("service", v)}
-      />
-    </Field>
     
    
     {/* <Field
@@ -824,7 +816,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         className={inputClass}
       />
     </Field> */}
-    <Field label="Void :" labelClassName={LE} className="min-w-0 lg:col-span-2">
+    <Field label="Void :" labelClassName={LE} className="min-w-0 lg:col-span-2 ml-5">
       <div className="w-full min-w-0">
         <Combo
         id="lkpVoid"
@@ -834,6 +826,15 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
       </div>
     </Field>
+    <Field label="Service :" labelClassName={LC} className="min-w-0 lg:col-span-2">
+      <Combo
+        id="lkpService"
+        options={serviceOptions}
+        value={form.service}
+        onChange={(v) => set("service", v)}
+      />
+    </Field>
+    
     <Field
       label="Sales GDS Login"
       className="min-w-0 md:col-span-2 lg:col-span-2 lg:ml-4 lg:px-2"
@@ -1249,6 +1250,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ onClose }) => {
   const [form, setForm] = useState<FormState>(initialForm);
   const [error, setError] = useState("");
   const ticketNoRef = useRef<HTMLInputElement>(null);
+console.log(onClose);
 
   const set: SetField = (key, value) => {
     setError("");
@@ -1274,26 +1276,26 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ onClose }) => {
     console.log("search ticket", `${form.ticketPrefix ?? ""}${form.ticketNo}`);
   };
 
-  const handleSave = () => {
-    if (!form.ticketNo.trim()) {
-      setError("Enter the ticket number.");
-      ticketNoRef.current?.focus();
-      return;
-    }
-    setError("");
-    console.log(form);
-  };
+  // const handleSave = () => {
+  //   if (!form.ticketNo.trim()) {
+  //     setError("Enter the ticket number.");
+  //     ticketNoRef.current?.focus();
+  //     return;
+  //   }
+  //   setError("");
+  //   console.log(form);
+  // };
 
-  const handleCancel = () => {
-    setForm(initialForm());
-    setError("");
-    ticketNoRef.current?.focus();
-  };
+  // const handleCancel = () => {
+  //   setForm(initialForm());
+  //   setError("");
+  //   ticketNoRef.current?.focus();
+  // };
 
-  const handleClose = () => {
-    handleCancel();
-    onClose?.();
-  };
+  // const handleClose = () => {
+  //   handleCancel();
+  //   onClose?.();
+  // };
 
   return (
     <div className="flex min-h-full w-full items-start justify-center bg-white px-2 py-2 sm:px-4 sm:py-4">

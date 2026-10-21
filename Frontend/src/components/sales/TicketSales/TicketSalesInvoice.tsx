@@ -465,7 +465,7 @@ const TicketLinesFields: React.FC<{
       label="Ref. 1 :"
       htmlFor="txtRef1"
       labelClassName={LA}
-      className="lg:col-span-3"
+      className="lg:col-span-3 -ml-2"
     >
       <input
         id="txtRef1"
@@ -516,15 +516,7 @@ const TicketLinesFields: React.FC<{
 
     {/* row 2 : Post No. + KB. Amt. | KB. Account | Profit Amt. */}
     <div className="flex min-w-0 items-center gap-3 md:col-span-2 lg:col-span-3">
-      <Field label="Post No. :" labelClassName={LA} className="min-w-0 flex-1">
-        <input
-          id="txtPostNo"
-          readOnly
-          tabIndex={-1}
-          value={form.postNo}
-          className={readOnlyClass}
-        />
-      </Field>
+     
       <Field
         label="KB. Amt. :"
         htmlFor="txtKbAmt"
@@ -555,7 +547,7 @@ const TicketLinesFields: React.FC<{
         />
       </div>
     </Field>
-    <Field label="Profit Amt. :" labelClassName={LC} className="lg:col-span-3">
+    <Field label="Profit Amt. :" labelClassName={LC} className="lg:col-span-2">
       <input
         id="txtProfitAmt"
         readOnly
@@ -564,13 +556,22 @@ const TicketLinesFields: React.FC<{
         className={`${readOnlyClass} text-right`}
       />
     </Field>
+     <Field label="Post No. :" labelClassName={LA} className="min-w-0 md:col-span-2 lg:col-span-2 w-[80%]">
+        <input
+          id="txtPostNo"
+          readOnly
+          tabIndex={-1}
+          value={form.postNo}
+          className={readOnlyClass}
+        />
+      </Field>
 
     {/* row 3 : INV. Note | Note */}
     <Field
       label="INV. Note :"
       htmlFor="txtInvNote"
       labelClassName={LA}
-      className="lg:col-span-3 -ml-3"
+      className="lg:col-span-4 -ml-3"
     >
       <input
         id="txtInvNote"
@@ -583,7 +584,7 @@ const TicketLinesFields: React.FC<{
       label="Note :"
       htmlFor="txtNote"
       labelClassName={LB}
-      className="md:col-span-2 lg:col-span-9"
+      className="md:col-span-2 lg:col-span-6"
     >
       <input
         id="txtNote"
