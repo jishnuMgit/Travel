@@ -1,8 +1,8 @@
 
 const Header = ({ Name }: { Name: string }) => {
   return (
-    <header className="flex h-[33px] items-center bg-[#9fdfbc]">
-            <h1 className="ml-4 text-[14px] font-semibold text-[#24364d]">
+    <header className="flex h-8.25 items-center bg-[#9fdfbc]">
+            <h1 className="ml-4 text-[17x] font-semibold">
              {Name}
             </h1>
           </header>
