@@ -1,0 +1,810 @@
+import React, { useState } from "react";
+import Select from "react-select";
+import selectComponents from "../../comman/selectComponents";
+
+/* =====================================================================
+   FILE MAP
+   1. Types, constants and sample options
+   2. Shared building blocks
+   3. Parts   : TicketLinesGrid (customer grid + totals),
+                TicketLinesFields (Ref. 1-4, Post No., KB., notes),
+                TicketLinesActions (button bar)
+   4. TicketLinesPage : owns the state and renders the parts in one place
+
+   Type and MF are removed (columns and totals boxes), as requested.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. TYPES, CONSTANTS AND SAMPLE OPTIONS
+   --------------------------------------------------------------------- */
+type Option = { value: string; label: string };
+
+/* Sample customers. Replace with data from your API. */
+const customerIdOptions: Option[] = [
+  { value: "C001", label: "C001" },
+  { value: "C002", label: "C002" },
+  { value: "C003", label: "C003" },
+];
+const customerNames: Record<string, string> = {
+  C001: "CUSTOMER ONE",
+  C002: "CUSTOMER TWO",
+  C003: "CUSTOMER THREE",
+};
+const kbAccountOptions: Option[] = [
+  { value: "KB1", label: "KB ACCOUNT 1" },
+  { value: "KB2", label: "KB ACCOUNT 2" },
+];
+
+type MoneyField = "fare" | "tax" | "cdAmt" | "sChg" | "sChgV" | "invAmt";
+
+type LineRow = {
+  key: number;
+  customerId: string | null;
+  division: string;
+  fare: string;
+  tax: string;
+  cdAmt: string;
+  sChg: string;
+  sChgV: string;
+  invAmt: string;
+  invNo: string; // read-only
+};
+
+type DetailForm = {
+  ref1: string;
+  ref2: string;
+  ref3: string;
+  ref4: string;
+  postNo: string; // read-only
+  kbAmt: string;
+  kbAccount: string | null;
+  invNote: string;
+  note: string;
+};
+
+type SetDetail = <K extends keyof DetailForm>(
+  key: K,
+  value: DetailForm[K],
+) => void;
+
+type ActionName =
+  | "copy"
+  | "fix"
+  | "save"
+  | "find"
+  | "delete"
+  | "cnj"
+  | "print"
+  | "attach"
+  | "cancel"
+  | "close"
+  | "cc"
+  | "inv"
+  | "ci";
+
+const MIN_ROWS = 10;
+
+let keyCounter = 0;
+const nextKey = () => ++keyCounter;
+
+const emptyLine = (): LineRow => ({
+  key: nextKey(),
+  customerId: null,
+  division: "",
+  fare: "",
+  tax: "",
+  cdAmt: "",
+  sChg: "",
+  sChgV: "",
+  invAmt: "",
+  invNo: "",
+});
+
+const moneyFields: MoneyField[] = [
+  "fare",
+  "tax",
+  "cdAmt",
+  "sChg",
+  "sChgV",
+  "invAmt",
+];
+
+const isEmptyLine = (row: LineRow) =>
+  !row.customerId &&
+  !row.division &&
+  moneyFields.every((field) => row[field] === "");
+
+/** keeps one empty row at the end and at least MIN_ROWS rows in total */
+const padLines = (rows: LineRow[]): LineRow[] => {
+  const result = [...rows];
+  if (result.length === 0 || !isEmptyLine(result[result.length - 1])) {
+    result.push(emptyLine());
+  }
+  while (result.length < MIN_ROWS) result.push(emptyLine());
+  return result;
+};
+
+const initialDetail = (): DetailForm => ({
+  ref1: "",
+  ref2: "",
+  ref3: "",
+  ref4: "",
+  postNo: "",
+  kbAmt: "0",
+  kbAccount: null,
+  invNote: "",
+  note: "",
+});
+
+const toNumber = (value: string) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatMoney = (value: number) =>
+  value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+/** VAT Amt. of a line. Fill this from your VAT rules; it is 0 until then. */
+const computeVatAmt = (_row: LineRow) => 0;
+
+/* ---------------------------------------------------------------------
+   2. SHARED BUILDING BLOCKS
+   --------------------------------------------------------------------- */
+const inputClass =
+  " w-full min-w-0 input-style";
+
+const readOnlyClass =
+  "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
+
+const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3";
+
+/* form-field select (30px) */
+const fieldSelectProps = {
+  isSearchable: true,
+  isClearable: false,
+  placeholder: "",
+  menuPosition: "fixed" as const,
+  menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
+  classNames: {
+    control: ({ isFocused }: { isFocused: boolean }) => `
+      !min-h-[30px] !h-[30px] !rounded-[4px] !border !shadow-none !text-[12px]
+      hover:!border-[#aab8c5] !bg-white
+      ${isFocused ? "!border-[#91a7b9]" : "!border-[#cfd7df]"}
+    `,
+    valueContainer: () => "!h-[26px] !py-0 !px-[5px] !overflow-hidden",
+    singleValue: () => "!m-0 !text-[12px] !text-[#24364d]",
+    placeholder: () => "!m-0 !text-[12px] !text-[#7a8794]",
+    input: () => "!m-0 !p-0 !text-[12px] !text-[#24364d]",
+    indicatorsContainer: () => "!h-[26px]",
+    dropdownIndicator: () => "!p-[2px] !text-[#657486]",
+    indicatorSeparator: () => "!hidden",
+    menu: () =>
+      "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md",
+    menuList: () => "!p-0 !max-h-[180px]",
+    option: ({
+      isFocused,
+      isSelected,
+    }: {
+      isFocused: boolean;
+      isSelected: boolean;
+    }) => `
+      !cursor-pointer !px-[6px] !py-[4px] !text-[12px] !text-[#24364d]
+      ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
+    `,
+  },
+};
+
+/* grid-cell select (borderless, fills the cell) */
+const cellSelectProps = {
+  ...fieldSelectProps,
+  classNames: {
+    ...fieldSelectProps.classNames,
+    control: ({ isFocused }: { isFocused: boolean }) => `
+      !min-h-[26px] !h-[26px] !rounded-none !border-0 !shadow-none !text-[12px]
+      !bg-transparent
+      ${isFocused ? "!bg-white !ring-1 !ring-inset !ring-[#B7ECD0]" : ""}
+    `,
+    valueContainer: () => "!h-[26px] !py-0 !px-[8px] !overflow-hidden",
+    indicatorsContainer: () => "!h-[26px]",
+  },
+};
+
+/** label + control on one line */
+const Field: React.FC<{
+  label: string;
+  htmlFor?: string;
+  className?: string;
+  labelClassName?: string;
+  children: React.ReactNode;
+}> = ({ label, htmlFor, className = "", labelClassName = "", children }) => (
+  <div className={`flex min-w-0 items-center gap-2 ${className}`}>
+    <label
+      htmlFor={htmlFor}
+      className={`shrink-0 whitespace-nowrap text-right text-[12px] text-[#405066] ${labelClassName}`}
+    >
+      {label}
+    </label>
+    <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
+  </div>
+);
+
+/** editable amount for a grid cell: right aligned, 2 decimals after leaving it */
+const MoneyCell: React.FC<{
+  label: string;
+  value: string;
+  onFocus: () => void;
+  onChange: (value: string) => void;
+}> = ({ label, value, onFocus, onChange }) => (
+  <input
+    aria-label={label}
+    inputMode="decimal"
+    value={value}
+    onFocus={(event) => {
+      onFocus();
+      event.target.select();
+    }}
+    onChange={(event) => {
+      if (/^\d*\.?\d{0,2}$/.test(event.target.value)) onChange(event.target.value);
+    }}
+    onBlur={() => {
+      if (value !== "") onChange(toNumber(value).toFixed(2));
+    }}
+    className="h-6.5 w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
+  />
+);
+
+/* ---------------------------------------------------------------------
+   3. PARTS
+   --------------------------------------------------------------------- */
+
+/* 3a. Customer grid with the totals row ---------------------------------
+   Columns: Customer ID, Customer Name, Division, Fare, Tax, CD. Amt.,
+   S. Chg., VAT Amt., S. Chg. V., Inv. Amt., Inv. No.                    */
+const th =
+  "h-[30px] border border-[#B7ECD0] px-2 font-normal bg-[#EEFBF4] text-[#405066]";
+const td = "h-[26px] border border-[#B7ECD0] px-2";
+
+const TicketLinesGrid: React.FC<{
+  rows: LineRow[];
+  activeKey: number | null;
+  onActivate: (key: number) => void;
+  onCustomerChange: (key: number, customerId: string | null) => void;
+  onDivisionChange: (key: number, value: string) => void;
+  onMoneyChange: (key: number, field: MoneyField, value: string) => void;
+}> = ({
+  rows,
+  activeKey,
+  onActivate,
+  onCustomerChange,
+  onDivisionChange,
+  onMoneyChange,
+}) => {
+  const sum = (field: MoneyField) =>
+    rows.reduce((total, row) => total + toNumber(row[field]), 0);
+  const vatTotal = rows.reduce((total, row) => total + computeVatAmt(row), 0);
+
+  const totalBox = (id: string, value: number) => (
+    <td className="border border-[#B7ECD0] bg-[#eef1f4] p-0.75">
+      <input
+        id={id}
+        readOnly
+        tabIndex={-1}
+        aria-label={id}
+        value={formatMoney(value)}
+        className="h-6.5 w-full rounded-[3px] border border-[#cfd7df] bg-white px-2 text-right text-[12px] text-[#24364d] outline-none"
+      />
+    </td>
+  );
+
+  return (
+    <div className="h-36.5 overflow-auto border border-[#B7ECD0] bg-white">
+      <table className="w-full min-w-240 table-fixed border-collapse text-[12px] text-[#24364d]">
+        <colgroup>
+          <col className="w-5.5" />
+          <col className="w-25" />
+          <col className="min-w-60" />
+          <col className="w-21" />
+          <col className="w-22.5" />
+          <col className="w-21" />
+          <col className="w-21" />
+          <col className="w-21" />
+          <col className="w-21" />
+          <col className="w-21" />
+          <col className="w-21" />
+          <col className="w-35" />
+        </colgroup>
+
+        <thead className="sticky top-0 z-10">
+          <tr>
+            <th className={th} />
+            <th className={`${th} text-left`}>Customer ID</th>
+            <th className={`${th} text-left`}>Customer Name</th>
+            <th className={`${th} text-left`}>Division</th>
+            <th className={`${th} text-right`}>Fare</th>
+            <th className={`${th} text-right`}>Tax</th>
+            <th className={`${th} text-right`}>CD. Amt.</th>
+            <th className={`${th} text-right`}>S. Chg.</th>
+            <th className={`${th} text-right`}>VAT Amt.</th>
+            <th className={`${th} text-right`}>S. Chg. V.</th>
+            <th className={`${th} text-right`}>Inv. Amt.</th>
+            <th className={`${th} text-left`}>Inv. No.</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {rows.map((row) => {
+            const active = row.key === activeKey;
+            const customerValue = row.customerId
+              ? { value: row.customerId, label: row.customerId }
+              : null;
+            return (
+              <tr
+                key={row.key}
+                onClick={() => onActivate(row.key)}
+                className={active ? "bg-white" : "bg-white"}
+              >
+                <td className="h-6.5 border border-[#B7ECD0] bg-[#fafbfc] text-center text-[8px] text-[#405066]">
+                  {active ? "▶" : ""}
+                </td>
+
+                {/* Customer ID */}
+                <td
+                  className={`border border-[#B7ECD0] p-0 ${active ? "bg-white" : ""}`}
+                >
+                  <Select
+                    inputId={`lkpLineCustomer-${row.key}`}
+                    instanceId={`lkpLineCustomer-${row.key}`}
+                    aria-label="Customer ID"
+                    options={customerIdOptions}
+                    value={customerValue}
+                    components={selectComponents}
+                    onFocus={() => onActivate(row.key)}
+                    onChange={(option) =>
+                      onCustomerChange(row.key, option?.value ?? null)
+                    }
+                    {...cellSelectProps}
+                  />
+                </td>
+
+                {/* Customer Name (follows the ID) */}
+                <td className={td}>
+                  {row.customerId ? customerNames[row.customerId] ?? "" : ""}
+                </td>
+
+                {/* Division */}
+                <td className="border border-[#B7ECD0] p-0">
+                  <input
+                    aria-label="Division"
+                    value={row.division}
+                    onFocus={() => onActivate(row.key)}
+                    onChange={(event) =>
+                      onDivisionChange(row.key, event.target.value)
+                    }
+                    className="h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
+                  />
+                </td>
+
+                {/* Fare, Tax, CD. Amt., S. Chg. */}
+                {(["fare", "tax", "cdAmt", "sChg"] as MoneyField[]).map(
+                  (field) => (
+                    <td key={field} className="border border-[#B7ECD0] p-0">
+                      <MoneyCell
+                        label={field}
+                        value={row[field]}
+                        onFocus={() => onActivate(row.key)}
+                        onChange={(value) => onMoneyChange(row.key, field, value)}
+                      />
+                    </td>
+                  ),
+                )}
+
+                {/* VAT Amt. (read-only) */}
+                <td className={`${td} bg-[#eef1f4] text-right`}>
+                  {isEmptyLine(row) ? "" : formatMoney(computeVatAmt(row))}
+                </td>
+
+                {/* S. Chg. V., Inv. Amt. */}
+                {(["sChgV", "invAmt"] as MoneyField[]).map((field) => (
+                  <td key={field} className="border border-[#B7ECD0] p-0">
+                    <MoneyCell
+                      label={field}
+                      value={row[field]}
+                      onFocus={() => onActivate(row.key)}
+                      onChange={(value) => onMoneyChange(row.key, field, value)}
+                    />
+                  </td>
+                ))}
+
+                {/* Inv. No. (read-only) */}
+                <td className={`${td} bg-[#eef1f4]`}>{row.invNo}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+
+        {/* totals row, stays visible while the grid scrolls */}
+        <tfoot className="sticky bottom-0 z-0">
+          <tr>
+            <td colSpan={4} className="border border-[#B7ECD0] bg-[#eef1f4]" />
+            {totalBox("txtTotalFare", sum("fare"))}
+            {totalBox("txtTotalTax", sum("tax"))}
+            {totalBox("txtTotalCdAmt", sum("cdAmt"))}
+            {totalBox("txtTotalSChg", sum("sChg"))}
+            {totalBox("txtTotalVatAmt", vatTotal)}
+            {totalBox("txtTotalSChgV", sum("sChgV"))}
+            {totalBox("txtTotalInvAmt", sum("invAmt"))}
+            <td className="border border-[#B7ECD0] bg-[#eef1f4]" />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+};
+
+/* 3b. Reference fields, Post No., KB. and notes -------------------------
+   12-column grid, four column groups of 3 columns each. Every row uses the
+   same label width per group, so the boxes line up.                      */
+const LA = "w-[64px]"; // Ref. 1, Post No., INV. Note
+const LB = "w-[84px] -ml-5"; // Ref. 2, KB. Account, Note
+const LC = "w-[76px]"; // Ref. 3, Profit Amt.
+const LD = "w-[52px]"; // Ref. 4
+
+const TicketLinesFields: React.FC<{
+  form: DetailForm;
+  set: SetDetail;
+  profitAmt: number;
+}> = ({ form, set, profitAmt }) => (
+  <div
+    className={`${panelClass} grid grid-cols-1 items-center gap-x-4 gap-y-2.5 md:grid-cols-2 lg:grid-cols-12`}
+  >
+    {/* row 1 : Ref. 1 | Ref. 2 | Ref. 3 | Ref. 4 */}
+    <Field
+      label="Ref. 1 :"
+      htmlFor="txtRef1"
+      labelClassName={LA}
+      className="lg:col-span-3"
+    >
+      <input
+        id="txtRef1"
+        value={form.ref1}
+        onChange={(event) => set("ref1", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    <Field
+      label="Ref. 2 :"
+      htmlFor="txtRef2"
+      labelClassName={LB}
+      className="lg:col-span-3"
+    >
+      <input
+        id="txtRef2"
+        value={form.ref2}
+        onChange={(event) => set("ref2", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    <Field
+      label="Ref. 3 :"
+      htmlFor="txtRef3"
+      labelClassName={LC}
+      className="lg:col-span-3"
+    >
+      <input
+        id="txtRef3"
+        value={form.ref3}
+        onChange={(event) => set("ref3", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    <Field
+      label="Ref. 4 :"
+      htmlFor="txtRef4"
+      labelClassName={LD}
+      className="lg:col-span-3"
+    >
+      <input
+        id="txtRef4"
+        value={form.ref4}
+        onChange={(event) => set("ref4", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+
+    {/* row 2 : Post No. + KB. Amt. | KB. Account | Profit Amt. */}
+    <div className="flex min-w-0 items-center gap-3 md:col-span-2 lg:col-span-3">
+      <Field label="Post No. :" labelClassName={LA} className="min-w-0 flex-1">
+        <input
+          id="txtPostNo"
+          readOnly
+          tabIndex={-1}
+          value={form.postNo}
+          className={readOnlyClass}
+        />
+      </Field>
+      <Field
+        label="KB. Amt. :"
+        htmlFor="txtKbAmt"
+        className="min-w-0 flex-1"
+      >
+        <input
+          id="txtKbAmt"
+          inputMode="numeric"
+          value={form.kbAmt}
+          onFocus={(event) => event.target.select()}
+          onChange={(event) => {
+            if (/^\d*\.?\d{0,2}$/.test(event.target.value))
+              set("kbAmt", event.target.value);
+          }}
+          className={`${inputClass} text-right`}
+        />
+      </Field>
+    </div>
+    <Field label="KB. Account :" labelClassName={LB} className="lg:col-span-3">
+      <div className="min-w-0 flex-1">
+        <Select
+          inputId="lkpKbAccount"
+          instanceId="lkpKbAccount"
+          options={kbAccountOptions}
+          value={kbAccountOptions.find((o) => o.value === form.kbAccount) ?? null}
+          onChange={(option) => set("kbAccount", option?.value ?? null)}
+          {...fieldSelectProps}
+        />
+      </div>
+    </Field>
+    <Field label="Profit Amt. :" labelClassName={LC} className="lg:col-span-3">
+      <input
+        id="txtProfitAmt"
+        readOnly
+        tabIndex={-1}
+        value={formatMoney(profitAmt)}
+        className={`${readOnlyClass} text-right`}
+      />
+    </Field>
+
+    {/* row 3 : INV. Note | Note */}
+    <Field
+      label="INV. Note :"
+      htmlFor="txtInvNote"
+      labelClassName={LA}
+      className="lg:col-span-3 -ml-3"
+    >
+      <input
+        id="txtInvNote"
+        value={form.invNote}
+        onChange={(event) => set("invNote", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+    <Field
+      label="Note :"
+      htmlFor="txtNote"
+      labelClassName={LB}
+      className="md:col-span-2 lg:col-span-9"
+    >
+      <input
+        id="txtNote"
+        value={form.note}
+        onChange={(event) => set("note", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
+  </div>
+);
+
+/* 3c. Button bar ---------------------------------------------------------
+   left: Copy, Fix | middle: Save ... Close | right: CC, INV, CI          */
+type ActionButtonProps = {
+  id: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+};
+
+const ActionButton: React.FC<ActionButtonProps> = ({
+  id,
+  label,
+  onClick,
+  disabled = false,
+}) => (
+  <button
+    id={id}
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className="btn-style min-w-20 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {label}
+  </button>
+);
+
+const TicketLinesActions: React.FC<{
+  onAction: (name: ActionName) => void;
+  enabled: Record<"copy" | "cnj" | "cc" | "inv" | "ci", boolean>;
+}> = ({ onAction, enabled }) => (
+  <div className="flex flex-col items-stretch gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-x-6 md:gap-y-2">
+    <div className="flex flex-wrap gap-2">
+      <ActionButton
+        id="btnCopy"
+        label="Copy"
+        disabled={!enabled.copy}
+        onClick={() => onAction("copy")}
+      />
+      <ActionButton id="btnFix" label="Fix" onClick={() => onAction("fix")} />
+    </div>
+
+    <div className="flex flex-wrap gap-2">
+      <ActionButton id="btnSave" label="Save" onClick={() => onAction("save")} />
+      <ActionButton id="btnFind" label="Find" onClick={() => onAction("find")} />
+      <ActionButton
+        id="btnDelete"
+        label="Delete"
+        onClick={() => onAction("delete")}
+      />
+      <ActionButton
+        id="btnCNJ"
+        label="CNJ"
+        disabled={!enabled.cnj}
+        onClick={() => onAction("cnj")}
+      />
+      <ActionButton
+        id="btnPrint"
+        label="Print"
+        onClick={() => onAction("print")}
+      />
+      <ActionButton
+        id="btnAttach"
+        label="Attach"
+        onClick={() => onAction("attach")}
+      />
+      <ActionButton
+        id="btnCancel"
+        label="Cancel"
+        onClick={() => onAction("cancel")}
+      />
+      <ActionButton
+        id="btnClose"
+        label="Close"
+        onClick={() => onAction("close")}
+      />
+    </div>
+
+    <div className="flex flex-wrap gap-2">
+      <ActionButton
+        id="btnCC"
+        label="CC"
+        disabled={!enabled.cc}
+        onClick={() => onAction("cc")}
+      />
+      <ActionButton
+        id="btnINV"
+        label="INV"
+        disabled={!enabled.inv}
+        onClick={() => onAction("inv")}
+      />
+      <ActionButton
+        id="btnCI"
+        label="CI"
+        disabled={!enabled.ci}
+        onClick={() => onAction("ci")}
+      />
+    </div>
+  </div>
+);
+
+/* ---------------------------------------------------------------------
+   4. MAIN PAGE : owns the state and renders the parts in one place
+   --------------------------------------------------------------------- */
+type TicketLinesPageProps = {
+  /** true = render only the section (to place under the Ticket Sales form) */
+  embedded?: boolean;
+  /** called for Fix, Find, Delete, Print, Attach, Copy, CNJ, CC, INV, CI */
+  onAction?: (name: ActionName) => void;
+  onClose?: () => void;
+};
+
+const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
+  embedded = false,
+  onAction,
+  onClose,
+}) => {
+  const [rows, setRows] = useState<LineRow[]>(() => padLines([]));
+  const [activeKey, setActiveKey] = useState<number | null>(() => null);
+  const [detail, setDetail] = useState<DetailForm>(initialDetail);
+
+  const set: SetDetail = (key, value) =>
+    setDetail((prev) => ({ ...prev, [key]: value }));
+
+  /* Buttons that depend on the loaded ticket. Enable them from your own
+     rules, for example once a saved ticket is loaded. */
+  const enabled = { copy: false, cnj: false, cc: false, inv: false, ci: false };
+
+  /* Profit Amt. is calculated from your pricing rules; 0.00 until then. */
+  const profitAmt = 0;
+
+  const updateRow = (key: number, patch: Partial<LineRow>) =>
+    setRows((prev) =>
+      padLines(prev.map((row) => (row.key === key ? { ...row, ...patch } : row))),
+    );
+
+  const handleAction = (name: ActionName) => {
+    switch (name) {
+      case "save":
+        console.log({
+          lines: rows
+            .filter((row) => !isEmptyLine(row))
+            .map((row) => ({
+              customerId: row.customerId,
+              division: row.division,
+              fare: toNumber(row.fare),
+              tax: toNumber(row.tax),
+              cdAmt: toNumber(row.cdAmt),
+              sChg: toNumber(row.sChg),
+              sChgV: toNumber(row.sChgV),
+              invAmt: toNumber(row.invAmt),
+            })),
+          ...detail,
+          kbAmt: toNumber(detail.kbAmt),
+        });
+        break;
+
+      case "delete":
+        // remove the highlighted line
+        setRows((prev) =>
+          padLines(prev.filter((row) => row.key !== activeKey)),
+        );
+        setActiveKey(null);
+        break;
+
+      case "cancel":
+        setRows(padLines([]));
+        setActiveKey(null);
+        setDetail(initialDetail());
+        break;
+
+      case "close":
+        setRows(padLines([]));
+        setActiveKey(null);
+        setDetail(initialDetail());
+        onClose?.();
+        break;
+
+      default:
+        console.log(name);
+        onAction?.(name);
+    }
+  };
+
+  const body = (
+    <div className="flex flex-col gap-3">
+      <TicketLinesGrid
+        rows={rows}
+        activeKey={activeKey}
+        onActivate={setActiveKey}
+        onCustomerChange={(key, customerId) => updateRow(key, { customerId })}
+        onDivisionChange={(key, division) => updateRow(key, { division })}
+        onMoneyChange={(key, field, value) => updateRow(key, { [field]: value })}
+      />
+      <TicketLinesFields form={detail} set={set} profitAmt={profitAmt} />
+      <TicketLinesActions onAction={handleAction} enabled={enabled} />
+    </div>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <div className="flex min-h-fit w-full items-start justify-center bg-white px-4 pb-3 ">
+      <div className="min-h-fit w-full max-w-375 bg-white p-0">
+        <main className="w-full overflow-hidden border border-gray-300 rounded-sm bg-white">
+          
+          <section className="px-3.5 pb-6 pt-3">{body}</section>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default TicketLinesPage;
