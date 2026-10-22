@@ -90,7 +90,6 @@ const paxTypeOptions = toOptions(["Adult", "Child", "Infant"]);
 const serviceOptions = toOptions(["TKT", "EMD", "MCO"]);
 const tripOptions = toOptions(["One Way", "Round Trip"]);
 const fopOptions = toOptions(["CASH", "CREDIT", "CC", "EP"]);
-const ccTypeOptions = toOptions(["NA", "VISA", "MASTER"]);
 const merchantOptions = toOptions(["NA", "MERCHANT 1", "MERCHANT 2"]);
 const alComTypeOptions = toOptions(["P", "A"]); // P = percent, A = amount
 
@@ -282,7 +281,7 @@ const readOnlyClass =
 const readOnlyClass1 =
   "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
 
-const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3";
+const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3 shadow-sm";
 
 /** label + controls on one line; pass a width class so columns line up */
 const Field: React.FC<{
@@ -411,7 +410,7 @@ const FareMoneyInput: React.FC<{
       const parsed = parseFloat(value);
       onChange(Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00");
     }}
-    className={`${inputClass} text-right mr-10`}
+    className={`${inputClass} text-right`}
   />
 );
 
@@ -426,7 +425,7 @@ const MoneyReadOnly: React.FC<{
     readOnly
     tabIndex={-1}
     value={formatMoney(value)}
-    className={`${readOnlyClass} text-right ${alwaysRed ? "text-[#c0392b]" : ""}`}
+    className={`${readOnlyClass}  text-right ${alwaysRed ? "text-[#c0392b]" : ""} `}
   />
 );
 
@@ -626,10 +625,10 @@ const TicketTopBar: React.FC<
    (wide fields span several groups, e.g. Supplier = A+B).              */
 const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
   <div
-    className={`${panelClass} grid grid-cols-1 items-center gap-y-2.5 md:grid-cols-2 lg:grid-cols-12`}
+    className={`${panelClass} grid grid-cols-1 items-center md:grid-cols-2 lg:grid-cols-12`}
   >
     {/* row 1: Date | BSP Date | Flight Date | Return Date | D/I */}
-    <Field label="Date :" labelClassName={LA} className="min-w-0 lg:col-span-2">
+    <Field label="Date :" labelClassName={LA} className="min-w-0 lg:col-span-2 mb-2">
       <div className="w-35 min-w-0">
         <AppDatePicker
         id="dtpDate"
@@ -639,7 +638,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
       </div>
     </Field>
-    <Field label="BSP Date :" labelClassName={LB} className="min-w-0 lg:col-span-2">
+    <Field label="BSP Date :" labelClassName={LB} className="min-w-0 lg:col-span-2 mb-2">
       <div className="w-35 min-w-0">
         <AppDatePicker
         id="dtpBspDate"
@@ -650,7 +649,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       </div>
     </Field>
    
-    <Field label="Flight Date :" labelClassName={LC} className="min-w-0 lg:col-span-2">
+    <Field label="Flight Date :" labelClassName={LC} className="min-w-0 lg:col-span-2 mb-2">
       <div className="w-35 min-w-0">
         <AppDatePicker
         id="dtpFlightDate"
@@ -660,7 +659,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
       </div>
     </Field>
-    <Field label="Return Date :" labelClassName={LC} className="min-w-0 lg:col-span-2">
+    <Field label="Return Date :" labelClassName={LC} className="min-w-0 lg:col-span-2 mb-2">
       <div className="w-35 min-w-0">
         <AppDatePicker
        id="dtpReturnDate"
@@ -674,7 +673,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       label="PNR :"
       htmlFor="txtPnrNo"
       labelClassName={Lx}
-      className=" min-w-0 lg:col-span-2 lg:ml-[10%] w-87.5 z-1"
+      className=" min-w-0 lg:col-span-2 lg:ml-[10%] w-87.5 z-1 mb-2"
     >
       <input
         id="txtPnrNo"
@@ -684,7 +683,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
     </Field>
 
-    <Field label="D/I :" labelClassName={DI} className="min-w-0 lg:col-span-2 float-end">
+    <Field label="D/I :" labelClassName={DI} className="min-w-0 lg:col-span-2 float-end mb-2">
       <Combo
         id="lkpDI"
         options={diOptions}
@@ -699,7 +698,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     <Field
       label="Supplier :"
       labelClassName={LA}
-      className="min-w-0 md:col-span-2 lg:col-span-6"
+      className="min-w-0 md:col-span-2 lg:col-span-6 -pt-2"
     >
       <PairCombo
         idId="lkpSupplierID"
@@ -730,7 +729,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       label="Pax Name :"
       htmlFor="txtPaxName"
       labelClassName={LA}
-      className="min-w-0 md:col-span-2 lg:col-span-6"
+      className="min-w-0 md:col-span-2 lg:col-span-6 "
     >
       <input
         id="txtPaxName"
@@ -756,7 +755,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     </Field>
     <Field
       label="Booking GDS Login"
-      className="min-w-0 md:col-span-2 lg:col-span-2 lg:p-2"
+      className="min-w-0 md:col-span-2 lg:col-span-2 lg:p-2 -mr-2"
     >
       <input
         id="txtBookingGDSLogin"
@@ -768,7 +767,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     </Field>
 
     {/* row 4: Passenger type | Pax ID | Service | Original ticket | PNR | Sales GDS Login */}
-    <Field label="Pax Type :" labelClassName={LB} className="min-w-0 lg:col-span-2 lg:-ml-2">
+    <Field label="Pax Type :" labelClassName={LB} className="min-w-0 lg:col-span-2 lg:-ml-2 mb-2">
       <Combo
         id="lkpPaxType"
         options={paxTypeOptions}
@@ -780,7 +779,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       label="Pax ID :"
       htmlFor="txtPaxNameId"
       labelClassName={LB}
-      className="min-w-0 lg:col-span-2"
+      className="min-w-0 lg:col-span-2 mb-2"
     >
       <input
         id="txtPaxNameId"
@@ -790,7 +789,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
     </Field>
 
-     <Field label="Orig. Tkt.No. :" labelClassName={LD} className="min-w-0 lg:col-span-2">
+     <Field label="Orig. Tkt.No. :" labelClassName={LD} className="min-w-0 lg:col-span-2 mb-2">
       <input
         id="txtOrigTktNo"
         readOnly
@@ -816,7 +815,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         className={inputClass}
       />
     </Field> */}
-    <Field label="Void :" labelClassName={LE} className="min-w-0 lg:col-span-2 ml-5">
+    <Field label="Void :" labelClassName={LE} className="min-w-0 lg:col-span-2 ml-5 mb-2">
       <div className="w-full min-w-0">
         <Combo
         id="lkpVoid"
@@ -826,9 +825,9 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
       </div>
     </Field>
-    <Field label="Service :" labelClassName={LC} className="min-w-0 lg:col-span-2">
+    <Field label="Service Type :" labelClassName={LC} className="min-w-0 lg:col-span-2 mb-2">
       <Combo
-        id="lkpService"
+        id="lkpServiceType"
         options={serviceOptions}
         value={form.service}
         onChange={(v) => set("service", v)}
@@ -837,7 +836,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     
     <Field
       label="Sales GDS Login"
-      className="min-w-0 md:col-span-2 lg:col-span-2 lg:ml-4 lg:px-2"
+      className="min-w-0 md:col-span-2 lg:col-span-2 lg:ml-4 lg:px-2 mb-2 -mr-2"
     >
       <input
         id="txtSalesGDSLogin"
@@ -918,24 +917,24 @@ const L3 = "w-[64px] shrink-0";
 
 // Text input
 const inputClassforTicketRoutePanel =
-  " w-full input-style  lg:w-[127%]";
+  "w-full min-w-0 input-style";
 
 // Small read-only box next to GDS
 const greyBoxClass =
-  "h-[26px] w-[60px] shrink-0 rounded-[2px] border border-[#cbd2dc] bg-[#e5e7eb]";
+  "h-[30px] w-[30px] shrink-0 rounded-[2px] border border-[#cbd2dc] bg-[#e5e7eb]";
 
 /* Three fixed columns matching the WinForms screen */
 const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
   <div
-    className={`${panelClass} grid grid-cols-1 items-center gap-x-3 gap-y-1 md:grid-cols-2 lg:grid-cols-[1.1fr_0.9fr_0.8fr]`}
+    className={`${panelClass} grid grid-cols-1 items-center   md:grid-cols-2`}
   >
-    {/* Row 1: Route | Class | FOP */}
+    {/* Route and payment fields use two aligned columns. */}
 
     <Field
       label="Route :"
       htmlFor="txtRoute"
       labelClassName={L1}
-      className="min-w-0"
+      className="min-w-0 w-[120%] "
     >
       <input
         id="txtRoute"
@@ -949,7 +948,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
       label="Class :"
       htmlFor="txtClass"
       labelClassName={L2}
-      className="min-w-0"
+      className="min-w-0 ml-10 w-[80%] "
     >
       <input
         id="txtClass"
@@ -959,23 +958,11 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
       />
     </Field>
 
-    <Field label="FOP :" labelClassName={L3} className="min-w-0">
-      <Combo
-        id="lkpFOP"
-        options={fopOptions}
-        value={form.fop}
-        onChange={(v) => set("fop", v)}
-        className="w-full min-w-0"
-      />
-    </Field>
-
-    {/* Row 2: Destination | CNJ + GDS | CC Type */}
-
     <Field
       label="Destination :"
       htmlFor="txtDestination"
       labelClassName={L1}
-      className="min-w-0"
+      className="min-w-0 w-[120%]  mt-1"
     >
       <div className="flex w-full min-w-0 items-center gap-2">
         <input
@@ -984,7 +971,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
         onChange={(e) => set("destination", e.target.value)}
         className={`${inputClassforTicketRoutePanel} flex-1`}
       />
-       <Field label="CNJ. :" className="w-29 shrink-0 lg:-mr-4">
+       <Field label="CNJ. :" className="w-29 shrink-0 lg:-mr-4  ">
         <Combo
           id="lkpCNJ"
           options={yesNoOptions}
@@ -996,10 +983,10 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
       </div>
     </Field>
 
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2  mb-1">
      
 
-      <Field label="GDS :" className="min-w-0 flex-1 lg:ml-10">
+      <Field label="GDS :" className="min-w-0 flex-1 ml-20 mt-1">
         <div className="flex min-w-0 items-center gap-1">
           <Combo
             id="lkpGDS"
@@ -1021,23 +1008,11 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
       </Field>
     </div>
 
-    <Field label="CC Type :" labelClassName={L3} className="min-w-0">
-      <Combo
-        id="lkpCCType"
-        options={ccTypeOptions}
-        value={form.ccType}
-        onChange={(v) => set("ccType", v)}
-        className="w-full min-w-0 lg:w-[70%]"
-      />
-    </Field>
-
-    {/* Row 3: Carrier | Fare Basis | Merchant */}
-
     <Field
       label="Carrier :"
       htmlFor="txtCarrier"
       labelClassName={L1}
-      className="min-w-0"
+      className="min-w-0 w-[120%]"
     >
       <input
         id="txtCarrier"
@@ -1047,78 +1022,38 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
       />
     </Field>
 
-    <Field
-      label="Fare Basis :"
-      htmlFor="txtFareBasis"
-      labelClassName={L2}
-      className="min-w-0"
-    >
-      <input
-        id="txtFareBasis"
-        value={form.fareBasis}
-        onChange={(e) => set("fareBasis", e.target.value)}
-        className={inputClassforTicketRoutePanel}
-      />
-    </Field>
 
-    <Field label="Merchant :" labelClassName={L3} className="min-w-0">
+    <Field label="Merchant :" labelClassName={L3} className="min-w-0 w-[80%] ml-12">
       <Combo
         id="lkpMerchant"
         options={merchantOptions}
         value={form.merchant}
         onChange={(v) => set("merchant", v)}
-        className="w-full min-w-0 lg:w-[70%]"
+        className="w-full min-w-0"
       />
     </Field>
-
-    {/* Row 4: FOP Cash | FOP CC | FOP EP */}
-
     <Field
-      label="FOP Cash :"
-      htmlFor="txtFopCash"
-      labelClassName={L1}
-      className="min-w-0"
-    >
-      <div className="w-full min-w-0 lg:w-[70%]">
-        <MoneyInput
-        id="txtFopCash"
-        value={form.fopCash}
-        onChange={(v) => set("fopCash", v)}
-      />
-      </div>
-    </Field>
+  label="Merchant :"
+  labelClassName={L3}
+  className="invisible min-w-0 ml-12 w-[80%]"
+>
+  <Combo
+    id="lkpMerchantHidden"
+    options={merchantOptions}
+    value={form.merchant}
+    onChange={(v) => set("merchant", v)}
+    className="w-full min-w-0"
+  />
+</Field>
 
-    <Field
-      label="FOP CC :"
-      htmlFor="txtFopCc"
-      labelClassName={L2}
-      className="min-w-0"
-    >
-      <MoneyInput
-        id="txtFopCc"
-        value={form.fopCc}
-        onChange={(v) => set("fopCc", v)}
-      />
-    </Field>
-
-    <Field
-      label="FOP EP :"
-      htmlFor="txtFopEp"
-      labelClassName={L3}
-      className="min-w-0"
-    >
-      <MoneyInput
-        id="txtFopEp"
-        value={form.fopEp}
-        onChange={(v) => set("fopEp", v)}
-      />
-    </Field>
   </div>
 );
 /* 3d. Fares and commissions panel ---------------------------------- */
-const R1 = "w-[84px] shrink-0 lg:-ml-10";
-const R2 = "w-[94px] shrink-0 lg:-ml-10";
+const R1 = "w-[90px] shrink-0";
+const R2 = "w-[120px] shrink-0";
 const R3 = "w-[78px] shrink-0";
+const amountFieldClass =
+  "min-w-0 md:flex-col md:items-stretch md:gap-0.5 lg:flex-row lg:items-center lg:gap-2";
 
 const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
   form,
@@ -1126,10 +1061,25 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
   computed,
 }) => (
   <div
-    className={`${panelClass} grid grid-cols-1 items-center gap-x-2 gap-y-1.5 md:grid-cols-2 lg:grid-cols-3`}
+    className={`${panelClass} grid grid-cols-1 items-center gap-x-2 gap-y-2 sm:grid-cols-2 md:grid-cols-4`}
   >
     {/* Row 1 */}
-    <Field label="G. Fare :" htmlFor="txtGFare"  labelClassName={R1}>
+    <Field label="FOP :" labelClassName={L3} className={amountFieldClass}>
+      <Combo
+        id="lkpFOP"
+        options={fopOptions}
+        value={form.fop}
+        onChange={(v) => set("fop", v)}
+        className="w-[75%] min-w-0"
+      />
+    </Field>
+
+    <Field
+      label="G. Fare :"
+      htmlFor="txtGFare"
+      labelClassName={R1}
+      className={`${amountFieldClass} -ml-9 w-50 `}
+    >
       <FareMoneyInput
         id="txtGFare"
         
@@ -1138,8 +1088,13 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       />
     </Field>
 
-    <Field label="Sup. Fee. :" htmlFor="txtSupFee" labelClassName={R2}>
-      <div className="w-full min-w-0 lg:w-27">
+    <Field
+      label="Sup. Fee. :"
+      htmlFor="txtSupFee"
+      labelClassName={R2}
+      className={`${amountFieldClass} -ml-10 `}
+    >
+      <div className="w-full min-w-0 lg:w-30">
         <MoneyInput
           id="txtSupFee"
           value={form.supFee}
@@ -1148,12 +1103,32 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       </div>
     </Field>
 
-    <Field label="Fee VAT :" labelClassName={R3}>
+   <div className="w-50 ml-5">
+     <Field label="Fee VAT :" labelClassName={R3} className={amountFieldClass}>
       <MoneyReadOnly id="txtFeeVat" value={computed.feeVat} />
     </Field>
+   </div>
 
     {/* Row 2 */}
-    <Field label="S. Fare :" htmlFor="txtSFare" labelClassName={R1}>
+    <Field
+      label="FOP Cash :"
+      htmlFor="txtFopCash"
+      labelClassName={L1}
+      className={`${amountFieldClass} -ml-1 w-47.5`}
+    >
+      <MoneyInput
+        id="txtFopCash"
+        value={form.fopCash}
+        onChange={(v) => set("fopCash", v)}
+      />
+    </Field>
+
+    <Field
+      label="S. Fare :"
+      htmlFor="txtSFare"
+      labelClassName={R1}
+      className={`${amountFieldClass} -ml-9 w-[200px] `}
+    >
       <FareMoneyInput
         id="txtSFare"
         value={form.sFare}
@@ -1161,9 +1136,13 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       />
     </Field>
 
-    <Field label="A/L Com. :" labelClassName={R2}>
+    <Field
+      label="A/L Com. :"
+      labelClassName={R2}
+      className={`${amountFieldClass} -ml-10  `}
+    >
       <div className="flex min-w-0 items-center gap-1">
-        <div className="w-12 shrink-0">
+        <div className="w-15 shrink-0">
           <Combo
             id="lkpALComType"
             options={alComTypeOptions}
@@ -1183,12 +1162,33 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       </div>
     </Field>
 
-    <Field label="Sup. Com. :" labelClassName={R3}>
+<div className="w-[200px] ml-5">
+ <Field label="Sup. Com. :" labelClassName={R3} className={amountFieldClass}>
       <MoneyReadOnly id="txtSupCom" value={computed.supCom} />
     </Field>
+</div>
+   
 
     {/* Row 3 */}
-    <Field label="Tax :" htmlFor="txtTax" labelClassName={R1}>
+    <Field
+      label="FOP CC :"
+      htmlFor="txtFopCc"
+      labelClassName={L2}
+      className={`${amountFieldClass} -ml-2 w-[195px]`}
+    >
+      <MoneyInput
+        id="txtFopCc"
+        value={form.fopCc}
+        onChange={(v) => set("fopCc", v)}
+      />
+    </Field>
+
+    <Field
+      label="Tax :"
+      htmlFor="txtTax"
+      labelClassName={R1}
+      className={`${amountFieldClass} -ml-9 w-50 `}
+    >
       <FareMoneyInput
         id="txtTax"
         value={form.tax}
@@ -1196,21 +1196,46 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       />
     </Field>
 
-    <Field label="A/L Com. Amt. :" labelClassName={R2}>
-      <div className="w-full min-w-0 lg:w-27">
+    <Field
+      label="A/L Com. Amt. :"
+      labelClassName={R2}
+       className={`${amountFieldClass} -ml-10 `}
+    >
+      <div className="w-full min-w-0 lg:w-30">
         <MoneyReadOnly
           id="txtALComAmt"
           value={computed.alComAmt}
         />
       </div>
     </Field>
-
-    <Field label="A/L C. VAT :" labelClassName={R3}>
+    <div className="w-[200px] ml-5">
+ <Field label="A/L C. VAT :" labelClassName={R3} className={amountFieldClass}>
       <MoneyReadOnly id="txtALCVat" value={computed.alCVat} />
     </Field>
+    </div>
+
+   
 
     {/* Row 4 */}
-    <Field label="K7 :" htmlFor="txtK7" labelClassName={R1}>
+    <Field
+      label="FOP EP :"
+      htmlFor="txtFopEp"
+      labelClassName={L3}
+      className={`${amountFieldClass}  w-[187px]`}
+    >
+      <MoneyInput
+        id="txtFopEp"
+        value={form.fopEp}
+        onChange={(v) => set("fopEp", v)}
+      />
+    </Field>
+
+    <Field
+      label="K7 :"
+      htmlFor="txtK7"
+      labelClassName={R1}
+      className={`${amountFieldClass} -ml-9 w-50 `}
+    >
       <FareMoneyInput
         id="txtK7"
         value={form.k7}
@@ -1218,8 +1243,12 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       />
     </Field>
 
-    <Field label="Supplier Amt. :" labelClassName={R2}>
-      <div className="w-full min-w-0 lg:w-27">
+    <Field
+      label="Supplier Amt. :"
+      labelClassName={R2}
+       className={`${amountFieldClass} -ml-10 `}
+    >
+      <div className="w-full min-w-0 lg:w-30">
         <MoneyReadOnly
           id="txtSupplierAmt"
           value={computed.supplierAmt}
@@ -1227,13 +1256,16 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       </div>
     </Field>
 
-    <Field label="Net :" labelClassName={R3}>
+    <div className="w-[200px] ml-5">
+      <Field label="Net :" labelClassName={R3} className={amountFieldClass}>
       <MoneyReadOnly
         id="txtNet"
         value={computed.net}
         alwaysRed
       />
     </Field>
+    </div>
+    
   </div>
 );
 /* 3e. Action buttons ----------------------------------------------------- */
@@ -1300,7 +1332,7 @@ console.log(onClose);
   return (
     <div className="flex min-h-full w-full items-start justify-center bg-white px-2 py-2 sm:px-4 sm:py-4">
       <div className="min-h-fit w-full max-w-375 bg-white p-0">
-        <main className="h-fit w-full overflow-hidden border border-gray-400">
+        <main className="h-fit w-full overflow-hidden border border-gray-400 ">
           <Header Name="Ticket Sales"/>
 
           <section className="flex flex-col gap-3 px-2 pb-6 pt-3 sm:px-3.5">
@@ -1313,7 +1345,7 @@ console.log(onClose);
 
             <TicketDetailsFields form={form} set={set} />
 
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.1fr_1fr]">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_2fr]">
               <TicketRoutePanel form={form} set={set} />
               <TicketAmountsPanel form={form} set={set} computed={computed} />
             </div>
