@@ -26,7 +26,7 @@ const inputClass =
 const readOnlyClass =
   "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
 type Option = { value: string; label: string };
-const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3";
+const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3 ";
 const kbAccountOptions: Option[] = [
   { value: "KB1", label: "KB ACCOUNT 1" },
   { value: "KB2", label: "KB ACCOUNT 2" },

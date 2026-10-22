@@ -42,6 +42,7 @@ type LineRow = {
   key: number;
   customerId: string | null;
   division: string;
+   type: string;
   fare: string;
   tax: string;
   cdAmt: string;
@@ -92,6 +93,7 @@ const emptyLine = (): LineRow => ({
   key: nextKey(),
   customerId: null,
   division: "",
+  type:"",
   fare: "",
   tax: "",
   cdAmt: "",
@@ -268,12 +270,14 @@ const th =
   "h-[30px] border border-[#B7ECD0] px-2 font-normal bg-[#EEFBF4] text-[#405066]";
 const td = "h-[26px] border border-[#B7ECD0] px-2";
 
+
 const TicketLinesGrid: React.FC<{
   rows: LineRow[];
   activeKey: number | null;
   onActivate: (key: number) => void;
   onCustomerChange: (key: number, customerId: string | null) => void;
   onDivisionChange: (key: number, value: string) => void;
+  onTypeChange: (key: number, value: string) => void;
   onMoneyChange: (key: number, field: MoneyField, value: string) => void;
 }> = ({
   rows,
@@ -281,14 +285,22 @@ const TicketLinesGrid: React.FC<{
   onActivate,
   onCustomerChange,
   onDivisionChange,
+  onTypeChange,
   onMoneyChange,
 }) => {
   const sum = (field: MoneyField) =>
     rows.reduce((total, row) => total + toNumber(row[field]), 0);
-  const vatTotal = rows.reduce((total, row) => total + computeVatAmt(row), 0);
+
+  const vatTotal = rows.reduce(
+    (total, row) => total + computeVatAmt(row),
+    0,
+  );
 
   const totalBox = (id: string, value: number) => (
-    <td className="border border-[#B7ECD0] bg-[#eef1f4] p-0.75">
+    <td
+      key={id}
+      className="border border-[#B7ECD0] bg-[#eef1f4] p-0.75"
+    >
       <input
         id={id}
         readOnly
@@ -307,15 +319,16 @@ const TicketLinesGrid: React.FC<{
           <col className="w-5.5" />
           <col className="w-25" />
           <col className="min-w-60" />
-          <col className="w-21" />
-          <col className="w-22.5" />
-          <col className="w-21" />
-          <col className="w-21" />
-          <col className="w-21" />
-          <col className="w-21" />
-          <col className="w-21" />
-          <col className="w-21" />
-          <col className="w-35" />
+          <col className="w-21" /> {/* Division */}
+          <col className="w-15" /> {/* Type */}
+          <col className="w-22.5" /> {/* Fare */}
+          <col className="w-21" /> {/* Tax */}
+          <col className="w-21" /> {/* CD. Amt. */}
+          <col className="w-21" /> {/* S. Chg. */}
+          <col className="w-21" /> {/* VAT Amt. */}
+          <col className="w-21" /> {/* S. Chg. V. */}
+          <col className="w-21" /> {/* Inv. Amt. */}
+          <col className="w-25" /> {/* Inv. No. */}
         </colgroup>
 
         <thead className="sticky top-0 z-10">
@@ -324,6 +337,7 @@ const TicketLinesGrid: React.FC<{
             <th className={`${th} text-left`}>Customer ID</th>
             <th className={`${th} text-left`}>Customer Name</th>
             <th className={`${th} text-left`}>Division</th>
+            <th className={`${th} text-left`}>Type</th>
             <th className={`${th} text-right`}>Fare</th>
             <th className={`${th} text-right`}>Tax</th>
             <th className={`${th} text-right`}>CD. Amt.</th>
@@ -338,23 +352,27 @@ const TicketLinesGrid: React.FC<{
         <tbody>
           {rows.map((row) => {
             const active = row.key === activeKey;
+
             const customerValue = row.customerId
-              ? { value: row.customerId, label: row.customerId }
+              ? {
+                  value: row.customerId,
+                  label: row.customerId,
+                }
               : null;
+
             return (
               <tr
                 key={row.key}
                 onClick={() => onActivate(row.key)}
-                className={active ? "bg-white" : "bg-white"}
+                className="bg-white"
               >
+                {/* Active row indicator */}
                 <td className="h-6.5 border border-[#B7ECD0] bg-[#fafbfc] text-center text-[8px] text-[#405066]">
                   {active ? "▶" : ""}
                 </td>
 
                 {/* Customer ID */}
-                <td
-                  className={`border border-[#B7ECD0] p-0 ${active ? "bg-white" : ""}`}
-                >
+                <td className="border border-[#B7ECD0] p-0">
                   <Select
                     inputId={`lkpLineCustomer-${row.key}`}
                     instanceId={`lkpLineCustomer-${row.key}`}
@@ -370,9 +388,11 @@ const TicketLinesGrid: React.FC<{
                   />
                 </td>
 
-                {/* Customer Name (follows the ID) */}
+                {/* Customer Name */}
                 <td className={td}>
-                  {row.customerId ? customerNames[row.customerId] ?? "" : ""}
+                  {row.customerId
+                    ? customerNames[row.customerId] ?? ""
+                    : ""}
                 </td>
 
                 {/* Division */}
@@ -388,48 +408,79 @@ const TicketLinesGrid: React.FC<{
                   />
                 </td>
 
+                {/* Type */}
+                <td className="border border-[#B7ECD0] p-0">
+                  <input
+                    aria-label="Type"
+                    value={row.type ?? ""}
+                    onFocus={() => onActivate(row.key)}
+                    onChange={(event) =>
+                      onTypeChange(row.key, event.target.value)
+                    }
+                    className="h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
+                  />
+                </td>
+
                 {/* Fare, Tax, CD. Amt., S. Chg. */}
                 {(["fare", "tax", "cdAmt", "sChg"] as MoneyField[]).map(
                   (field) => (
-                    <td key={field} className="border border-[#B7ECD0] p-0">
+                    <td
+                      key={field}
+                      className="border border-[#B7ECD0] p-0"
+                    >
                       <MoneyCell
                         label={field}
                         value={row[field]}
                         onFocus={() => onActivate(row.key)}
-                        onChange={(value) => onMoneyChange(row.key, field, value)}
+                        onChange={(value) =>
+                          onMoneyChange(row.key, field, value)
+                        }
                       />
                     </td>
                   ),
                 )}
 
-                {/* VAT Amt. (read-only) */}
+                {/* VAT Amt. — read-only */}
                 <td className={`${td} bg-[#eef1f4] text-right`}>
-                  {isEmptyLine(row) ? "" : formatMoney(computeVatAmt(row))}
+                  {isEmptyLine(row)
+                    ? ""
+                    : formatMoney(computeVatAmt(row))}
                 </td>
 
-                {/* S. Chg. V., Inv. Amt. */}
+                {/* S. Chg. V. and Inv. Amt. */}
                 {(["sChgV", "invAmt"] as MoneyField[]).map((field) => (
-                  <td key={field} className="border border-[#B7ECD0] p-0">
+                  <td
+                    key={field}
+                    className="border border-[#B7ECD0] p-0"
+                  >
                     <MoneyCell
                       label={field}
                       value={row[field]}
                       onFocus={() => onActivate(row.key)}
-                      onChange={(value) => onMoneyChange(row.key, field, value)}
+                      onChange={(value) =>
+                        onMoneyChange(row.key, field, value)
+                      }
                     />
                   </td>
                 ))}
 
-                {/* Inv. No. (read-only) */}
-                <td className={`${td} bg-[#eef1f4]`}>{row.invNo}</td>
+                {/* Inv. No. — read-only */}
+                <td className={`${td} bg-[#eef1f4]`}>
+                  {row.invNo}
+                </td>
               </tr>
             );
           })}
         </tbody>
 
-        {/* totals row, stays visible while the grid scrolls */}
+        {/* Totals row — Type has no separate total box */}
         <tfoot className="sticky bottom-0 z-0">
           <tr>
-            <td colSpan={4} className="border border-[#B7ECD0] bg-[#eef1f4]" />
+            <td
+              colSpan={5}
+              className="border border-[#B7ECD0] bg-[#eef1f4]"
+            />
+
             {totalBox("txtTotalFare", sum("fare"))}
             {totalBox("txtTotalTax", sum("tax"))}
             {totalBox("txtTotalCdAmt", sum("cdAmt"))}
@@ -437,6 +488,7 @@ const TicketLinesGrid: React.FC<{
             {totalBox("txtTotalVatAmt", vatTotal)}
             {totalBox("txtTotalSChgV", sum("sChgV"))}
             {totalBox("txtTotalInvAmt", sum("invAmt"))}
+
             <td className="border border-[#B7ECD0] bg-[#eef1f4]" />
           </tr>
         </tfoot>
@@ -444,6 +496,7 @@ const TicketLinesGrid: React.FC<{
     </div>
   );
 };
+
 
 /* 3b. Reference fields, Post No., KB. and notes -------------------------
    12-column grid, four column groups of 3 columns each. Every row uses the
@@ -639,15 +692,16 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   };
 
   const body = (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3  ">
       <TicketLinesGrid
         rows={rows}
         activeKey={activeKey}
         onActivate={setActiveKey}
         onCustomerChange={(key, customerId) => updateRow(key, { customerId })}
         onDivisionChange={(key, division) => updateRow(key, { division })}
-        onMoneyChange={(key, field, value) => updateRow(key, { [field]: value })}
-      />
+        onMoneyChange={(key, field, value) => updateRow(key, { [field]: value })} onTypeChange={function (key: number, value: string): void {
+          throw new Error("Function not implemented.");
+        } }      />
       <TicketLinesFields form={detail} set={set} profitAmt={profitAmt} />
       <TicketLinesActions onAction={handleAction} enabled={enabled} />
     </div>
@@ -658,7 +712,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   return (
     <div className="flex min-h-fit w-full items-start justify-center bg-white px-4 pb-3 ">
       <div className="min-h-fit w-full max-w-375 bg-white p-0">
-        <main className="w-full overflow-hidden border border-gray-300 rounded-sm bg-white">
+        <main className="w-full overflow-hidden border border-gray-300 rounded-sm shadow-sm bg-white -mt-3">
           
           <section className="px-3.5 pb-6 pt-3">{body}</section>
         </main>
