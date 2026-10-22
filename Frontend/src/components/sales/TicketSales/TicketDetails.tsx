@@ -826,9 +826,9 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
       </div>
     </Field>
-    <Field label="Service :" labelClassName={LC} className="min-w-0 lg:col-span-2">
+    <Field label="Service Type :" labelClassName={LC} className="min-w-0 lg:col-span-2">
       <Combo
-        id="lkpService"
+        id="lkpServiceType"
         options={serviceOptions}
         value={form.service}
         onChange={(v) => set("service", v)}
@@ -1047,7 +1047,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
       />
     </Field>
 
-    <Field
+    {/* <Field
       label="Fare Basis :"
       htmlFor="txtFareBasis"
       labelClassName={L2}
@@ -1059,7 +1059,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
         onChange={(e) => set("fareBasis", e.target.value)}
         className={inputClassforTicketRoutePanel}
       />
-    </Field>
+    </Field> */}
 
     <Field label="Merchant :" labelClassName={L3} className="min-w-0">
       <Combo

@@ -82,7 +82,7 @@ type ActionName =
   | "inv"
   | "ci";
 
-const MIN_ROWS = 10;
+const MIN_ROWS = 3;
 
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
@@ -300,7 +300,7 @@ const TicketLinesGrid: React.FC<{
   );
 
   return (
-    <div className="h-36.5 overflow-auto border border-[#B7ECD0] bg-white">
+    <div className="h-37.3 overflow-auto border border-[#B7ECD0] bg-white">
       <table className="w-full min-w-240 table-fixed border-collapse text-[12px] text-[#24364d]">
         <colgroup>
           <col className="w-5.5" />
