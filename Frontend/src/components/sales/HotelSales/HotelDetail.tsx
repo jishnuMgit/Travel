@@ -672,7 +672,7 @@ const MoneyCell: React.FC<{
     onBlur={() => {
       if (value !== "") onChange(toNumber(value).toFixed(2));
     }}
-    className={`h-[26px] w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none ${cellFocusClass}`}
+    className={`h-6.5 w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none ${cellFocusClass}`}
   />
 );
 
@@ -693,7 +693,7 @@ const IntCell: React.FC<{
     onChange={(event) => {
       if (/^\d*$/.test(event.target.value)) onChange(event.target.value);
     }}
-    className={`h-[26px] w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none ${cellFocusClass}`}
+    className={`h-6.5 w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none ${cellFocusClass}`}
   />
 );
 
@@ -708,7 +708,7 @@ const TextCell: React.FC<{
     value={value}
     onFocus={onFocus}
     onChange={(event) => onChange(event.target.value)}
-    className={`h-[26px] w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none ${cellFocusClass}`}
+    className={`h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none ${cellFocusClass}`}
   />
 );
 
@@ -722,7 +722,7 @@ const DateCell: React.FC<{
 
   return (
     <div
-      className={`h-[26px] w-full min-w-0 ${cellFocusClass}`}
+      className={`h-6.5 w-full min-w-0 ${cellFocusClass}`}
       onFocus={onFocus}
     >
       <DatePicker
@@ -851,7 +851,7 @@ function ScrollGrid<R>({
 }) {
   const cols = (gutter: boolean) => (
     <colgroup>
-      <col className="w-[22px]" />
+      <col className="w-5.5" />
       {columns.map((c) => (
         <col key={c.id} className={c.width} />
       ))}
@@ -900,13 +900,13 @@ function ScrollGrid<R>({
                     onClick={() => onActivate(key)}
                     className="bg-white"
                   >
-                    <td className="h-[26px] border border-[#B7ECD0] bg-[#fafbfc] text-center text-[8px] text-[#405066]">
+                    <td className="h-6.5 border border-[#B7ECD0] bg-[#fafbfc] text-center text-[8px] text-[#405066]">
                       {active ? "▶" : ""}
                     </td>
                     {columns.map((c) => (
                       <td
                         key={c.id}
-                        className={`h-[26px] border border-[#B7ECD0] ${c.cellClass ?? "p-0"}`}
+                        className={`h-6.5 border border-[#B7ECD0] ${c.cellClass ?? "p-0"}`}
                       >
                         {c.render(row, index)}
                       </td>
@@ -928,7 +928,7 @@ function ScrollGrid<R>({
                 c.total ? (
                   <td
                     key={c.id}
-                    className="border border-[#B7ECD0] bg-[#eef1f4] p-[3px]"
+                    className="border border-[#B7ECD0] bg-[#eef1f4] p-0.75"
                   >
                     <input
                       id={`txtTotal-${c.id}`}
@@ -939,7 +939,7 @@ function ScrollGrid<R>({
                         totals[c.id] ?? 0,
                         c.total.format === "int" ? 0 : 2,
                       )}
-                      className="h-[26px] w-full rounded-[3px] border border-[#cfd7df] bg-white px-2 text-right text-[12px] text-[#24364d] outline-none"
+                      className="h-6.5 w-full rounded-[3px] border border-[#cfd7df] bg-white px-2 text-right text-[12px] text-[#24364d] outline-none"
                     />
                   </td>
                 ) : (
@@ -1034,7 +1034,7 @@ const HotelHeaderGroup: React.FC<
 
       {/* row 2 : Date | - | Void | - | D/I */}
       <Field label="Date :" labelClassName={HA} className="md:col-span-4">
-        <div className="w-[140px] max-w-full">
+        <div className="w-35 max-w-full">
           <AppDatePicker
             id="dtpDate"
             label="Date"
@@ -1078,7 +1078,7 @@ const HotelHeaderGroup: React.FC<
           id="btnCity"
           type="button"
           onClick={() => onOpenMaster("city")}
-          className="min-w-[70px] text-sm border border-gray-600 bg-[#e6e6eb] h-6 rounded-sm cursor-pointer hover:bg-[#dedee2] transition-all "
+          className="min-w-17.5 text-sm border border-gray-600 bg-[#e6e6eb] h-6 rounded-sm cursor-pointer hover:bg-[#dedee2] transition-all "
         >
           City
         </button>
@@ -1112,7 +1112,7 @@ const HotelHeaderGroup: React.FC<
           id="btnHotel"
           type="button"
           onClick={() => onOpenMaster("hotel")}
-          className=" min-w-[70px] text-sm border border-gray-600 bg-[#e6e6eb] h-6 rounded-sm cursor-pointer hover:bg-[#dedee2] transition-all "
+          className=" min-w-17.5 text-sm border border-gray-600 bg-[#e6e6eb] h-6 rounded-sm cursor-pointer hover:bg-[#dedee2] transition-all "
         >
           Hotel
         </button>
@@ -1150,7 +1150,7 @@ const HotelHeaderGroup: React.FC<
         />
       </Field>
       <Field label="Adults :" labelClassName={HC} className="md:col-span-2">
-        <div className="w-[74px]">
+        <div className="w-18.5">
           <IntInput
             id="txtAdults"
             value={form.adults}
@@ -1159,7 +1159,7 @@ const HotelHeaderGroup: React.FC<
         </div>
       </Field>
       <Field label="Childs :" labelClassName={HD} className="md:col-span-2">
-        <div className="w-[64px]">
+        <div className="w-16">
           <IntInput
             id="txtChilds"
             value={form.childs}
@@ -1168,7 +1168,7 @@ const HotelHeaderGroup: React.FC<
         </div>
       </Field>
       <Field label="Infants :" labelClassName={HE} className="md:col-span-2">
-        <div className="w-[64px]">
+        <div className="w-16">
           <IntInput
             id="txtInfants"
             value={form.infants}
@@ -1443,7 +1443,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             <ReadOnlyBox id="txtSuppInvNo" value="" />
           </Field>
           <Field label="Supp. Inv. Date :" className="min-w-0 flex-1">
-            <div className="w-[140px] max-w-full">
+            <div className="w-35 max-w-full">
               <AppDatePicker
               id="dtpSuppInvDate"
               label="Supp. Inv. Date"
@@ -1484,7 +1484,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
               set("currency", v);
               if (v) set("rate", currencyRates[v] ?? "1.0000");
             }}
-            className="w-[64px] shrink-0"
+            className="w-16 shrink-0"
           />
           <MoneyInput
             id="txtRate"
@@ -1512,7 +1512,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
           labelClassName={SA}
           className="sm:col-span-2 md:col-span-6"
         >
-          <div className="w-[120px] max-w-full">
+          <div className="w-30 max-w-full">
             <MoneyInput
               id="txtSupplierExclVat"
               value={form.supplierExclVat}
@@ -1765,7 +1765,7 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
 
   return (
     <div className="flex min-h-screen w-full min-w-0 items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-full max-w-[1500px] bg-white p-0">
+      <div className="min-h-fit w-full max-w-375 bg-white p-0">
         <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
          <Header Name={title}/>
 

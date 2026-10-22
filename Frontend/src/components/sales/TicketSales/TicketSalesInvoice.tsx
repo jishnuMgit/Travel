@@ -31,10 +31,6 @@ const customerNames: Record<string, string> = {
   C002: "CUSTOMER TWO",
   C003: "CUSTOMER THREE",
 };
-const kbAccountOptions: Option[] = [
-  { value: "KB1", label: "KB ACCOUNT 1" },
-  { value: "KB2", label: "KB ACCOUNT 2" },
-];
 
 type MoneyField = "fare" | "tax" | "cdAmt" | "sChg" | "sChgV" | "invAmt";
 
@@ -156,13 +152,6 @@ const computeVatAmt = (_row: LineRow) => 0;
 /* ---------------------------------------------------------------------
    2. SHARED BUILDING BLOCKS
    --------------------------------------------------------------------- */
-const inputClass =
-  " w-full min-w-0 input-style";
-
-const readOnlyClass =
-  "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
-
-const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3";
 
 /* form-field select (30px) */
 const fieldSelectProps = {
@@ -216,23 +205,7 @@ const cellSelectProps = {
 };
 
 /** label + control on one line */
-const Field: React.FC<{
-  label: string;
-  htmlFor?: string;
-  className?: string;
-  labelClassName?: string;
-  children: React.ReactNode;
-}> = ({ label, htmlFor, className = "", labelClassName = "", children }) => (
-  <div className={`flex min-w-0 items-center gap-2 ${className}`}>
-    <label
-      htmlFor={htmlFor}
-      className={`shrink-0 whitespace-nowrap text-right text-[12px] text-[#405066] ${labelClassName}`}
-    >
-      {label}
-    </label>
-    <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
-  </div>
-);
+
 
 /** editable amount for a grid cell: right aligned, 2 decimals after leaving it */
 const MoneyCell: React.FC<{
@@ -498,14 +471,6 @@ const TicketLinesGrid: React.FC<{
 };
 
 
-/* 3b. Reference fields, Post No., KB. and notes -------------------------
-   12-column grid, four column groups of 3 columns each. Every row uses the
-   same label width per group, so the boxes line up.                      */
-const LA = "w-[64px]"; // Ref. 1, Post No., INV. Note
-const LB = "w-[84px] -ml-5"; // Ref. 2, KB. Account, Note
-const LC = "w-[76px]"; // Ref. 3, Profit Amt.
-const LD = "w-[52px]"; // Ref. 4
-
 
 
 /* 3c. Button bar ---------------------------------------------------------
@@ -699,7 +664,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         onActivate={setActiveKey}
         onCustomerChange={(key, customerId) => updateRow(key, { customerId })}
         onDivisionChange={(key, division) => updateRow(key, { division })}
-        onMoneyChange={(key, field, value) => updateRow(key, { [field]: value })} onTypeChange={function (key: number, value: string): void {
+        onMoneyChange={(key, field, value) => updateRow(key, { [field]: value })} onTypeChange={function (): void {
           throw new Error("Function not implemented.");
         } }      />
       <TicketLinesFields form={detail} set={set} profitAmt={profitAmt} />
