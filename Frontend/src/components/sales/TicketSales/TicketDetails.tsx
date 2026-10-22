@@ -767,7 +767,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     </Field>
 
     {/* row 4: Passenger type | Pax ID | Service | Original ticket | PNR | Sales GDS Login */}
-    <Field label="Pax Type :" labelClassName={LB} className="min-w-0 lg:col-span-2 lg:-ml-2 mb-2">
+    <Field label="Pax Type :" labelClassName={LB} className="min-w-0 w-[80%] lg:col-span-2 lg:-ml-2 mb-2">
       <Combo
         id="lkpPaxType"
         options={paxTypeOptions}
@@ -779,7 +779,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       label="Pax ID :"
       htmlFor="txtPaxNameId"
       labelClassName={LB}
-      className="min-w-0 lg:col-span-2 mb-2"
+      className="min-w-0 lg:col-span-2 mb-2 -ml-10 w-full"
     >
       <input
         id="txtPaxNameId"
@@ -789,13 +789,14 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
     </Field>
 
-     <Field label="Orig. Tkt.No. :" labelClassName={LD} className="min-w-0 lg:col-span-2 mb-2">
+     <Field label="Orig. Tkt.No. :" labelClassName={LD} className="min-w-0 lg:col-span-2 mb-2 -ml-8">
       <input
         id="txtOrigTktNo"
-        readOnly
+        
         tabIndex={-1}
         value=""
         className={readOnlyClass}
+
       />
     </Field>
     
@@ -1127,7 +1128,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       label="S. Fare :"
       htmlFor="txtSFare"
       labelClassName={R1}
-      className={`${amountFieldClass} -ml-9 w-[200px] `}
+      className={`${amountFieldClass} -ml-9 w-50 `}
     >
       <FareMoneyInput
         id="txtSFare"
@@ -1162,7 +1163,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       </div>
     </Field>
 
-<div className="w-[200px] ml-5">
+<div className="w-50 ml-5">
  <Field label="Sup. Com. :" labelClassName={R3} className={amountFieldClass}>
       <MoneyReadOnly id="txtSupCom" value={computed.supCom} />
     </Field>
@@ -1174,7 +1175,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       label="FOP CC :"
       htmlFor="txtFopCc"
       labelClassName={L2}
-      className={`${amountFieldClass} -ml-2 w-[195px]`}
+      className={`${amountFieldClass} -ml-2 w-48.75`}
     >
       <MoneyInput
         id="txtFopCc"
@@ -1208,7 +1209,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
         />
       </div>
     </Field>
-    <div className="w-[200px] ml-5">
+    <div className="w-50 ml-5">
  <Field label="A/L C. VAT :" labelClassName={R3} className={amountFieldClass}>
       <MoneyReadOnly id="txtALCVat" value={computed.alCVat} />
     </Field>
@@ -1221,7 +1222,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       label="FOP EP :"
       htmlFor="txtFopEp"
       labelClassName={L3}
-      className={`${amountFieldClass}  w-[187px]`}
+      className={`${amountFieldClass}  w-46.75`}
     >
       <MoneyInput
         id="txtFopEp"
@@ -1256,7 +1257,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
       </div>
     </Field>
 
-    <div className="w-[200px] ml-5">
+    <div className="w-50 ml-5">
       <Field label="Net :" labelClassName={R3} className={amountFieldClass}>
       <MoneyReadOnly
         id="txtNet"

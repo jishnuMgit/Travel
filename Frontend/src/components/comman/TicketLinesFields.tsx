@@ -39,17 +39,7 @@ const LA = "w-[64px]"; // Ref. 1, Post No., INV. Note
 const LB = "w-[84px] -ml-5"; // Ref. 2, KB. Account, Note
 const LC = "w-[76px]"; // Ref. 3, Profit Amt.
 const LD = "w-[52px]"; // Ref. 4
-const initialDetail = (): DetailForm => ({
-  ref1: "",
-  ref2: "",
-  ref3: "",
-  ref4: "",
-  postNo: "",
-  kbAmt: "0",
-  kbAccount: null,
-  invNote: "",
-  note: "",
-});
+
 const formatMoney = (value: number) =>
   value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
