@@ -7,6 +7,8 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../comman/Header";
 import selectComponents from "../../comman/selectComponents";
+import TicketLinesFields from "../../comman/TicketLinesFields";
+import HotelActions, { type HotelActionName } from "./HotelAction";
 
 dayjs.extend(customParseFormat);
 
@@ -19,7 +21,7 @@ dayjs.extend(customParseFormat);
         RoomsGroup         : room table + totals          (Room Price/N removed)
         SupplierGroup      : services, supplier, FOP, currency, amounts
         CustomersGroup     : customer table + totals      (Type removed)
-      + HotelActions       : Save, Cancel, Close
+      + HotelActions       : Hotel Sales action bar
    4. HotelDetail : owns the state and renders everything in one place
 
    X/O No. is removed.
@@ -170,7 +172,7 @@ const initialForm = (): FormState => ({
 type RoomRow = {
   key: number;
   roomType: string | null;
-  checkIn: string; // YYYY-MM-DD (native date input)
+  checkIn: string; // YYYY-MM-DD
   nights: string;
   roomQty: string;
   totNights: string;
@@ -194,6 +196,7 @@ type CustomerRow = {
   invAmt: string;
   invNo: string; // read-only
 };
+const profitAmt = 0;
 
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
@@ -270,6 +273,33 @@ const toNumber = (value: string) => {
   const parsed = parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+type DetailForm = {
+  ref1: string;
+  ref2: string;
+  ref3: string;
+  ref4: string;
+  postNo: string; // read-only
+  kbAmt: string;
+  kbAccount: string | null;
+  invNote: string;
+  note: string;
+};
+type SetDetail = <K extends keyof DetailForm>(
+  key: K,
+  value: DetailForm[K],
+) => void;
+const initialDetail = (): DetailForm => ({
+  ref1: "",
+  ref2: "",
+  ref3: "",
+  ref4: "",
+  postNo: "",
+  kbAmt: "0",
+  kbAccount: null,
+  invNote: "",
+  note: "",
+});
 
 const formatNumber = (value: number, decimals = 2) =>
   value.toLocaleString("en-US", {
@@ -386,7 +416,7 @@ const GroupBox: React.FC<{ children: React.ReactNode; className?: string }> = ({
 );
 
 const groupGrid =
-  "grid grid-cols-1 items-center gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-12 ";
+  "grid grid-cols-1 items-center gap-x-2 gap-y-1 sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 ";
 
 /** label + controls on one line; pass a width class so columns line up */
 const Field: React.FC<{
@@ -537,88 +567,85 @@ const AppDatePicker: React.FC<{
   onChange: (value: string) => void;
   disabled?: boolean;
 }> = ({ id, label, value, onChange, disabled = false }) => (
-  <LocalizationProvider dateAdapter={AdapterDayjs}>
-    <DatePicker
-      value={value ? dayjs(value, DATE_FORMAT) : null}
-      onChange={(newValue) => {
-        onChange(newValue?.isValid() ? newValue.format(DATE_FORMAT) : "");
-      }}
-      format={DATE_FORMAT}
-      disabled={disabled}
-      slotProps={{
-        textField: { id, slotProps: { htmlInput: { "aria-label": label } } },
-        openPickerButton: { sx: { padding: "2px", margin: 0 } },
-        inputAdornment: { sx: { margin: 0, padding: 0 } },
-      }}
-      sx={{
+  <DatePicker
+    value={value ? dayjs(value, DATE_FORMAT) : null}
+    onChange={(newValue) => {
+      onChange(newValue?.isValid() ? newValue.format(DATE_FORMAT) : "");
+    }}
+    format={DATE_FORMAT}
+    disabled={disabled}
+    slotProps={{
+      textField: { id, slotProps: { htmlInput: { "aria-label": label } } },
+      openPickerButton: { sx: { padding: "2px", margin: 0 } },
+      inputAdornment: { sx: { margin: 0, padding: 0 } },
+    }}
+    sx={{
+      width: "100%",
+      minWidth: 0,
+      "& .MuiPickersTextField-root": { width: "100%" },
+      "& .MuiPickersInputBase-root": {
         width: "100%",
+        height: "28px",
+        minHeight: "28px",
+        boxSizing: "border-box",
+        borderRadius: "4px",
+        backgroundColor: "#ffffff",
+        fontSize: "12px",
+        padding: 0,
+        overflow: "hidden",
+      },
+      "& .MuiPickersInputBase-root.Mui-disabled": {
+        backgroundColor: "#eef1f4",
+      },
+      "& .MuiPickersInputBase-sectionsContainer": {
+        paddingLeft: "8px !important",
+        paddingRight: "0px !important",
+        marginBottom: "-5px !important",
+        marginLeft: "0px !important",
+        boxSizing: "border-box",
+        overflow: "hidden",
+      },
+      "& .MuiPickersInputBase-sectionContent": {
+        fontSize: "12px",
+        color: "#344054",
+      },
+      "& .MuiPickersInputBase-input": {
         minWidth: 0,
-        "& .MuiPickersTextField-root": { width: "100%" },
-        "& .MuiPickersInputBase-root": {
-          width: "100%",
-          height: "28px",
-          minHeight: "28px",
-          boxSizing: "border-box",
-          borderRadius: "4px",
-          backgroundColor: "#ffffff",
-          fontSize: "12px",
-          padding: 0,
-          overflow: "hidden",
+        width: "100%",
+        fontSize: "12px",
+        padding: 0,
+        height: "28px",
+        boxSizing: "border-box",
+      },
+      "& .MuiInputAdornment-root": { margin: 0, padding: 0 },
+      "& .MuiIconButton-root": {
+        width: "22px",
+        height: "22px",
+        padding: "2px",
+        margin: 0,
+      },
+      "& .MuiSvgIcon-root": { fontSize: "15px" },
+      "& .Mui-disabled": { WebkitTextFillColor: "#24364d" },
+      ...(!value && {
+        "&:not(:focus-within) .MuiPickersInputBase-sectionsContainer *": {
+          color: "transparent",
         },
-        "& .MuiPickersInputBase-root.Mui-disabled": {
-          backgroundColor: "#eef1f4",
-        },
-        "& .MuiPickersInputBase-sectionsContainer": {
-          paddingLeft: "8px !important",
-          paddingRight: "0px !important",
-          marginBottom: "-5px !important",
-          marginLeft: "0px !important",
-          boxSizing: "border-box",
-          overflow: "hidden",
-        },
-        "& .MuiPickersInputBase-sectionContent": {
-          fontSize: "12px",
-          color: "#344054",
-        },
-        "& .MuiPickersInputBase-input": {
-          minWidth: 0,
-          width: "100%",
-          fontSize: "12px",
-          padding: 0,
-          height: "28px",
-          boxSizing: "border-box",
-        },
-        "& .MuiInputAdornment-root": { margin: 0, padding: 0 },
-        "& .MuiIconButton-root": {
-          width: "22px",
-          height: "22px",
-          padding: "2px",
-          margin: 0,
-        },
-        "& .MuiSvgIcon-root": { fontSize: "15px" },
-        "& .Mui-disabled": { WebkitTextFillColor: "#24364d" },
-        // blank look (no "DD-MM-YYYY" hint) while empty and not focused
-        ...(!value && {
-          "&:not(:focus-within) .MuiPickersInputBase-sectionsContainer *": {
-            color: "transparent",
-          },
-        }),
-        "& .MuiPickersOutlinedInput-notchedOutline": {
-          borderColor: "#B7C7D7 !important",
-        },
-        "& .MuiPickersInputBase-root:hover .MuiPickersOutlinedInput-notchedOutline":
-          { borderColor: "#B7C7D7 !important" },
-        "& .MuiPickersInputBase-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
-          { borderColor: "#B7C7D7 !important", borderWidth: "1px" },
-        "& .MuiPickersInputBase-root.Mui-error .MuiPickersOutlinedInput-notchedOutline":
-          { borderColor: "#B7C7D7 !important" },
-        "& .MuiPickersInputBase-root.Mui-error:hover .MuiPickersOutlinedInput-notchedOutline":
-          { borderColor: "#B7C7D7 !important" },
-        "& .MuiPickersInputBase-root.Mui-error.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
-          { borderColor: "#B7C7D7 !important" },
-      }}
-    />
-  </LocalizationProvider>
+      }),
+      "& .MuiPickersOutlinedInput-notchedOutline": {
+        borderColor: "#B7C7D7 !important",
+      },
+      "& .MuiPickersInputBase-root:hover .MuiPickersOutlinedInput-notchedOutline":
+        { borderColor: "#B7C7D7 !important" },
+      "& .MuiPickersInputBase-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
+        { borderColor: "#B7C7D7 !important", borderWidth: "1px" },
+      "& .MuiPickersInputBase-root.Mui-error .MuiPickersOutlinedInput-notchedOutline":
+        { borderColor: "#B7C7D7 !important" },
+      "& .MuiPickersInputBase-root.Mui-error:hover .MuiPickersOutlinedInput-notchedOutline":
+        { borderColor: "#B7C7D7 !important" },
+      "& .MuiPickersInputBase-root.Mui-error.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
+        { borderColor: "#B7C7D7 !important" },
+    }}
+  />
 );
 
 /* ----- grid cell editors ----- */
@@ -690,16 +717,75 @@ const DateCell: React.FC<{
   value: string;
   onFocus: () => void;
   onChange: (value: string) => void;
-}> = ({ label, value, onFocus, onChange }) => (
-  <input
-    aria-label={label}
-    type="date"
-    value={value}
-    onFocus={onFocus}
-    onChange={(event) => onChange(event.target.value)}
-    className={`h-[26px] w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none [color-scheme:light] ${cellFocusClass}`}
-  />
-);
+}> = ({ label, value, onFocus, onChange }) => {
+  const parsedValue = value ? dayjs(value) : null;
+
+  return (
+    <div
+      className={`h-[26px] w-full min-w-0 ${cellFocusClass}`}
+      onFocus={onFocus}
+    >
+      <DatePicker
+        value={parsedValue?.isValid() ? parsedValue : null}
+        onChange={(newValue) => {
+          onChange(
+            newValue?.isValid() ? newValue.format("YYYY-MM-DD") : "",
+          );
+        }}
+        format={DATE_FORMAT}
+        slotProps={{
+          textField: {
+            size: "small",
+            fullWidth: true,
+            variant: "outlined",
+            slotProps: { htmlInput: { "aria-label": label } },
+          },
+          openPickerButton: { sx: { width: "20px", height: "20px", p: "1px" } },
+          inputAdornment: { sx: { m: 0, p: 0 } },
+        }}
+        sx={{
+          width: "100%",
+          minWidth: 0,
+          "& .MuiPickersTextField-root": { width: "100%" },
+          "& .MuiPickersInputBase-root": {
+            width: "100%",
+            height: "26px",
+            minHeight: "26px",
+            boxSizing: "border-box",
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            fontSize: "12px",
+            padding: 0,
+            overflow: "hidden",
+          },
+          "& .MuiPickersInputBase-sectionsContainer": {
+            minWidth: 0,
+            padding: "0 0 0 4px",
+            margin: 0,
+            overflow: "hidden",
+          },
+          "& .MuiPickersInputBase-sectionContent": {
+            fontSize: "12px",
+            color: "#24364d",
+          },
+          "& .MuiInputAdornment-root": { margin: 0, padding: 0 },
+          "& .MuiIconButton-root": {
+            width: "20px",
+            height: "20px",
+            padding: "1px",
+            margin: 0,
+          },
+          "& .MuiSvgIcon-root": { fontSize: "15px" },
+          "& .MuiPickersOutlinedInput-notchedOutline": { border: 0 },
+          "& .MuiPickersInputBase-root.Mui-focused": {
+            boxShadow: "inset 0 0 0 1px #91a7b9",
+          },
+        }}
+      />
+    </div>
+  );
+};
 
 const SelectCell: React.FC<{
   id: string;
@@ -751,7 +837,7 @@ function ScrollGrid<R>({
   activeKey,
   onActivate,
   totals,
-  rowsHeightClass = "h-[110px]",
+  rowsHeightClass = "max-h-[110px]",
   minWidthClass = "min-w-[1100px]",
 }: {
   columns: GridColumn<R>[];
@@ -877,7 +963,7 @@ function ScrollGrid<R>({
    --------------------------------------------------------------------- */
 
 /* 3a. Group 1 : header ---------------------------------------------------
-   12 columns, five column groups on every row:
+   Six columns at md and twelve at lg; lg rows use five groups:
    A = 4 | B = 2 | C = 2 | D = 2 | E = 2                                   */
 const HA = "w-[56px]"; // Branch, Date, City, Hotel, Guest
 const HB = "w-[64px]"; // Entry No.
@@ -894,7 +980,7 @@ const HotelHeaderGroup: React.FC<
   <GroupBox>
     <div className={groupGrid}>
       {/* row 1 : Branch | Entry No. | Service | Service CP | Carrier */}
-      <Field label="Branch :" labelClassName={HA} className="lg:col-span-4">
+      <Field label="Branch :" labelClassName={HA} className="md:col-span-4">
         <Combo
           id="lkpBranch"
           options={branchOptions}
@@ -906,7 +992,7 @@ const HotelHeaderGroup: React.FC<
         label="Entry No. :"
         htmlFor="txtEntryNo"
         labelClassName={HB}
-        className="lg:col-span-2"
+        className="md:col-span-2"
       >
         <input
           id="txtEntryNo"
@@ -918,36 +1004,36 @@ const HotelHeaderGroup: React.FC<
           className={inputClass}
         />
       </Field>
-      <Field label="Service :" labelClassName={HC} className="lg:col-span-2 ml-[40%]">
+      <Field label="Service :" labelClassName={HC} className="md:col-span-2">
         <Combo
           id="lkpService"
           options={serviceOptions}
           value={form.service}
           onChange={(v) => set("service", v)}
-          className="w-[72px] shrink-0"
+          className="w-full"
         />
       </Field>
-      <Field label="Service CP :" labelClassName={HD} className="lg:col-span-2 ">
+      <Field label="Service CP :" labelClassName={HD} className="md:col-span-2">
         <Combo
           id="lkpServiceCp"
           options={serviceCpOptions}
           value={form.serviceCp}
           onChange={(v) => set("serviceCp", v)}
-           className="w-[72px] shrink-0"
+          className="w-full"
         />
       </Field>
-      <Field label="Carrier :" labelClassName={HE} className="lg:col-span-2 -ml-[30%]">
+      <Field label="Carrier :" labelClassName={HE} className="md:col-span-2">
         <Combo
           id="lkpCarrier"
           options={carrierOptions}
           value={form.carrier}
           onChange={(v) => set("carrier", v)}
-            className="w-[215px] shrink-0"
+          className="w-full"
         />
       </Field>
 
       {/* row 2 : Date | - | Void | - | D/I */}
-      <Field label="Date :" labelClassName={HA} className="lg:col-span-4">
+      <Field label="Date :" labelClassName={HA} className="md:col-span-4">
         <div className="w-[140px] max-w-full">
           <AppDatePicker
             id="dtpDate"
@@ -957,29 +1043,29 @@ const HotelHeaderGroup: React.FC<
           />
         </div>
       </Field>
-      <div className="hidden lg:col-span-2 lg:block" />
-      <Field label="Void :" labelClassName={HC} className="lg:col-span-2 ml-[40%]" >
+      <div className="hidden md:col-span-2 md:block" />
+      <Field label="Void :" labelClassName={HC} className="md:col-span-2">
         <Combo
           id="lkpVoid"
           options={yesNoOptions}
           value={form.voidFlag}
           onChange={(v) => set("voidFlag", v)}
-          className="w-[72px] shrink-0"
+          className="w-full"
         />
       </Field>
-      <div className="hidden lg:col-span-2 lg:block" />
-      <Field label="D/I :" labelClassName={HE} className="lg:col-span-2 -ml-[30%]">
+      <div className="hidden md:col-span-2 md:block" />
+      <Field label="D/I :" labelClassName={HE} className="md:col-span-2">
         <Combo
           id="lkpDI"
           options={diOptions}
           value={form.di}
           onChange={(v) => set("di", v)}
-          className="w-[130px] shrink-0"
+          className="w-full"
         />
       </Field>
 
       {/* row 3 : City | City button | Country */}
-      <Field label="City :" labelClassName={HA} className="lg:col-span-4">
+      <Field label="City :" labelClassName={HA} className="md:col-span-3 lg:w-[110%]">
         <Combo
           id="lkpCity"
           options={cityOptions}
@@ -987,7 +1073,7 @@ const HotelHeaderGroup: React.FC<
           onChange={(v) => set("city", v)}
         />
       </Field>
-      <div className="flex justify-center lg:col-span-2 mr-40">
+      <div className="flex justify-center md:col-span-3 lg:mr-[57%]">
         <button
           id="btnCity"
           type="button"
@@ -1000,20 +1086,20 @@ const HotelHeaderGroup: React.FC<
       <Field
         label="Country :"
         labelClassName={HC}
-        className="sm:col-span-2 lg:col-span-4   ml-[19%]"
+        className="sm:col-span-2 md:col-span-4"
       >
         <Combo
           id="lkpCountry"
           options={toOptions(Array.from(new Set(Object.values(cityCountry))))}
           value={form.city ? cityCountry[form.city] ?? null : null}
           
-          className="w-[450px] shrink-0"
+          className="w-full"
         />
       </Field>
-      <div className="hidden lg:col-span-2 lg:block" />
+      <div className="hidden md:col-span-2 md:block" />
 
       {/* row 4 : Hotel | Hotel button | Staff */}
-      <Field label="Hotel :" labelClassName={HA} className="lg:col-span-4">
+      <Field label="Hotel :" labelClassName={HA} className="md:col-span-3 lg:w-[110%]">
         <Combo
           id="lkpHotel"
           options={hotelOptions}
@@ -1021,7 +1107,7 @@ const HotelHeaderGroup: React.FC<
           onChange={(v) => set("hotel", v)}
         />
       </Field>
-      <div className="flex justify-center lg:col-span-2 mr-40">
+      <div className="flex justify-center md:col-span-3 lg:mr-[58%]">
         <button
           id="btnHotel"
           type="button"
@@ -1034,7 +1120,7 @@ const HotelHeaderGroup: React.FC<
       <Field
         label="Staff :"
         labelClassName={HC}
-        className="sm:col-span-2 lg:col-span-6 ml-[12.5%]"
+        className="sm:col-span-2 md:col-span-6"
       >
         <PairCombo
           idId="lkpStaffID"
@@ -1044,18 +1130,17 @@ const HotelHeaderGroup: React.FC<
           value={form.staff}
           onChange={(v) => set("staff", v)}
           idWidth="w-[72px]"
-          NameWidth="w-[372px]"
+          NameWidth="w-[325px]"
 
         />
       </Field>
-      <div className="hidden lg:col-span-2 lg:block" />
 
       {/* row 5 : Guest | Adults | Childs | Infants */}
       <Field
         label="Guest :"
         htmlFor="txtGuest"
         labelClassName={HA}
-        className="sm:col-span-2 lg:col-span-4 -ml-60 w-full"
+        className="sm:col-span-2 md:col-span-6 w-[54.5%]"
       >
         <input
           id="txtGuest"
@@ -1064,7 +1149,7 @@ const HotelHeaderGroup: React.FC<
           className={inputClass}
         />
       </Field>
-      <Field label="Adults :" labelClassName={HC} className="lg:col-span-2 ml-[40%]">
+      <Field label="Adults :" labelClassName={HC} className="md:col-span-2">
         <div className="w-[74px]">
           <IntInput
             id="txtAdults"
@@ -1073,7 +1158,7 @@ const HotelHeaderGroup: React.FC<
           />
         </div>
       </Field>
-      <Field label="Childs :" labelClassName={HD} className="lg:col-span-2 ml-[10%]">
+      <Field label="Childs :" labelClassName={HD} className="md:col-span-2">
         <div className="w-[64px]">
           <IntInput
             id="txtChilds"
@@ -1082,7 +1167,7 @@ const HotelHeaderGroup: React.FC<
           />
         </div>
       </Field>
-      <Field label="Infants :" labelClassName={HE} className="lg:col-span-2">
+      <Field label="Infants :" labelClassName={HE} className="md:col-span-2">
         <div className="w-[64px]">
           <IntInput
             id="txtInfants"
@@ -1289,7 +1374,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
           label="Services :"
           htmlFor="txtServices"
           labelClassName={SA}
-          className="sm:col-span-2 lg:col-span-6"
+          className="sm:col-span-2 md:col-span-6"
         >
           <input
             id="txtServices"
@@ -1298,7 +1383,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             className={inputClass}
           />
         </Field>
-        <Field label="FOP :" labelClassName={SB} className="lg:col-span-3">
+        <Field label="FOP :" labelClassName={SB} className="md:col-span-3">
           <Combo
             id="lkpFOP"
             options={fopOptions}
@@ -1306,13 +1391,13 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             onChange={(v) => set("fop", v)}
           />
         </Field>
-        <Field label="CC Type :" labelClassName={SC} className="lg:col-span-3">
+        <Field label="CC Type :" labelClassName={SC} className="md:col-span-3">
           <Combo
             id="lkpCCType"
             options={ccTypeOptions}
             value={form.ccType}
             onChange={(v) => set("ccType", v)}
-            className="w-[110px] shrink-0"
+            className="w-full"
           />
         </Field>
 
@@ -1320,7 +1405,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         <Field
           label="Supplier :"
           labelClassName={SA}
-          className="sm:col-span-2 lg:col-span-6"
+          className="sm:col-span-2 md:col-span-6"
         >
           <PairCombo
             idId="lkpSupplierID"
@@ -1335,7 +1420,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         <Field
           label="Sup. Payment :"
           labelClassName={SB}
-          className="sm:col-span-2 lg:col-span-6"
+          className="sm:col-span-2 md:col-span-6"
         >
           <PairCombo
             idId="lkpSupPaymentID"
@@ -1349,7 +1434,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         </Field>
 
         {/* row 3 : Supp. Inv. No. + Date | Supplier Name */}
-        <div className="flex min-w-0 items-center gap-3 sm:col-span-2 lg:col-span-6">
+        <div className="flex min-w-0 items-center gap-3 sm:col-span-2 md:col-span-6">
           <Field
             label="Supp. Inv. No. :"
             labelClassName={SA}
@@ -1358,21 +1443,20 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             <ReadOnlyBox id="txtSuppInvNo" value="" />
           </Field>
           <Field label="Supp. Inv. Date :" className="min-w-0 flex-1">
-            <div className="w-[140px] ml-[42.5%]">
-                <AppDatePicker
+            <div className="w-[140px] max-w-full">
+              <AppDatePicker
               id="dtpSuppInvDate"
               label="Supp. Inv. Date"
               value={form.suppInvDate}
-              onChange={(v) => set("suppInvDate", v)}
-              
-            />
+                onChange={(v) => set("suppInvDate", v)}
+              />
             </div>
           </Field>
         </div>
         <Field
           label="Supplier Name :"
           labelClassName={SB}
-          className="sm:col-span-2 lg:col-span-6"
+          className="sm:col-span-2 md:col-span-6"
         >
           <ReadOnlyBox id="txtSupplierName" value={supplierName} />
         </Field>
@@ -1382,7 +1466,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
           label="Confirmation No. :"
           htmlFor="txtConfirmationNo"
           labelClassName={SA}
-          className="sm:col-span-2 lg:col-span-6"
+          className="sm:col-span-2 md:col-span-6"
         >
           <input
             id="txtConfirmationNo"
@@ -1391,7 +1475,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             className={inputClass}
           />
         </Field>
-        <Field label="Currency :" labelClassName={SB} className="lg:col-span-3">
+        <Field label="Currency :" labelClassName={SB} className="md:col-span-3">
           <Combo
             id="lkpCurrency"
             options={currencyOptions}
@@ -1400,7 +1484,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
               set("currency", v);
               if (v) set("rate", currencyRates[v] ?? "1.0000");
             }}
-            className="w-[76px] shrink-0"
+            className="w-[64px] shrink-0"
           />
           <MoneyInput
             id="txtRate"
@@ -1412,7 +1496,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         <Field
           label="Supplier Amt. (FC) :"
           labelClassName={SC}
-          className="lg:col-span-3"
+          className="md:col-span-3"
         >
           <MoneyInput
             id="txtSupplierAmtFc"
@@ -1426,7 +1510,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         <Field
           label="Supplier Excl. VAT :"
           labelClassName={SA}
-          className="sm:col-span-2 lg:col-span-6"
+          className="sm:col-span-2 md:col-span-6"
         >
           <div className="w-[120px] max-w-full">
             <MoneyInput
@@ -1436,14 +1520,14 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             />
           </div>
         </Field>
-        <Field label="Sup. VAT :" labelClassName={SB} className="lg:col-span-3">
+        <Field label="Sup. VAT :" labelClassName={SB} className="md:col-span-3">
           <MoneyInput
             id="txtSupVat"
             value={form.supVat}
             onChange={(v) => set("supVat", v)}
           />
         </Field>
-        <Field label="Supplier Amt. :" labelClassName={SC} className="lg:col-span-3">
+        <Field label="Supplier Amt. :" labelClassName={SC} className="md:col-span-3">
           <ReadOnlyBox
             id="txtSupplierAmt"
             value={formatNumber(supplierAmt)}
@@ -1568,30 +1652,6 @@ const CustomersGroup: React.FC<{
   );
 };
 
-/* 3e. Button bar --------------------------------------------------------- */
-const HotelActions: React.FC<{
-  onSave: () => void;
-  onCancel: () => void;
-  onClose: () => void;
-}> = ({ onSave, onCancel, onClose }) => (
-  <div className="flex justify-center gap-3">
-    <button id="btnSave" type="button" onClick={onSave} className="btn-style">
-      <u>S</u>ave
-    </button>
-    <button
-      id="btnCancel"
-      type="button"
-      onClick={onCancel}
-      className="btn-style"
-    >
-      <u>C</u>ancel
-    </button>
-    <button id="btnClose" type="button" onClick={onClose} className="btn-style">
-      Cl<u>o</u>se
-    </button>
-  </div>
-);
-
 /* ---------------------------------------------------------------------
    4. MAIN PAGE : owns the state and renders everything in one place
    --------------------------------------------------------------------- */
@@ -1599,13 +1659,16 @@ type HotelDetailProps = {
   title?: string;
   onOpenMaster?: (name: "city" | "hotel") => void;
   onClose?: () => void;
+  onAction?: (name: HotelActionName) => void;
 };
 
 const HotelDetail: React.FC<HotelDetailProps> = ({
   title = "Hotel Sales",
   onOpenMaster,
   onClose,
+  onAction,
 }) => {
+  const [detail, setDetail] = useState<DetailForm>(initialDetail);
   const [form, setForm] = useState<FormState>(initialForm);
   const [rooms, setRooms] = useState<RoomRow[]>(() => padRooms([]));
   const [customers, setCustomers] = useState<CustomerRow[]>(() =>
@@ -1614,6 +1677,8 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
   const [roomKey, setRoomKey] = useState<number | null>(null);
   const [customerKey, setCustomerKey] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const setDetailField: SetDetail = (key, value) =>
+    setDetail((prev) => ({ ...prev, [key]: value }));
 
   const set: SetField = (key, value) => {
     setError("");
@@ -1690,13 +1755,21 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
     reset();
     onClose?.();
   };
+  const handleHotelAction = (name: HotelActionName) => {
+    if (onAction) {
+      onAction(name);
+    } else {
+      console.log("hotel action", name);
+    }
+  };
 
   return (
-    <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
+    <div className="flex min-h-screen w-full min-w-0 items-start justify-center bg-white px-4 py-4">
       <div className="min-h-fit w-full max-w-[1500px] bg-white p-0">
         <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
          <Header Name={title}/>
 
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
           <section className="flex flex-col gap-3 px-3.5 pb-6 pt-3">
             {/* group 1 */}
             <HotelHeaderGroup
@@ -1730,13 +1803,22 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
                 {error}
               </p>
             )}
+            <TicketLinesFields
+                form={detail}
+                set={setDetailField}
+                profitAmt={profitAmt}
+              />
 
-            <HotelActions
-              onSave={handleSave}
-              onCancel={reset}
-              onClose={handleClose}
-            />
-          </section>
+              <HotelActions
+                onAction={handleHotelAction}
+                onSave={handleSave}
+                onSearch={handleFind}
+                onCancel={reset}
+                onClose={handleClose}
+              />
+            </section>
+          </LocalizationProvider>
+
         </main>
       </div>
     </div>
