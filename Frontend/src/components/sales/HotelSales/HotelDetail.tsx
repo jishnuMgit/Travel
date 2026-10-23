@@ -20,7 +20,7 @@ dayjs.extend(customParseFormat);
         HotelHeaderGroup   : branch, entry no, service, city, hotel, guest ...
         RoomsGroup         : room table + totals          (Room Price/N removed)
         SupplierGroup      : services, supplier, FOP, currency, amounts
-        CustomersGroup     : customer table + totals      (Type removed)
+        CustomersGroup   : customer table + totals
       + HotelActions       : Hotel Sales action bar
    4. HotelDetail : owns the state and renders everything in one place
 
@@ -178,7 +178,7 @@ type RoomRow = {
   totNights: string;
   guestQty: string;
   meal: string | null;
-  mealPrice: string;
+  addons: string;
 };
 
 /* ----- customer table rows ----- */
@@ -188,6 +188,7 @@ type CustomerRow = {
   key: number;
   customerId: string | null;
   division: string;
+  type: string;
   suppAmt: string;
   cdAmt: string;
   sChg: string;
@@ -210,13 +211,14 @@ const emptyRoom = (): RoomRow => ({
   totNights: "",
   guestQty: "",
   meal: null,
-  mealPrice: "",
+  addons: "",
 });
 
 const emptyCustomer = (): CustomerRow => ({
   key: nextKey(),
   customerId: null,
   division: "",
+  type: "",
   suppAmt: "",
   cdAmt: "",
   sChg: "",
@@ -234,7 +236,7 @@ const isEmptyRoom = (r: RoomRow) =>
   !r.totNights &&
   !r.guestQty &&
   !r.meal &&
-  !r.mealPrice;
+  !r.addons;
 
 const customerMoneyFields: MoneyField[] = [
   "suppAmt",
@@ -248,6 +250,7 @@ const customerMoneyFields: MoneyField[] = [
 const isEmptyCustomer = (r: CustomerRow) =>
   !r.customerId &&
   !r.division &&
+  !r.type &&
   customerMoneyFields.every((field) => r[field] === "");
 
 /** keeps one empty row at the end and at least `min` rows in total */
@@ -410,7 +413,7 @@ const GroupBox: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
   className = "",
 }) => (
-  <div className={`border border-[#d5ebdd] bg-[#fcfdfe] p-2 ${className}`}>
+  <div className={`border border-gray-300  shadow-sm p-2 ${className}`}>
     {children}
   </div>
 );
@@ -1193,14 +1196,14 @@ const RoomsGroup: React.FC<{
   const columns: GridColumn<RoomRow>[] = [
     {
       id: "sl",
-      header: "Sl.#",
+      header: "Line",
       width: "w-[44px]",
       align: "center",
       cellClass: "px-2 text-center",
       render: (row) => (isEmptyRoom(row) ? "" : filledIndex(row)),
     },
     {
-      id: "roomType",
+      id: "txtRoomType",
       header: "Room Type",
       render: (row) => (
         <SelectCell
@@ -1214,7 +1217,7 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "checkIn",
+      id: "dtpCheckIn",
       header: "Check In",
       width: "w-[130px]",
       render: (row) => (
@@ -1227,7 +1230,7 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "nights",
+      id: "txtNights",
       header: "Nights",
       width: "w-[80px]",
       align: "right",
@@ -1242,14 +1245,14 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "checkOut",
+      id: "dtpCheckOut",
       header: "Check Out",
       width: "w-[110px]",
       cellClass: "bg-[#eef1f4] px-2",
       render: (row) => computeCheckOut(row),
     },
     {
-      id: "roomQty",
+      id: "txtRoomQty",
       header: "Room Qty.",
       width: "w-[90px]",
       align: "right",
@@ -1263,7 +1266,7 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "totNights",
+      id: "txttotNights",
       header: "Tot. Nights",
       width: "w-[90px]",
       align: "right",
@@ -1278,7 +1281,7 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "guestQty",
+      id: "txtguestQty",
       header: "Guest Qty.",
       width: "w-[90px]",
       align: "right",
@@ -1292,7 +1295,7 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "meal",
+      id: "txtMeal",
       header: "Meal",
       width: "w-[80px]",
       render: (row) => (
@@ -1307,21 +1310,21 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "mealPrice",
-      header: "Meal Price",
+      id: "txtAddons",
+      header: "Add Ons",
       width: "w-[100px]",
       align: "right",
       render: (row) => (
         <MoneyCell
           label="Meal Price"
-          value={row.mealPrice}
+          value={row.addons}
           onFocus={() => onActivate(row.key)}
-          onChange={(v) => onChange(row.key, { mealPrice: v })}
+          onChange={(v) => onChange(row.key, { addons: v })}
         />
       ),
     },
     {
-      id: "total",
+      id: "txtTotal",
       header: "Total",
       width: "w-[110px]",
       align: "right",
@@ -1539,7 +1542,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
   );
 };
 
-/* 3d. Group 4 : customers table (Type column removed) -------------------- */
+/* 3d. Group 4 : customers table ------------------------------------------ */
 const CustomersGroup: React.FC<{
   rows: CustomerRow[];
   activeKey: number | null;
@@ -1600,6 +1603,19 @@ const CustomersGroup: React.FC<{
         />
       ),
     },
+    {
+      id: "type",
+      header: "Type",
+      width: "w-[84px]",
+      render: (row) => (
+        <TextCell
+          label="Type"
+          value={row.type}
+          onFocus={() => onActivate(row.key)}
+          onChange={(v) => onChange(row.key, { type: v })}
+        />
+      ),
+    },
     moneyColumn("suppAmt", "Supp. Amt."),
     moneyColumn("cdAmt", "CD. Amt."),
     moneyColumn("sChg", "S. Chg."),
@@ -1614,7 +1630,7 @@ const CustomersGroup: React.FC<{
         isEmptyCustomer(row) ? "" : formatNumber(computeVatAmt(row)),
     },
     moneyColumn("sChgV", "S. Chg. V."),
-    moneyColumn("mf", "MF"),
+    // moneyColumn("mf", "MF"),
     moneyColumn("invAmt", "Inv. Amt."),
     {
       id: "invNo",
@@ -1734,13 +1750,14 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
         totNights: toNumber(r.totNights),
         guestQty: toNumber(r.guestQty),
         meal: r.meal,
-        mealPrice: toNumber(r.mealPrice),
+        addons: toNumber(r.addons),
       })),
       customers: customers
         .filter((c) => !isEmptyCustomer(c))
         .map((c) => ({
           customerId: c.customerId,
           division: c.division,
+          type: c.type,
           suppAmt: toNumber(c.suppAmt),
           cdAmt: toNumber(c.cdAmt),
           sChg: toNumber(c.sChg),
@@ -1766,7 +1783,7 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
   return (
     <div className="flex min-h-screen w-full min-w-0 items-start justify-center bg-white px-4 py-4">
       <div className="min-h-fit w-full max-w-375 bg-white p-0">
-        <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
+        <main className="w-full overflow-hidden border border-gray-400   bg-white">
          <Header Name={title}/>
 
           <LocalizationProvider dateAdapter={AdapterDayjs}>

@@ -72,8 +72,11 @@ type ActionName =
   | "search"
   | "delete"
   | "cnj"
+  | "printSv"
   | "print"
   | "attach"
+  | "customerAttach"
+  | "supplierAttach"
   | "cancel"
   | "close"
   | "cc"
@@ -480,6 +483,7 @@ type ActionButtonProps = {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  compact?: boolean;
 };
 
 const ActionButton: React.FC<ActionButtonProps> = ({
@@ -487,13 +491,16 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   label,
   onClick,
   disabled = false,
+  compact = false,
 }) => (
   <button
     id={id}
     type="button"
     onClick={onClick}
     disabled={disabled}
-    className="btn-style min-w-20 disabled:cursor-not-allowed disabled:opacity-50"
+    className={`btn-style min-w-20 disabled:cursor-not-allowed disabled:opacity-50 ${
+      compact ? "!h-[34px] !min-w-[80px] !rounded-none !px-2 !text-[12px]" : ""
+    }`}
   >
     {label}
   </button>
@@ -502,76 +509,177 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 const TicketLinesActions: React.FC<{
   onAction: (name: ActionName) => void;
   enabled: Record<"copy" | "cnj" | "cc" | "inv" | "ci", boolean>;
-}> = ({ onAction, enabled }) => (
-  <div className="flex flex-col items-stretch gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-x-6 md:gap-y-2">
-    <div className="flex flex-wrap gap-2">
-      <ActionButton
-        id="btnCopy"
-        label="Copy"
-        disabled={!enabled.copy}
-        onClick={() => onAction("copy")}
-      />
-      <ActionButton id="btnFix" label="Fix" onClick={() => onAction("fix")} />
-    </div>
+  variant: "ticket" | "otherService";
+}> = ({ onAction, enabled, variant }) => {
+  if (variant === "otherService") {
+    return (
+      <div className="flex min-w-0 items-center justify-between gap-1 overflow-x-auto   bg-white px-1 py-1">
+        <div className="flex shrink-0 gap-1">
+          <ActionButton
+            id="btnCopy"
+            label="Copy"
+            disabled
+            compact
+            onClick={() => onAction("copy")}
+          />
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <ActionButton
+            id="btnSave"
+            label="Save"
+            compact
+            onClick={() => onAction("save")}
+          />
+          <ActionButton
+            id="btnSearch"
+            label="Search"
+            compact
+            onClick={() => onAction("search")}
+          />
+          <ActionButton
+            id="btnDelete"
+            label="Delete"
+            disabled
+            compact
+            onClick={() => onAction("delete")}
+          />
+          <ActionButton
+            id="btnPrintSV"
+            label="Print SV"
+            compact
+            onClick={() => onAction("printSv")}
+          />
+          <ActionButton
+            id="btnPrint"
+            label="Print"
+            disabled
+            compact
+            onClick={() => onAction("print")}
+          />
+          <ActionButton
+            id="btnCustomerAttach"
+            label="Cust. Attach"
+            compact
+            onClick={() => onAction("customerAttach")}
+          />
+          <ActionButton
+            id="btnSupplierAttach"
+            label="Supp. Attach"
+            disabled
+            compact
+            onClick={() => onAction("supplierAttach")}
+          />
+          <ActionButton
+            id="btnCancel"
+            label="Cancel"
+            compact
+            onClick={() => onAction("cancel")}
+          />
+          <ActionButton
+            id="btnClose"
+            label="Close"
+            compact
+            onClick={() => onAction("close")}
+          />
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <ActionButton
+            id="btnCC"
+            label="CC"
+            disabled
+            compact
+            onClick={() => onAction("cc")}
+          />
+          <ActionButton
+            id="btnINV"
+            label="INV"
+            disabled
+            compact
+            onClick={() => onAction("inv")}
+          />
+          <ActionButton
+            id="btnCI"
+            label="CI"
+            disabled
+            compact
+            onClick={() => onAction("ci")}
+          />
+        </div>
+      </div>
+    );
+  }
 
-    <div className="flex flex-wrap gap-2">
-      <ActionButton id="btnSave" label="Save" onClick={() => onAction("save")} />
-      <ActionButton id="btnSearch" label="Search" onClick={() => onAction("search")} />
-      <ActionButton
-        id="btnDelete"
-        label="Delete"
-        onClick={() => onAction("delete")}
-      />
-      <ActionButton
-        id="btnCNJ"
-        label="CNJ"
-        disabled={!enabled.cnj}
-        onClick={() => onAction("cnj")}
-      />
-      <ActionButton
-        id="btnPrint"
-        label="Print"
-        onClick={() => onAction("print")}
-      />
-      <ActionButton
-        id="btnAttach"
-        label="Attach"
-        onClick={() => onAction("attach")}
-      />
-      <ActionButton
-        id="btnCancel"
-        label="Cancel"
-        onClick={() => onAction("cancel")}
-      />
-      <ActionButton
-        id="btnClose"
-        label="Close"
-        onClick={() => onAction("close")}
-      />
-    </div>
+  return (
+    <div className="flex flex-col items-stretch gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-x-6 md:gap-y-2">
+      <div className="flex flex-wrap gap-2">
+        <ActionButton
+          id="btnCopy"
+          label="Copy"
+          disabled={!enabled.copy}
+          onClick={() => onAction("copy")}
+        />
+        <ActionButton id="btnFix" label="Fix" onClick={() => onAction("fix")} />
+      </div>
 
-    <div className="flex flex-wrap gap-2">
-      <ActionButton
-        id="btnCC"
-        label="CC"
-        disabled={!enabled.cc}
-        onClick={() => onAction("cc")}
-      />
-      <ActionButton
-        id="btnINV"
-        label="INV"
-        disabled={!enabled.inv}
-        onClick={() => onAction("inv")}
-      />
-      <ActionButton
-        id="btnCI"
-        label="CI"
-        disabled={!enabled.ci}
-        onClick={() => onAction("ci")}
-      />
+      <div className="flex flex-wrap gap-2">
+        <ActionButton id="btnSave" label="Save" onClick={() => onAction("save")} />
+        <ActionButton id="btnSearch" label="Search" onClick={() => onAction("search")} />
+        <ActionButton
+          id="btnDelete"
+          label="Delete"
+          onClick={() => onAction("delete")}
+        />
+        <ActionButton
+          id="btnCNJ"
+          label="CNJ"
+          disabled={!enabled.cnj}
+          onClick={() => onAction("cnj")}
+        />
+        <ActionButton
+          id="btnPrint"
+          label="Print"
+          onClick={() => onAction("print")}
+        />
+        <ActionButton
+          id="btnAttach"
+          label="Attach"
+          onClick={() => onAction("attach")}
+        />
+        <ActionButton
+          id="btnCancel"
+          label="Cancel"
+          onClick={() => onAction("cancel")}
+        />
+        <ActionButton
+          id="btnClose"
+          label="Close"
+          onClick={() => onAction("close")}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <ActionButton
+          id="btnCC"
+          label="CC"
+          disabled={!enabled.cc}
+          onClick={() => onAction("cc")}
+        />
+        <ActionButton
+          id="btnINV"
+          label="INV"
+          disabled={!enabled.inv}
+          onClick={() => onAction("inv")}
+        />
+        <ActionButton
+          id="btnCI"
+          label="CI"
+          disabled={!enabled.ci}
+          onClick={() => onAction("ci")}
+        />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ---------------------------------------------------------------------
    4. MAIN PAGE : owns the state and renders the parts in one place
@@ -579,6 +687,7 @@ const TicketLinesActions: React.FC<{
 type TicketLinesPageProps = {
   /** true = render only the section (to place under the Ticket Sales form) */
   embedded?: boolean;
+  actionVariant?: "ticket" | "otherService";
   /** called for Fix, search, Delete, Print, Attach, Copy, CNJ, CC, INV, CI */
   onAction?: (name: ActionName) => void;
   onClose?: () => void;
@@ -586,6 +695,7 @@ type TicketLinesPageProps = {
 
 const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   embedded = false,
+  actionVariant = "ticket",
   onAction,
   onClose,
 }) => {
@@ -668,7 +778,11 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
           throw new Error("Function not implemented.");
         } }      />
       <TicketLinesFields form={detail} set={set} profitAmt={profitAmt} />
-      <TicketLinesActions onAction={handleAction} enabled={enabled} />
+      <TicketLinesActions
+        onAction={handleAction}
+        enabled={enabled}
+        variant={actionVariant}
+      />
     </div>
   );
 

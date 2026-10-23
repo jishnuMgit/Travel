@@ -6,11 +6,14 @@ import {
   FiMenu,
   FiX,
 } from "react-icons/fi";
+import { FaCar } from "react-icons/fa";
+
 import { NavLink } from "react-router-dom";
 
 const navigation = [
   { label: "Ticket Sales", to: "/ticket-sales", icon: FiCreditCard },
   { label: "Hotel Sales", to: "/hotel-sales", icon: FiBriefcase },
+   { label: "Car Rental", to: "/CarRental", icon: FaCar },
 ];
 
 const AppSidebar: React.FC<{
