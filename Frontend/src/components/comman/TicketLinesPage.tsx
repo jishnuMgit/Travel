@@ -814,7 +814,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
       <div className="min-h-fit w-full max-w-375 bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-300 rounded-sm shadow-sm bg-white -mt-3">
           
-          <section className="px-3.5 pb-6 pt-3">{body}</section>
+          <section className="px-3.5 pb-3 pt-3">{body}</section>
         </main>
       </div>
     </div>

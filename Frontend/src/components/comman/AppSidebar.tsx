@@ -15,7 +15,7 @@ const navigation = [
   { label: "Ticket Sales", to: "/ticket-sales", icon: FiCreditCard },
   { label: "Hotel Sales", to: "/hotel-sales", icon: FiBriefcase },
    { label: "Other Service", to: "/Other-Service", icon: FaCar },
-   {label:"Airline",to:"/Airline",icon:GiCommercialAirplane}
+  //  {label:"Airline",to:"/Airline",icon:GiCommercialAirplane}
 ];
 
 const AppSidebar: React.FC<{

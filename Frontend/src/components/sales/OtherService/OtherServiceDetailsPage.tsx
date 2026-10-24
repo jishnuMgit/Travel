@@ -853,8 +853,8 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
         />
       </Field>
 
-      {/* row 2 : Date | X/O No. | D/I | Carrier */}
-      <Field label="Date :" labelClassName={LL} className="lg:col-span-4">
+      {/* row 2 : Date | D/I | Carrier */}
+      <Field label="Date :" labelClassName={LL} className="lg:col-span-6">
         <div className="w-35 shrink-0">
           <AppDatePicker
             id="dtpDate"
@@ -864,9 +864,9 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           />
         </div>
       </Field>
-      <Field label="X/O No. :" labelClassName={LE} className="lg:col-span-2">
+      {/* <Field label="X/O No. :" labelClassName={LE} className="lg:col-span-2">
         <ReadOnlyBox id="txtXoNo" value="" />
-      </Field>
+      </Field> */}
       <Field label="D/I :" labelClassName={LR1} className="lg:col-span-3">
         <Combo
           id="lkpDI"

@@ -19,7 +19,7 @@ dayjs.extend(customParseFormat);
    3. The four bordered groups
         HotelHeaderGroup   : branch, entry no, service, city, hotel, guest ...
         RoomsGroup         : room table + totals          (Room Price/N removed)
-        SupplierGroup      : services, supplier, FOP, currency, amounts
+        SupplierGroup      : supplier, FOP, currency, amounts
         CustomersGroup   : customer table + totals
       + HotelActions       : Hotel Sales action bar
    4. HotelDetail : owns the state and renders everything in one place
@@ -117,13 +117,11 @@ type FormState = {
   childs: string;
   infants: string;
   // supplier group
-  services: string;
   fop: string | null;
   ccType: string | null;
   supplier: string | null;
   supPayment: string | null;
   suppInvDate: string;
-  confirmationNo: string;
   currency: string | null;
   rate: string;
   supplierAmtFc: string;
@@ -154,13 +152,11 @@ const initialForm = (): FormState => ({
   adults: "",
   childs: "",
   infants: "",
-  services: "",
   fop: "CASH",
   ccType: "NA",
   supplier: null,
   supPayment: null,
   suppInvDate: "",
-  confirmationNo: "",
   currency: "SAR",
   rate: "1.0000",
   supplierAmtFc: "0.0000",
@@ -171,6 +167,7 @@ const initialForm = (): FormState => ({
 /* ----- room table rows ----- */
 type RoomRow = {
   key: number;
+  confirmationNo: string;
   roomType: string | null;
   checkIn: string; // YYYY-MM-DD
   nights: string;
@@ -204,6 +201,7 @@ const nextKey = () => ++keyCounter;
 
 const emptyRoom = (): RoomRow => ({
   key: nextKey(),
+  confirmationNo: "",
   roomType: null,
   checkIn: "",
   nights: "",
@@ -229,6 +227,7 @@ const emptyCustomer = (): CustomerRow => ({
 });
 
 const isEmptyRoom = (r: RoomRow) =>
+  !r.confirmationNo &&
   !r.roomType &&
   !r.checkIn &&
   !r.nights &&
@@ -1203,6 +1202,19 @@ const RoomsGroup: React.FC<{
       render: (row) => (isEmptyRoom(row) ? "" : filledIndex(row)),
     },
     {
+      id: "txtConfirmationNo",
+      header: "Confirmation No.",
+      width: "w-[130px]",
+      render: (row) => (
+        <TextCell
+          label="Confirmation No."
+          value={row.confirmationNo}
+          onFocus={() => onActivate(row.key)}
+          onChange={(v) => onChange(row.key, { confirmationNo: v })}
+        />
+      ),
+    },
+    {
       id: "txtRoomType",
       header: "Room Type",
       render: (row) => (
@@ -1324,8 +1336,8 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
-      id: "txtTotal",
-      header: "Total",
+      id: "txtSupplierAmt",
+      header: "Supplier Amt",
       width: "w-[110px]",
       align: "right",
       cellClass: "bg-[#eef1f4] px-2 text-right",
@@ -1357,7 +1369,7 @@ const RoomsGroup: React.FC<{
 
 /* 3c. Group 3 : supplier, payment and amounts ----------------------------
    left half = 6 columns, right half = 2 x 3 columns                      */
-const SA = "w-[116px]"; // Services, Supplier, Supp. Inv. No., Confirmation No., Supplier Excl. VAT
+const SA = "w-[116px]"; // Supplier, Supp. Inv. No., Supplier Excl. VAT
 const SB = "w-[110px]"; // FOP, Sup. Payment, Supplier Name, Currency, Sup. VAT
 const SC = "w-[132px]"; // CC Type, Supplier Amt. (FC), Supplier Amt.
 
@@ -1372,18 +1384,20 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
   return (
     <GroupBox>
       <div className={groupGrid}>
-        {/* row 1 : Services | FOP | CC Type */}
+        {/* row 1 : Supplier | FOP | CC Type */}
         <Field
-          label="Services :"
-          htmlFor="txtServices"
+          label="Supplier :"
           labelClassName={SA}
           className="sm:col-span-2 md:col-span-6"
         >
-          <input
-            id="txtServices"
-            value={form.services}
-            onChange={(event) => set("services", event.target.value)}
-            className={inputClass}
+          <PairCombo
+            idId="lkpSupplierID"
+            nameId="lkpSupplierName"
+            idOptions={supplierIdOptions}
+            nameOptions={supplierNameOptions}
+            value={form.supplier}
+            onChange={(v) => set("supplier", v)}
+            idWidth="w-[110px]"
           />
         </Field>
         <Field label="FOP :" labelClassName={SB} className="md:col-span-3">
@@ -1404,22 +1418,26 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
           />
         </Field>
 
-        {/* row 2 : Supplier | Sup. Payment */}
-        <Field
-          label="Supplier :"
-          labelClassName={SA}
-          className="sm:col-span-2 md:col-span-6"
-        >
-          <PairCombo
-            idId="lkpSupplierID"
-            nameId="lkpSupplierName"
-            idOptions={supplierIdOptions}
-            nameOptions={supplierNameOptions}
-            value={form.supplier}
-            onChange={(v) => set("supplier", v)}
-            idWidth="w-[110px]"
-          />
-        </Field>
+        {/* row 2 : Supp. Inv. No. + Date | Sup. Payment */}
+        <div className="flex min-w-0 items-center gap-3 sm:col-span-2 md:col-span-6">
+          <Field
+            label="Supp. Inv. No. :"
+            labelClassName={SA}
+            className="min-w-0 flex-1"
+          >
+            <ReadOnlyBox id="txtSuppInvNo" value="" />
+          </Field>
+          <Field label="Supp. Inv. Date :" className="min-w-0 flex-1">
+            <div className="w-35 max-w-full">
+              <AppDatePicker
+                id="dtpSuppInvDate"
+                label="Supp. Inv. Date"
+                value={form.suppInvDate}
+                onChange={(v) => set("suppInvDate", v)}
+              />
+            </div>
+          </Field>
+        </div>
         <Field
           label="Sup. Payment :"
           labelClassName={SB}
@@ -1436,48 +1454,15 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
           />
         </Field>
 
-        {/* row 3 : Supp. Inv. No. + Date | Supplier Name */}
-        <div className="flex min-w-0 items-center gap-3 sm:col-span-2 md:col-span-6">
-          <Field
-            label="Supp. Inv. No. :"
-            labelClassName={SA}
-            className="min-w-0 flex-1"
-          >
-            <ReadOnlyBox id="txtSuppInvNo" value="" />
-          </Field>
-          <Field label="Supp. Inv. Date :" className="min-w-0 flex-1">
-            <div className="w-35 max-w-full">
-              <AppDatePicker
-              id="dtpSuppInvDate"
-              label="Supp. Inv. Date"
-              value={form.suppInvDate}
-                onChange={(v) => set("suppInvDate", v)}
-              />
-            </div>
-          </Field>
-        </div>
+        {/* row 3 : Supplier Name | */}
         <Field
           label="Supplier Name :"
           labelClassName={SB}
-          className="sm:col-span-2 md:col-span-6"
+          className="sm:col-span-2 md:col-span-6 ml-1.5"
         >
           <ReadOnlyBox id="txtSupplierName" value={supplierName} />
         </Field>
 
-        {/* row 4 : Confirmation No. | Currency | Supplier Amt. (FC) */}
-        <Field
-          label="Confirmation No. :"
-          htmlFor="txtConfirmationNo"
-          labelClassName={SA}
-          className="sm:col-span-2 md:col-span-6"
-        >
-          <input
-            id="txtConfirmationNo"
-            value={form.confirmationNo}
-            onChange={(event) => set("confirmationNo", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
         <Field label="Currency :" labelClassName={SB} className="md:col-span-3">
           <Combo
             id="lkpCurrency"
@@ -1537,6 +1522,10 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             right
           />
         </Field>
+
+        {/* Keep two blank rows below Supplier Excl. VAT on the left. */}
+        <div className="hidden md:block md:col-span-6" aria-hidden="true" />
+        <div className="hidden md:block md:col-span-6" aria-hidden="true" />
       </div>
     </GroupBox>
   );
@@ -1742,6 +1731,7 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
     console.log({
       ...form,
       rooms: filledRooms.map((r) => ({
+        confirmationNo: r.confirmationNo,
         roomType: r.roomType,
         checkIn: r.checkIn,
         nights: toNumber(r.nights),
