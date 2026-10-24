@@ -520,7 +520,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     onClick={onClick}
     disabled={disabled}
     className={`btn-style min-w-20 disabled:cursor-not-allowed disabled:opacity-50 ${
-      compact ? "!h-[34px] !min-w-[80px]  !px-2 !text-[12px]" : ""
+      compact ? "h-8.5! min-w-20!  px-2! text-[12px]!" : ""
     }`}
   >
     {label}
