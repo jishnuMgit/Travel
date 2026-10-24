@@ -7,13 +7,15 @@ import {
   FiX,
 } from "react-icons/fi";
 import { FaCar } from "react-icons/fa";
+import { GiCommercialAirplane } from "react-icons/gi";
 
 import { NavLink } from "react-router-dom";
 
 const navigation = [
   { label: "Ticket Sales", to: "/ticket-sales", icon: FiCreditCard },
   { label: "Hotel Sales", to: "/hotel-sales", icon: FiBriefcase },
-   { label: "Car Rental", to: "/CarRental", icon: FaCar },
+   { label: "Other Service", to: "/Other-Service", icon: FaCar },
+   {label:"Airline",to:"/Airline",icon:GiCommercialAirplane}
 ];
 
 const AppSidebar: React.FC<{

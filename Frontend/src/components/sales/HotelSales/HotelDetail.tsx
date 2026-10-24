@@ -1076,7 +1076,7 @@ const HotelHeaderGroup: React.FC<
           onChange={(v) => set("city", v)}
         />
       </Field>
-      <div className="flex justify-center md:col-span-3 lg:mr-[57%]">
+      <div className="flex justify-center md:col-span-3 lg:mr-[58%]">
         <button
           id="btnCity"
           type="button"

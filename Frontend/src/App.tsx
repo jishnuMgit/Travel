@@ -5,7 +5,8 @@ import { FiMenu } from "react-icons/fi";
 import AppSidebar from "./components/comman/AppSidebar";
 import HotelSalesPage from "./pages/Sales/HotelSalesPage";
 import TicketSalesPage from "./pages/Sales/TicketSalesPage";
-import CarRentalPage from "./pages/Sales/CarRentalPage";
+import OtherServicePage from "./pages/Sales/OtherServicePage";
+import AirlinePage from "./pages/Sales/AirlinePage";
 
 const pageTitles: Record<string, string> = {
   "/ticket-sales": "Ticket Sales",
@@ -55,7 +56,8 @@ const AppLayout = () => {
             <Route path="/hotel-sales" element={<HotelSalesPage />} />
             <Route path="/" element={<Navigate to="/ticket-sales" replace />} />
             <Route path="*" element={<Navigate to="/ticket-sales" replace />} />
-            <Route path="/CarRental" element={<CarRentalPage/>}/>
+            <Route path="/Other-Service" element={<OtherServicePage/>}/>
+            <Route path="/Airline" element={<AirlinePage/>}/>
           </Routes>
         </main>
       </div>

@@ -6,7 +6,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import selectComponents from "../../comman/selectComponents";
-import TicketLinesPage from "./TicketSalesInvoice";
+import TicketLinesPage from "../../comman/TicketLinesPage";
 import Header from "../../comman/Header";
 
 dayjs.extend(customParseFormat);

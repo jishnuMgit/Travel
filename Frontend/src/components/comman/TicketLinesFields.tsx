@@ -1,4 +1,5 @@
 import Select from "react-select";
+import selectComponents from "./selectComponents";
 
 
 
@@ -188,6 +189,7 @@ const TicketLinesFields: React.FC<{
         <Select
           inputId="lkpKbAccount"
           instanceId="lkpKbAccount"
+          components={selectComponents}
           options={kbAccountOptions}
           value={kbAccountOptions.find((o) => o.value === form.kbAccount) ?? null}
           onChange={(option) => set("kbAccount", option?.value ?? null)}
