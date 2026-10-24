@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Select from "react-select";
-import selectComponents from "../../comman/selectComponents";
-import TicketLinesFields from "../../comman/TicketLinesFields";
+import selectComponents from "./selectComponents";
+import TicketLinesFields from "./TicketLinesFields";
 
 /* =====================================================================
    FILE MAP
@@ -31,6 +31,10 @@ const customerNames: Record<string, string> = {
   C002: "CUSTOMER TWO",
   C003: "CUSTOMER THREE",
 };
+const customerNameOptions: Option[] = customerIdOptions.map(({ value }) => ({
+  value,
+  label: customerNames[value],
+}));
 
 type MoneyField = "fare" | "tax" | "cdAmt" | "sChg" | "sChgV" | "invAmt";
 
@@ -365,10 +369,27 @@ const TicketLinesGrid: React.FC<{
                 </td>
 
                 {/* Customer Name */}
-                <td className={td}>
-                  {row.customerId
-                    ? customerNames[row.customerId] ?? ""
-                    : ""}
+                <td className="border border-[#B7ECD0] p-0">
+                  <Select
+                    inputId={`lkpLineCustomerName-${row.key}`}
+                    instanceId={`lkpLineCustomerName-${row.key}`}
+                    aria-label="Customer Name"
+                    options={customerNameOptions}
+                    value={
+                      row.customerId
+                        ? {
+                            value: row.customerId,
+                            label: customerNames[row.customerId] ?? row.customerId,
+                          }
+                        : null
+                    }
+                    components={selectComponents}
+                    onFocus={() => onActivate(row.key)}
+                    onChange={(option) =>
+                      onCustomerChange(row.key, option?.value ?? null)
+                    }
+                    {...cellSelectProps}
+                  />
                 </td>
 
                 {/* Division */}
@@ -499,7 +520,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     onClick={onClick}
     disabled={disabled}
     className={`btn-style min-w-20 disabled:cursor-not-allowed disabled:opacity-50 ${
-      compact ? "!h-[34px] !min-w-[80px] !rounded-none !px-2 !text-[12px]" : ""
+      compact ? "!h-[34px] !min-w-[80px]  !px-2 !text-[12px]" : ""
     }`}
   >
     {label}
