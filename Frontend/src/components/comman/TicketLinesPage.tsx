@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Select from "react-select";
 import selectComponents from "./selectComponents";
 import TicketLinesFields from "./TicketLinesFields";
+import { fieldSelectProps } from "./Combo";
 
 /* =====================================================================
    FILE MAP
@@ -161,40 +162,7 @@ const computeVatAmt = (_row: LineRow) => 0;
    --------------------------------------------------------------------- */
 
 /* form-field select (30px) */
-const fieldSelectProps = {
-  isSearchable: true,
-  isClearable: false,
-  placeholder: "",
-  menuPosition: "fixed" as const,
-  menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-  classNames: {
-    control: ({ isFocused }: { isFocused: boolean }) => `
-      !min-h-[30px] !h-[30px] !rounded-[4px] !border !shadow-none !text-[12px]
-      hover:!border-[#aab8c5] !bg-white
-      ${isFocused ? "!border-[#91a7b9]" : "!border-[#cfd7df]"}
-    `,
-    valueContainer: () => "!h-[26px] !py-0 !px-[5px] !overflow-hidden",
-    singleValue: () => "!m-0 !text-[12px] !text-[#24364d]",
-    placeholder: () => "!m-0 !text-[12px] !text-[#7a8794]",
-    input: () => "!m-0 !p-0 !text-[12px] !text-[#24364d]",
-    indicatorsContainer: () => "!h-[26px]",
-    dropdownIndicator: () => "!p-[2px] !text-[#657486]",
-    indicatorSeparator: () => "!hidden",
-    menu: () =>
-      "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md",
-    menuList: () => "!p-0 !max-h-[180px]",
-    option: ({
-      isFocused,
-      isSelected,
-    }: {
-      isFocused: boolean;
-      isSelected: boolean;
-    }) => `
-      !cursor-pointer !px-[6px] !py-[4px] !text-[12px] !text-[#24364d]
-      ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
-    `,
-  },
-};
+
 
 /* grid-cell select (borderless, fills the cell) */
 const cellSelectProps = {

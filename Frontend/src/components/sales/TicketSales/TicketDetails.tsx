@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import Select from "react-select";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import selectComponents from "../../comman/selectComponents";
+import { Combo, PairCombo, type Option } from "../../comman/Combo";
 import TicketLinesPage from "../../comman/TicketLinesPage";
 import Header from "../../comman/Header";
 
@@ -23,8 +22,6 @@ dayjs.extend(customParseFormat);
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-type Option = { value: string; label: string };
-
 const DATE_FORMAT = "DD-MM-YYYY";
 const TODAY = dayjs().format(DATE_FORMAT);
 
@@ -228,51 +225,6 @@ const Lx = "w-[72px]";
 /* ---------------------------------------------------------------------
    2. SHARED BUILDING BLOCKS
    --------------------------------------------------------------------- */
-const selectClassNames = {
-  control: ({
-    isFocused,
-    isDisabled,
-  }: {
-    isFocused: boolean;
-    isDisabled: boolean;
-  }) => `
-    !min-h-[30px] !h-[30px] !rounded-[4px] !border !shadow-none !text-[12px]
-    hover:!border-[#aab8c5]
-    ${isDisabled ? "!bg-[#f0f3f6]" : "!bg-white"}
-    ${isFocused ? "!border-[#B7E7CD]" : "!border-[#cfd7df]"}
-  `,
-  valueContainer: () => "!h-[26px] !py-0 !px-[5px] !overflow-hidden",
-  singleValue: () => "!m-0 !text-[12px] !text-[#24364d]",
-  placeholder: () => "!m-0 !text-[12px] !text-[#7a8794]",
-  input: () => "!m-0 !p-0 !text-[12px] !text-[#24364d]",
-  indicatorsContainer: () => "!h-[26px]",
-  dropdownIndicator: () => "!p-[2px] !text-[#657486]",
-  indicatorSeparator: () => "!hidden",
-  clearIndicator: () => "!p-[2px]",
-  menu: () =>
-    "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md !min-w-[110px]",
-  menuList: () => "!p-0 !max-h-[180px]",
-  option: ({
-    isFocused,
-    isSelected,
-  }: {
-    isFocused: boolean;
-    isSelected: boolean;
-  }) => `
-    !cursor-pointer !px-[6px] !py-[4px] !text-[12px] !text-[#24364d]
-    ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
-  `,
-};
-
-const selectProps = {
-  isSearchable: true,
-  isClearable: false,
-  placeholder: "",
-  classNames: selectClassNames,
-  menuPosition: "fixed" as const,
-  menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-};
-
 const inputClass =
   " w-full min-w-0 input-style";
 
@@ -300,68 +252,6 @@ const Field: React.FC<{
     </label>
     <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
   </div>
-);
-
-/** single react-select */
-const Combo: React.FC<{
-  id: string;
-  options: Option[];
-  value: string | null;
-  onChange: (value: string | null) => void;
-  className?: string;
-}> = ({ id, options, value, onChange, className = "w-full" }) => (
-  <div className={`min-w-0 ${className}`}>
-    <Select
-      inputId={id}
-      instanceId={id}
-      components={selectComponents}
-      options={options}
-      value={options.find((o) => o.value === value) ?? null}
-      onChange={(option) => onChange(option?.value ?? null)}
-      {...selectProps}
-    />
-  </div>
-);
-
-/** ID select + name select that always show the same record */
-const PairCombo: React.FC<{
-  idId: string;
-  nameId: string;
-  idOptions: Option[];
-  nameOptions: Option[];
-  value: string | null;
-  onChange: (value: string | null) => void;
-  idWidth?: string;
-  nameWidth?:string;
-}> = ({
-  idId,
-  nameId,
-  idOptions,
-  nameOptions,
-
-  value,
-  onChange,
-  idWidth = "w-[110px]",
-  nameWidth = "flex-1",
-}) => (
-  <>
-   <div className="flex flex-1 gap-2">
-     <Combo
-      id={idId}
-      options={idOptions}
-      value={value}
-      onChange={onChange}
-      className={`${idWidth} shrink-0`}
-    />
-    <Combo
-      id={nameId}
-      options={nameOptions}
-      value={value}
-      onChange={onChange}
-      className={nameWidth}
-    />
-   </div>
-  </>
 );
 
 const formatMoney = (value: number) =>
@@ -542,6 +432,7 @@ const TicketTopBar: React.FC<
           value={form.ticketPrefix}
           onChange={(v) => set("ticketPrefix", v)}
           className="w-16.25 shrink-0"
+          isSearchable
         />
 
         <input
@@ -574,6 +465,8 @@ const TicketTopBar: React.FC<
           onChange={(v) => set("airline", v)}
           idWidth="w-[80px] shrink-0"
           nameWidth="min-w-0 flex-1"
+          isSearchable
+          containerClassName="flex flex-1 gap-2"
         />
       </div>
     </Field>
@@ -593,6 +486,8 @@ const TicketTopBar: React.FC<
           onChange={(v) => set("branch", v)}
           idWidth="w-[55px] shrink-0"
           nameWidth="min-w-0 flex-1"
+          isSearchable
+          containerClassName="flex flex-1 gap-2"
         />
       </div>
     </Field>
@@ -612,6 +507,8 @@ const TicketTopBar: React.FC<
           onChange={(v) => set("iata", v)}
           idWidth="w-[110px] shrink-0"
           nameWidth="min-w-0 flex-1"
+          isSearchable
+          containerClassName="flex flex-1 gap-2"
         />
       </div>
     </Field>
@@ -689,6 +586,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         options={diOptions}
         value={form.di}
         onChange={(v) => set("di", v)}
+        isSearchable
       />
     </Field>
       {/* Void : */}
@@ -707,6 +605,10 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         nameOptions={supplierNameOptions}
         value={form.supplier}
         onChange={(v) => set("supplier", v)}
+        idWidth="w-[110px]"
+        nameWidth="flex-1"
+        isSearchable
+        containerClassName="flex flex-1 gap-2"
       />
     </Field>
     <Field
@@ -721,6 +623,10 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         nameOptions={supPaymentNameOptions}
         value={form.supPayment}
         onChange={(v) => set("supPayment", v)}
+        idWidth="w-[110px]"
+        nameWidth="flex-1"
+        isSearchable
+        containerClassName="flex flex-1 gap-2"
       />
     </Field>
 
@@ -751,6 +657,8 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         value={form.staff}
         onChange={(v) => set("staff", v)}
         idWidth="w-[72px]"
+        isSearchable
+        containerClassName="flex flex-1 gap-2"
       />
     </Field>
     <Field
@@ -773,6 +681,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         options={paxTypeOptions}
         value={form.paxType}
         onChange={(v) => set("paxType", v)}
+        isSearchable
       />
     </Field>
      <Field
@@ -823,6 +732,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         options={yesNoOptions}
         value={form.voidFlag}
         onChange={(v) => set("voidFlag", v)}
+        isSearchable
       />
       </div>
     </Field>
@@ -832,6 +742,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         options={serviceOptions}
         value={form.service}
         onChange={(v) => set("service", v)}
+        isSearchable
       />
     </Field>
     
@@ -884,6 +795,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         options={tripOptions}
         value={form.trip}
         onChange={(v) => set("trip", v)}
+        isSearchable
       />
     </Field>
     
@@ -979,6 +891,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
           value={form.cnj}
           onChange={(v) => set("cnj", v)}
           className="w-14.5 min-w-0"
+          isSearchable
         />
       </Field>
       </div>
@@ -995,6 +908,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
             value={form.gds}
             onChange={(v) => set("gds", v)}
             className="min-w-0 flex-1 w-20"
+            isSearchable
           />
 
           <input
@@ -1031,6 +945,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
         value={form.merchant}
         onChange={(v) => set("merchant", v)}
         className="w-full min-w-0"
+        isSearchable
       />
     </Field>
     <Field
@@ -1044,6 +959,7 @@ const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
     value={form.merchant}
     onChange={(v) => set("merchant", v)}
     className="w-full min-w-0"
+    isSearchable
   />
 </Field>
 
@@ -1072,6 +988,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
         value={form.fop}
         onChange={(v) => set("fop", v)}
         className="w-[75%] min-w-0"
+        isSearchable
       />
     </Field>
 
@@ -1150,6 +1067,7 @@ const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
             value={form.alComType}
             onChange={(v) => set("alComType", v)}
             className="w-full"
+            isSearchable
           />
         </div>
 

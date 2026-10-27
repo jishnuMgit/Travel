@@ -6,9 +6,11 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../comman/Header";
+import { Combo, PairCombo, type Option } from "../../comman/Combo";
 import selectComponents from "../../comman/selectComponents";
 import TicketLinesFields from "../../comman/TicketLinesFields";
 import HotelActions, { type HotelActionName } from "./HotelAction";
+import { FaPlus } from "react-icons/fa";
 
 dayjs.extend(customParseFormat);
 
@@ -30,8 +32,6 @@ dayjs.extend(customParseFormat);
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-type Option = { value: string; label: string };
-
 const DATE_FORMAT = "DD-MM-YYYY";
 const TODAY = dayjs().format(DATE_FORMAT);
 
@@ -97,6 +97,10 @@ const customerNames: Record<string, string> = {
   C002: "CUSTOMER TWO",
   C003: "CUSTOMER THREE",
 };
+const customerNameOptions = customerIdOptions.map(({ value }) => ({
+  value,
+  label: customerNames[value],
+}));
 
 /* ----- header + supplier fields (one state object) ----- */
 type FormState = {
@@ -176,6 +180,8 @@ type RoomRow = {
   guestQty: string;
   meal: string | null;
   addons: string;
+  supplierExclVat: string;
+  supVat: string;
 };
 
 /* ----- customer table rows ----- */
@@ -210,6 +216,8 @@ const emptyRoom = (): RoomRow => ({
   guestQty: "",
   meal: null,
   addons: "",
+  supplierExclVat: "",
+  supVat: "",
 });
 
 const emptyCustomer = (): CustomerRow => ({
@@ -235,7 +243,9 @@ const isEmptyRoom = (r: RoomRow) =>
   !r.totNights &&
   !r.guestQty &&
   !r.meal &&
-  !r.addons;
+  !r.addons &&
+  !r.supplierExclVat &&
+  !r.supVat;
 
 const customerMoneyFields: MoneyField[] = [
   "suppAmt",
@@ -334,7 +344,7 @@ const selectClassNames = {
     isFocused: boolean;
     isDisabled: boolean;
   }) => `
-    !min-h-[28px] !h-[28px] !rounded-[4px] !border !shadow-none !text-[12px]
+    !min-h-[30px] !h-[30px] !rounded-[4px] !border !shadow-none !text-[12px]
     hover:!border-[#aab8c5]
     ${isDisabled ? "!bg-[#eef1f4]" : "!bg-white"}
     ${isFocused ? "!border-[#91a7b9]" : "!border-[#cfd7df]"}
@@ -362,18 +372,13 @@ const selectClassNames = {
   `,
 };
 
-const selectProps = {
+/* select that fills a grid cell (no border) */
+const cellSelectProps = {
   isSearchable: false,
   isClearable: false,
   placeholder: "",
-  classNames: selectClassNames,
   menuPosition: "fixed" as const,
   menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-};
-
-/* select that fills a grid cell (no border) */
-const cellSelectProps = {
-  ...selectProps,
   classNames: {
     ...selectClassNames,
     control: ({ isFocused }: { isFocused: boolean }) => `
@@ -402,10 +407,10 @@ const niceScrollbar = [
 ].join(" ");
 
 const inputClass =
-  "h-[28px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-white px-2 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9]";
+  "w-full min-w-0 input-style";
 
 const readOnlyClass =
-  "h-[28px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
+  "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
 
 /** bordered group box (the four groups of the page) */
 const GroupBox: React.FC<{ children: React.ReactNode; className?: string }> = ({
@@ -437,74 +442,6 @@ const Field: React.FC<{
     </label>
     <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
   </div>
-);
-
-/** single react-select */
-const Combo: React.FC<{
-  id: string;
-  options: Option[];
-  value: string | null;
-  onChange?: (value: string | null) => void;
-  className?: string;
-  disabled?: boolean;
-}> = ({
-  id,
-  options,
-  value,
-  onChange,
-  className = "w-full",
-  disabled = false,
-}) => (
-  <div className={`min-w-0 ${className}`}>
-    <Select
-      inputId={id}
-      instanceId={id}
-      components={selectComponents}
-      options={options}
-      value={options.find((o) => o.value === value) ?? null}
-      onChange={(option) => onChange?.(option?.value ?? null)}
-      isDisabled={disabled}
-      {...selectProps}
-    />
-  </div>
-);
-
-/** ID select + name select that always show the same record */
-const PairCombo: React.FC<{
-  idId: string;
-  nameId: string;
-  idOptions: Option[];
-  nameOptions: Option[];
-  value: string | null;
-  onChange: (value: string | null) => void;
-  idWidth?: string;
-  NameWidth?:string;
-}> = ({
-  idId,
-  nameId,
-  idOptions,
-  nameOptions,
-  value,
-  onChange,
-  idWidth = "w-[92px]",
-  NameWidth
-}) => (
-  <>
-    <Combo
-      id={idId}
-      options={idOptions}
-      value={value}
-      onChange={onChange}
-      className={`${idWidth} shrink-0`}
-    />
-    <Combo
-      id={nameId}
-      options={nameOptions}
-      value={value}
-      onChange={onChange}
-   className={NameWidth || "flex-1"}
-    />
-  </>
 );
 
 /** editable amount: right aligned, fixed decimals after leaving the box */
@@ -983,18 +920,23 @@ const HotelHeaderGroup: React.FC<
     <div className={groupGrid}>
       {/* row 1 : Branch | Entry No. | Service | Service CP | Carrier */}
       <Field label="Branch :" labelClassName={HA} className="md:col-span-4">
-        <Combo
+       <div className="min-w-62.5">
+         <Combo
           id="lkpBranch"
           options={branchOptions}
           value={form.branch}
           onChange={(v) => set("branch", v)}
         />
+       </div>
       </Field>
+      <div className="md:col-span-2">
+
+      </div>
       <Field
         label="Entry No. :"
         htmlFor="txtEntryNo"
         labelClassName={HB}
-        className="md:col-span-2"
+        className="md:col-span-2 -ml-2"
       >
         <input
           id="txtEntryNo"
@@ -1006,16 +948,18 @@ const HotelHeaderGroup: React.FC<
           className={inputClass}
         />
       </Field>
-      <Field label="Service :" labelClassName={HC} className="md:col-span-2">
+            <div className="md:col-span-2"></div>
+
+      {/* <Field label="Service :" labelClassName={HC} className="md:col-span-2">
         <Combo
           id="lkpService"
           options={serviceOptions}
           value={form.service}
           onChange={(v) => set("service", v)}
           className="w-full"
-        />
-      </Field>
-      <Field label="Service CP :" labelClassName={HD} className="md:col-span-2">
+        /> 
+      </Field>*/}
+      {/* <Field label="Service CP :" labelClassName={HD} className="md:col-span-2">
         <Combo
           id="lkpServiceCp"
           options={serviceCpOptions}
@@ -1023,7 +967,7 @@ const HotelHeaderGroup: React.FC<
           onChange={(v) => set("serviceCp", v)}
           className="w-full"
         />
-      </Field>
+      </Field> */}
       <Field label="Carrier :" labelClassName={HE} className="md:col-span-2">
         <Combo
           id="lkpCarrier"
@@ -1075,22 +1019,47 @@ const HotelHeaderGroup: React.FC<
           onChange={(v) => set("city", v)}
         />
       </Field>
-      <div className="flex justify-center md:col-span-3 lg:mr-[58%]">
+      <div className="flex justify-center md:col-span-3 lg:mr-[68%]">
         <button
           id="btnCity"
           type="button"
           onClick={() => onOpenMaster("city")}
-          className="min-w-17.5 text-sm border border-gray-600 bg-[#e6e6eb] h-6 rounded-sm cursor-pointer hover:bg-[#dedee2] transition-all "
+          className=" border p-1 rounded-full text-white bg-green-400 border-black cursor-pointer hover:bg-green-500 "
         >
-          City
+        <FaPlus/> 
+
         </button>
       </div>
       <Field
-        label="Country :"
+        label="Hotel :"
         labelClassName={HC}
-        className="sm:col-span-2 md:col-span-4"
+        className="sm:col-span-3 md:col-span-4"
       >
+     <div className="w-200">
         <Combo
+          id="lkpHotel"
+          options={hotelOptions}
+          value={form.hotel}
+          onChange={(v) => set("hotel", v)}
+        />
+     </div>
+      </Field>
+      <div className="flex justify-center md:col-span-1 lg:mr-[70%]">
+        <button
+          id="btnHotel"
+          type="button"
+          onClick={() => onOpenMaster("hotel")}
+          className=" border p-1 rounded-full text-white bg-green-400 border-black cursor-pointer hover:bg-green-500"
+        >
+        <FaPlus/> 
+
+        </button>
+      </div>
+
+      {/* row 4 : Hotel | Hotel button | Staff */}
+      <Field label="Country :" labelClassName={HA} className="md:col-span-3 lg:w-[110%]">
+       
+         <Combo
           id="lkpCountry"
           options={toOptions(Array.from(new Set(Object.values(cityCountry))))}
           value={form.city ? cityCountry[form.city] ?? null : null}
@@ -1098,31 +1067,13 @@ const HotelHeaderGroup: React.FC<
           className="w-full"
         />
       </Field>
-      <div className="hidden md:col-span-2 md:block" />
+      <div className="hidded md:col-span-3">
 
-      {/* row 4 : Hotel | Hotel button | Staff */}
-      <Field label="Hotel :" labelClassName={HA} className="md:col-span-3 lg:w-[110%]">
-        <Combo
-          id="lkpHotel"
-          options={hotelOptions}
-          value={form.hotel}
-          onChange={(v) => set("hotel", v)}
-        />
-      </Field>
-      <div className="flex justify-center md:col-span-3 lg:mr-[58%]">
-        <button
-          id="btnHotel"
-          type="button"
-          onClick={() => onOpenMaster("hotel")}
-          className=" min-w-17.5 text-sm border border-gray-600 bg-[#e6e6eb] h-6 rounded-sm cursor-pointer hover:bg-[#dedee2] transition-all "
-        >
-          Hotel
-        </button>
       </div>
       <Field
         label="Staff :"
         labelClassName={HC}
-        className="sm:col-span-2 md:col-span-6"
+        className="sm:col-span-2 md:col-span-5"
       >
         <PairCombo
           idId="lkpStaffID"
@@ -1132,52 +1083,25 @@ const HotelHeaderGroup: React.FC<
           value={form.staff}
           onChange={(v) => set("staff", v)}
           idWidth="w-[72px]"
-          NameWidth="w-[325px]"
+          nameWidth="w-[325px]"
 
         />
       </Field>
+      <div className="flex justify-center md:col-span-1 -ml-78.5">
+        <button
+          id="btnHotel"
+          type="button"
+          onClick={() => onOpenMaster("hotel")}
+          className=" border p-1 rounded-full text-white bg-green-400 border-black cursor-pointer hover:bg-green-500"
+        >
+        <FaPlus/> 
 
+        </button>
+      </div>
+ 
       {/* row 5 : Guest | Adults | Childs | Infants */}
-      <Field
-        label="Guest :"
-        htmlFor="txtGuest"
-        labelClassName={HA}
-        className="sm:col-span-2 md:col-span-6 w-[54.5%]"
-      >
-        <input
-          id="txtGuest"
-          value={form.guest}
-          onChange={(event) => set("guest", event.target.value)}
-          className={inputClass}
-        />
-      </Field>
-      <Field label="Adults :" labelClassName={HC} className="md:col-span-2">
-        <div className="w-18.5">
-          <IntInput
-            id="txtAdults"
-            value={form.adults}
-            onChange={(v) => set("adults", v)}
-          />
-        </div>
-      </Field>
-      <Field label="Childs :" labelClassName={HD} className="md:col-span-2">
-        <div className="w-16">
-          <IntInput
-            id="txtChilds"
-            value={form.childs}
-            onChange={(v) => set("childs", v)}
-          />
-        </div>
-      </Field>
-      <Field label="Infants :" labelClassName={HE} className="md:col-span-2">
-        <div className="w-16">
-          <IntInput
-            id="txtInfants"
-            value={form.infants}
-            onChange={(v) => set("infants", v)}
-          />
-        </div>
-      </Field>
+     
+   
     </div>
   </GroupBox>
 );
@@ -1217,6 +1141,7 @@ const RoomsGroup: React.FC<{
     {
       id: "txtRoomType",
       header: "Room Type",
+      width: "w-[110px]",
       render: (row) => (
         <SelectCell
           id={`lkpRoomType-${row.key}`}
@@ -1244,7 +1169,7 @@ const RoomsGroup: React.FC<{
     {
       id: "txtNights",
       header: "Nights",
-      width: "w-[80px]",
+      width: "w-[60px]",
       align: "right",
       total: { format: "int" },
       render: (row) => (
@@ -1259,7 +1184,7 @@ const RoomsGroup: React.FC<{
     {
       id: "dtpCheckOut",
       header: "Check Out",
-      width: "w-[110px]",
+      width: "w-[100px]",
       cellClass: "bg-[#eef1f4] px-2",
       render: (row) => computeCheckOut(row),
     },
@@ -1336,6 +1261,36 @@ const RoomsGroup: React.FC<{
       ),
     },
     {
+      id: "supplierExclVat",
+      header: "Sup. Excl. VAT",
+      width: "w-[110px]",
+      align: "right",
+      total: { format: "money" },
+      render: (row) => (
+        <MoneyCell
+          label="Sup. Excl. VAT"
+          value={row.supplierExclVat}
+          onFocus={() => onActivate(row.key)}
+          onChange={(value) => onChange(row.key, { supplierExclVat: value })}
+        />
+      ),
+    },
+    {
+      id: "supVat",
+      header: "Sup. VAT",
+      width: "w-[100px]",
+      align: "right",
+      total: { format: "money" },
+      render: (row) => (
+        <MoneyCell
+          label="Sup. VAT"
+          value={row.supVat}
+          onFocus={() => onActivate(row.key)}
+          onChange={(value) => onChange(row.key, { supVat: value })}
+        />
+      ),
+    },
+    {
       id: "txtSupplierAmt",
       header: "Supplier Amt",
       width: "w-[110px]",
@@ -1350,6 +1305,11 @@ const RoomsGroup: React.FC<{
   const totals = {
     nights: rows.reduce((t, r) => t + toNumber(r.nights), 0),
     totNights: rows.reduce((t, r) => t + toNumber(r.totNights), 0),
+    supplierExclVat: rows.reduce(
+      (total, row) => total + toNumber(row.supplierExclVat),
+      0,
+    ),
+    supVat: rows.reduce((total, row) => total + toNumber(row.supVat), 0),
     total: rows.reduce((t, r) => t + computeRoomTotal(r), 0),
   };
 
@@ -1382,152 +1342,269 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
     supplierNameOptions.find((o) => o.value === form.supplier)?.label ?? "";
 
   return (
-    <GroupBox>
-      <div className={groupGrid}>
-        {/* row 1 : Supplier | FOP | CC Type */}
-        <Field
-          label="Supplier :"
-          labelClassName={SA}
-          className="sm:col-span-2 md:col-span-6"
-        >
-          <PairCombo
-            idId="lkpSupplierID"
-            nameId="lkpSupplierName"
-            idOptions={supplierIdOptions}
-            nameOptions={supplierNameOptions}
-            value={form.supplier}
-            onChange={(v) => set("supplier", v)}
-            idWidth="w-[110px]"
-          />
-        </Field>
-        <Field label="FOP :" labelClassName={SB} className="md:col-span-3">
-          <Combo
-            id="lkpFOP"
-            options={fopOptions}
-            value={form.fop}
-            onChange={(v) => set("fop", v)}
-          />
-        </Field>
-        <Field label="CC Type :" labelClassName={SC} className="md:col-span-3">
-          <Combo
-            id="lkpCCType"
-            options={ccTypeOptions}
-            value={form.ccType}
-            onChange={(v) => set("ccType", v)}
-            className="w-full"
-          />
-        </Field>
+  
+<GroupBox>
+  <div className={groupGrid}>
+    {/* Row 1: Guest | Adults | Childs | Infants */}
+    <Field
+      label="Guest :"
+      htmlFor="txtGuest"
+      labelClassName={HA}
+      className="md:col-span-6 ml-15"
+    >
+      <input
+        id="txtGuest"
+        value={form.guest}
+        onChange={(event) => set("guest", event.target.value)}
+        className={inputClass}
+      />
+    </Field>
 
-        {/* row 2 : Supp. Inv. No. + Date | Sup. Payment */}
-        <div className="flex min-w-0 items-center gap-3 sm:col-span-2 md:col-span-6">
-          <Field
-            label="Supp. Inv. No. :"
-            labelClassName={SA}
-            className="min-w-0 flex-1"
-          >
-            <ReadOnlyBox id="txtSuppInvNo" value="" />
-          </Field>
-          <Field label="Supp. Inv. Date :" className="min-w-0 flex-1">
-            <div className="w-35 max-w-full">
-              <AppDatePicker
-                id="dtpSuppInvDate"
-                label="Supp. Inv. Date"
-                value={form.suppInvDate}
-                onChange={(v) => set("suppInvDate", v)}
-              />
-            </div>
-          </Field>
-        </div>
-        <Field
-          label="Sup. Payment :"
-          labelClassName={SB}
-          className="sm:col-span-2 md:col-span-6"
-        >
-          <PairCombo
-            idId="lkpSupPaymentID"
-            nameId="lkpSupPaymentName"
-            idOptions={supPaymentIdOptions}
-            nameOptions={supPaymentNameOptions}
-            value={form.supPayment}
-            onChange={(v) => set("supPayment", v)}
-            idWidth="w-[110px]"
-          />
-        </Field>
-
-        {/* row 3 : Supplier Name | */}
-        <Field
-          label="Supplier Name :"
-          labelClassName={SB}
-          className="sm:col-span-2 md:col-span-6 ml-1.5"
-        >
-          <ReadOnlyBox id="txtSupplierName" value={supplierName} />
-        </Field>
-
-        <Field label="Currency :" labelClassName={SB} className="md:col-span-3">
-          <Combo
-            id="lkpCurrency"
-            options={currencyOptions}
-            value={form.currency}
-            onChange={(v) => {
-              set("currency", v);
-              if (v) set("rate", currencyRates[v] ?? "1.0000");
-            }}
-            className="w-16 shrink-0"
-          />
-          <MoneyInput
-            id="txtRate"
-            value={form.rate}
-            decimals={4}
-            onChange={(v) => set("rate", v)}
-          />
-        </Field>
-        <Field
-          label="Supplier Amt. (FC) :"
-          labelClassName={SC}
-          className="md:col-span-3"
-        >
-          <MoneyInput
-            id="txtSupplierAmtFc"
-            value={form.supplierAmtFc}
-            decimals={4}
-            onChange={(v) => set("supplierAmtFc", v)}
-          />
-        </Field>
-
-        {/* row 5 : Supplier Excl. VAT | Sup. VAT | Supplier Amt. */}
-        <Field
-          label="Supplier Excl. VAT :"
-          labelClassName={SA}
-          className="sm:col-span-2 md:col-span-6"
-        >
-          <div className="w-30 max-w-full">
-            <MoneyInput
-              id="txtSupplierExclVat"
-              value={form.supplierExclVat}
-              onChange={(v) => set("supplierExclVat", v)}
-            />
-          </div>
-        </Field>
-        <Field label="Sup. VAT :" labelClassName={SB} className="md:col-span-3">
-          <MoneyInput
-            id="txtSupVat"
-            value={form.supVat}
-            onChange={(v) => set("supVat", v)}
-          />
-        </Field>
-        <Field label="Supplier Amt. :" labelClassName={SC} className="md:col-span-3">
-          <ReadOnlyBox
-            id="txtSupplierAmt"
-            value={formatNumber(supplierAmt)}
-            right
-          />
-        </Field>
-
-        {/* Keep two blank rows below Supplier Excl. VAT on the left. */}
-        <div className="hidden md:block md:col-span-6" aria-hidden="true" />
-        <div className="hidden md:block md:col-span-6" aria-hidden="true" />
+   <div className="md:col-span-6  flex gap-2 ">
+     <Field
+      label="Adults :"
+      labelClassName={HC}
+      className="md:col-span-2 ml-14"
+    >
+      <div className="w-18.5">
+        <IntInput
+          id="txtAdults"
+          value={form.adults}
+          onChange={(v) => set("adults", v)}
+        />
       </div>
-    </GroupBox>
+    </Field>
+
+    <Field
+      label="Child :"
+      labelClassName={HD}
+      className="md:col-span-2"
+    >
+      <div className="w-16">
+        <IntInput
+          id="txtChild"
+          value={form.childs}
+          onChange={(v) => set("childs", v)}
+        />
+      </div>
+    </Field>
+
+    <Field
+      label="Infants :"
+      labelClassName={HE}
+      className="md:col-span-2 ml-13"
+    >
+      <div className="w-16">
+        <IntInput
+          id="txtInfants"
+          value={form.infants}
+          onChange={(v) => set("infants", v)}
+        />
+      </div>
+    </Field>
+     <Field
+      label="Guest Qty.:"
+      labelClassName={HE}
+      className="md:col-span-2 ml-10 gap-1 "
+    >
+      <div className="w-16 ml-2">
+        <IntInput
+          id="txtGuestQty"
+          value={form.infants}
+          onChange={(v) => set("infants", v)}
+        />
+      </div>
+    </Field>
+   </div>
+
+    {/* Row 2: Supplier | FOP | CC Type */}
+    <Field
+      label="Supplier :"
+      labelClassName={SA}
+      className="md:col-span-6"
+    >
+      <PairCombo
+        idId="lkpSupplierID"
+        nameId="lkpSupplierName"
+        idOptions={supplierIdOptions}
+        nameOptions={supplierNameOptions}
+        value={form.supplier}
+        onChange={(v) => set("supplier", v)}
+        idWidth="w-[100px]"
+      />
+    </Field>
+
+    <Field
+      label="FOP :"
+      labelClassName={SB}
+      className="md:col-span-3"
+    >
+      <Combo
+        id="lkpFOP"
+        options={fopOptions}
+        value={form.fop}
+        onChange={(v) => set("fop", v)}
+      />
+    </Field>
+
+    <Field
+      label="CC Type :"
+      labelClassName={SC}
+      className="md:col-span-3 ml-5"
+    >
+      <Combo
+        id="lkpCCType"
+        options={ccTypeOptions}
+        value={form.ccType}
+        onChange={(v) => set("ccType", v)}
+        className="w-full "
+      />
+    </Field>
+
+    {/* Row 3: Supplier Name | Sup. Payment */}
+    <Field
+      label="Supplier Name :"
+      labelClassName={SA}
+      className="md:col-span-6"
+    >
+      <ReadOnlyBox id="txtSupplierName" value={supplierName} />
+    </Field>
+
+
+    {/* Row 4: Invoice No. + Date | Currency | Supplier Amt. (FC) */}
+
+ <div className="md:col-span-6 flex">
+     <Field
+      label="Sup. Currency :"
+      labelClassName={SB}
+      className="md:col-span-3"
+    >
+      <Combo
+        id="lkpCurrency"
+        options={currencyOptions}
+        value={form.currency}
+        onChange={(v) => {
+          set("currency", v);
+          if (v) set("rate", currencyRates[v] ?? "1.0000");
+        }}
+        className="w-16 shrink-0"
+      />
+
+      <MoneyInput
+        id="txtRate"
+        value={form.rate}
+        decimals={4}
+        onChange={(v) => set("rate", v)}
+      />
+    </Field>
+
+      <Field
+        label="Supplier Amt. :"
+        labelClassName={SC}
+        className="md:col-span-3"
+      >
+        <MoneyInput
+          id="txtSupplierAmtFc"
+          value={form.supplierAmtFc}
+          decimals={4}
+          onChange={(v) => set("supplierAmtFc", v)}
+        />
+      </Field>
+    </div>
+      <Field
+        label="Sup. Payment :"
+        labelClassName={SB}
+        className="md:col-span-6 ml-1.5"
+      >
+        <PairCombo
+          idId="lkpSupPaymentID"
+          nameId="lkpSupPaymentName"
+          idOptions={supPaymentIdOptions}
+          nameOptions={supPaymentNameOptions}
+          value={form.supPayment}
+          onChange={(v) => set("supPayment", v)}
+          idWidth="w-[100px]"
+        />
+      </Field>
+    
+
+      
+<div className="md:col-span-6 grid min-w-0 grid-cols-1 gap-x-4 md:grid-cols-3">
+
+  {/* Supplier Excl. VAT */}
+  <Field
+    label="Supplier Excl. VAT :"
+    labelClassName="w-[116px]"
+    className="min-w-0 -ml-1.5 "
+  >
+    <div className="w-[50%] min-w-0 md:w-[calc(100%+40px)]">
+      <MoneyInput
+        id="txtSupplierExclVat"
+        value={form.supplierExclVat}
+        onChange={(v) => set("supplierExclVat", v)}
+      />
+    </div>
+  </Field>
+
+  {/* Sup. VAT */}
+  <Field
+    label="Sup. VAT :"
+    labelClassName="w-[116px]"
+    className="min-w-0"
+  >
+    <div className="w-full min-w-0 md:w-[calc(100%+40px)]">
+      <MoneyInput
+        id="txtSupVat"
+        value={form.supVat}
+        onChange={(v) => set("supVat", v)}
+      />
+    </div>
+  </Field>
+
+  {/* Supplier Amt. */}
+  <Field
+    label="Supplier Amt. :"
+    labelClassName="w-[116px]"
+    className="min-w-0"
+  >
+    <div className="w-full min-w-0 md:w-[calc(100%+40px)]">
+      <ReadOnlyBox
+        id="txtSupplierAmt"
+        value={formatNumber(supplierAmt)}
+        right
+      />
+    </div>
+  </Field>
+
+</div>
+    
+<div className="flex min-w-0 items-center gap-3 md:col-span-6">
+      <Field
+        label="Supp. Inv. No. :"
+        labelClassName={SA}
+        className="min-w-0 flex-1"
+      >
+        <ReadOnlyBox id="txtSuppInvNo" value="" />
+      </Field>
+
+      <Field
+        label="Supp. Inv. Date :"
+        labelClassName={SB}
+        className="min-w-0 flex-1"
+      >
+        <div className="w-35 max-w-full">
+          <AppDatePicker
+            id="dtpSuppInvDate"
+            label="Supp. Inv. Date"
+            value={form.suppInvDate}
+            onChange={(v) => set("suppInvDate", v)}
+          />
+        </div>
+      </Field>
+    </div>
+  </div>
+</GroupBox>
+
   );
 };
 
@@ -1538,6 +1615,9 @@ const CustomersGroup: React.FC<{
   onActivate: (key: number) => void;
   onChange: (key: number, patch: Partial<CustomerRow>) => void;
 }> = ({ rows, activeKey, onActivate, onChange }) => {
+  const filledIndex = (row: CustomerRow) =>
+    rows.filter((customer) => !isEmptyCustomer(customer)).indexOf(row) + 1;
+
   const moneyColumn = (
     field: MoneyField,
     header: string,
@@ -1559,6 +1639,14 @@ const CustomersGroup: React.FC<{
 
   const columns: GridColumn<CustomerRow>[] = [
     {
+      id: "line",
+      header: "Line",
+      width: "w-[44px]",
+      align: "center",
+      cellClass: "px-2 text-center",
+      render: (row) => (isEmptyCustomer(row) ? "" : filledIndex(row)),
+    },
+    {
       id: "customerId",
       header: "Customer ID",
       width: "w-[100px]",
@@ -1576,19 +1664,29 @@ const CustomersGroup: React.FC<{
     {
       id: "customerName",
       header: "Customer Name",
-      cellClass: "px-2",
-      render: (row) => (row.customerId ? customerNames[row.customerId] ?? "" : ""),
+      render: (row) => (
+        <SelectCell
+          id={`lkpCustomerName-${row.key}`}
+          label="Customer Name"
+          options={customerNameOptions}
+          value={row.customerId}
+          onFocus={() => onActivate(row.key)}
+          onChange={(v) => onChange(row.key, { customerId: v })}
+        />
+      ),
     },
     {
       id: "division",
       header: "Division",
       width: "w-[84px]",
       render: (row) => (
-        <TextCell
+        <SelectCell
+          id={`lkpDivision-${row.key}`}
           label="Division"
-          value={row.division}
+          options={diOptions}
+          value={row.division || null}
           onFocus={() => onActivate(row.key)}
-          onChange={(v) => onChange(row.key, { division: v })}
+          onChange={(v) => onChange(row.key, { division: v ?? "" })}
         />
       ),
     },
@@ -1741,7 +1839,9 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
         guestQty: toNumber(r.guestQty),
         meal: r.meal,
         addons: toNumber(r.addons),
-      })),
+        supplierExclVat: toNumber(r.supplierExclVat),
+        supVat: toNumber(r.supVat),
+       })),
       customers: customers
         .filter((c) => !isEmptyCustomer(c))
         .map((c) => ({
