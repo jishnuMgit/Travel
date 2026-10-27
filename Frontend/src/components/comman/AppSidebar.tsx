@@ -8,6 +8,7 @@ import {
 } from "react-icons/fi";
 import { FaCar } from "react-icons/fa";
 import { GiCommercialAirplane } from "react-icons/gi";
+import { HiOutlineDocumentReport } from "react-icons/hi";
 
 import { NavLink } from "react-router-dom";
 
@@ -15,7 +16,11 @@ const navigation = [
   { label: "Ticket Sales", to: "/ticket-sales", icon: FiCreditCard },
   { label: "Hotel Sales", to: "/hotel-sales", icon: FiBriefcase },
    { label: "Other Service", to: "/Other-Service", icon: FaCar },
-   {label:"Airline",to:"/Airline",icon:GiCommercialAirplane}
+   {label:"Airline",to:"/Airline",icon:GiCommercialAirplane},
+   {label:"Stock",to:"/Report/Stock",icon:HiOutlineDocumentReport},
+   {label:"Staff Report",to:"/Report/Staff",icon:HiOutlineDocumentReport},
+   {label:"Airline Report",to:"/Report/Airline",icon:HiOutlineDocumentReport},
+   {label:"Daily Sales",to:"/Report/Daily",icon:HiOutlineDocumentReport}
 ];
 
 const AppSidebar: React.FC<{

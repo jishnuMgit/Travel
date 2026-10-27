@@ -7,10 +7,18 @@ import HotelSalesPage from "./pages/Sales/HotelSalesPage";
 import TicketSalesPage from "./pages/Sales/TicketSalesPage";
 import OtherServicePage from "./pages/Sales/OtherServicePage";
 import AirlinePage from "./pages/Sales/AirlinePage";
+import RptStockPage from "./pages/Report/RptStockPage";
+import RptStaffPage from "./pages/Report/RptStaffPage";
+import RptAirlinePage from "./pages/Report/RptAirlinePage";
+import RptDailyPage from "./pages/Report/RptDailyPage";
 
 const pageTitles: Record<string, string> = {
   "/ticket-sales": "Ticket Sales",
   "/hotel-sales": "Hotel Sales",
+  "/Report/Stock": "Stock Sales",
+  "/Report/Staff": "Staff Sales",
+  "/Report/Airline": "Airline Sales",
+  "/Report/Daily": "Daily Sales",
 };
 
 const AppLayout = () => {
@@ -58,6 +66,10 @@ const AppLayout = () => {
             <Route path="*" element={<Navigate to="/ticket-sales" replace />} />
             <Route path="/Other-Service" element={<OtherServicePage/>}/>
             <Route path="/Airline" element={<AirlinePage/>}/>
+            <Route path="/Report/Stock" element={<RptStockPage/>}/>
+            <Route path="/Report/Staff" element={<RptStaffPage/>}/>
+            <Route path="/Report/Airline" element={<RptAirlinePage/>}/>
+            <Route path="/Report/Daily" element={<RptDailyPage/>}/>
           </Routes>
         </main>
       </div>
