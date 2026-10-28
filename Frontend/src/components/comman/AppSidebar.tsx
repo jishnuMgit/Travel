@@ -20,7 +20,11 @@ const navigation = [
    {label:"Stock",to:"/Report/Stock",icon:HiOutlineDocumentReport},
    {label:"Staff Report",to:"/Report/Staff",icon:HiOutlineDocumentReport},
    {label:"Airline Report",to:"/Report/Airline",icon:HiOutlineDocumentReport},
-   {label:"Daily Sales",to:"/Report/Daily",icon:HiOutlineDocumentReport}
+   {label:"Bsp Sales Airlinewise ",to:"/Report/RptBspSalesAirlinewisePage",icon:HiOutlineDocumentReport},
+   {label:"Supplier Wise Profit",to:"/Report/SupplierWiseProfit",icon:HiOutlineDocumentReport},
+   {label:"Staff Wise Profit",to:"/Report/StaffWiseProfit",icon:HiOutlineDocumentReport},
+   {label:"Airline Wise Profit",to:"/Report/AirlineWiseProfit",icon:HiOutlineDocumentReport},
+   {label:"BSP Bill Import/Export",to:"/Report/BspBillImportExport",icon:HiOutlineDocumentReport}
 ];
 
 const AppSidebar: React.FC<{

@@ -11,6 +11,12 @@ import RptStockPage from "./pages/Report/RptStockPage";
 import RptStaffPage from "./pages/Report/RptStaffPage";
 import RptAirlinePage from "./pages/Report/RptAirlinePage";
 import RptDailyPage from "./pages/Report/RptDailyPage";
+import RptBspSalesTicketwisePage from "./pages/Report/Rptbspsalesticketwisepage";
+import RptBSPSalesAirlinewisepage from "./pages/Report/Rptbspsalesairlinewisepage";
+import SupplierWiseProfitPage from "./pages/Report/SupplierWiseProfitPage";
+import StaffWiseProfitPage from "./pages/Report/StaffWiseProfitPage";
+import AirlineWiseProfitPage from "./pages/Report/AirlineWiseProfitPage";
+import BspBillImportExportPage from "./pages/Report/BspBillImportExportPage";
 
 const pageTitles: Record<string, string> = {
   "/ticket-sales": "Ticket Sales",
@@ -19,6 +25,10 @@ const pageTitles: Record<string, string> = {
   "/Report/Staff": "Staff Sales",
   "/Report/Airline": "Airline Sales",
   "/Report/Daily": "Daily Sales",
+  "/Report/SupplierWiseProfit": "Supplier wise Profit",
+  "/Report/StaffWiseProfit": "Staff wise Profit",
+  "/Report/AirlineWiseProfit": "Airline wise Profit",
+  "/Report/BspBillImportExport": "BSP Bill Import/Export",
 };
 
 const AppLayout = () => {
@@ -69,7 +79,11 @@ const AppLayout = () => {
             <Route path="/Report/Stock" element={<RptStockPage/>}/>
             <Route path="/Report/Staff" element={<RptStaffPage/>}/>
             <Route path="/Report/Airline" element={<RptAirlinePage/>}/>
-            <Route path="/Report/Daily" element={<RptDailyPage/>}/>
+            <Route path="/Report/RptBspSalesAirlinewisePage" element={<RptBSPSalesAirlinewisepage/>}/>
+            <Route path="/Report/SupplierWiseProfit" element={<SupplierWiseProfitPage/>}/>
+            <Route path="/Report/StaffWiseProfit" element={<StaffWiseProfitPage/>}/>
+            <Route path="/Report/AirlineWiseProfit" element={<AirlineWiseProfitPage/>}/>
+            <Route path="/Report/BspBillImportExport" element={<BspBillImportExportPage/>}/>
           </Routes>
         </main>
       </div>
