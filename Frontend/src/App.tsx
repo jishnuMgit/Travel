@@ -20,6 +20,8 @@ import AirlineWiseProfitPage from "./pages/Travel/SalesReport/AirlineWiseProfitP
 import BspBillImportExportPage from "./pages/Travel/SalesReport/BspBillImportExportPage";
 import B2BInvoicePage from "./pages/Tables/B2BInvoicePage";
 import B2CInvoicePage from "./pages/Tables/B2cinvoicepage";
+import ServiceChargePolicy from "./pages/Travel/Setup/ServiceChargePolicy";
+import ServiceTypePage from "./pages/Travel/Setup/ServiceTypePage";
 
 const pageTitles: Record<string, string> = {
   "/ticket-sales": "Ticket Sales",
@@ -37,6 +39,8 @@ const pageTitles: Record<string, string> = {
   "/Report/BspBillImportExport": "BSP Bill Import/Export",
   "/Tables/B2BInvoice": "B2B Invoice",
   "/Tables/B2CInvoice": "B2C Invoice",
+  "/Setup/ServiceChargePolicy": "Service Charge Policy",
+  "/Setup/ServiceType": "Service Type",
 };
 
 const AppLayout = () => {
@@ -97,6 +101,11 @@ const AppLayout = () => {
             <Route path="/Report/BspBillImportExport" element={<BspBillImportExportPage/>}/>
             <Route path="/Tables/B2BInvoice" element={<B2BInvoicePage/>}/>
             <Route path="/Tables/B2CInvoice" element={<B2CInvoicePage/>}/>
+            <Route
+              path="/Setup/ServiceChargePolicy"
+              element={<ServiceChargePolicy />}
+            />
+            <Route path="/Setup/ServiceType" element={<ServiceTypePage />} />
           </Routes>
         </main>
       </div>
