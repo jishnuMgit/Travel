@@ -160,7 +160,7 @@ const CustomRadio: React.FC<{
       className="sr-only"
     />
     <span
-      className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border bg-white ${
+      className={`flex h-4.75 w-4.75 shrink-0 items-center justify-center rounded-full border bg-white ${
         checked ? "border-[#64d96e]" : "border-[#cbd3dc]"
       }`}
     >
@@ -199,7 +199,7 @@ const PanelGroup: React.FC<{
 );
 
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex h-[30px] items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
+  <div className="flex h-7.5 items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
     {children}
   </div>
 );
@@ -258,7 +258,7 @@ const PairCombo: React.FC<{
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className="w-[85px] shrink-0"
+      className="w-30 shrink-0"
     />
     <Combo
       id={nameId}
@@ -266,7 +266,7 @@ const PairCombo: React.FC<{
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className="flex-1"
+      className="w-112.5 shrink-0"
     />
   </div>
 );
@@ -365,7 +365,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         value={form.branchMode}
         onChange={(v) => set("branchMode", v)}
       />
-      <div className="w-[220px] max-w-full pt-3">
+      <div className="w-62.5 max-w-full pt-3">
         <Combo
           id="lkpBranch"
           options={branchOptions}
@@ -384,7 +384,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         value={form.customerMode}
         onChange={(v) => set("customerMode", v)}
       />
-      <div className="max-w-[420px] pt-3">
+      <div className="pt-3">
         <PairCombo
           idId="lkpCustomerID"
           nameId="lkpCustomerName"
@@ -405,7 +405,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         value={form.airlineMode}
         onChange={(v) => set("airlineMode", v)}
       />
-      <div className="max-w-[330px] pt-3">
+      <div className="pt-3">
         <PairCombo
           idId="lkpAirlineID"
           nameId="lkpAirlineName"
@@ -444,7 +444,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
      row 2 : Domestic / International    | Cash / Credit / All
      row 3 : Order By box                | Travel / Tourism / All (bottom)   */
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="grid w-[236px] shrink-0 grid-cols-2 content-between gap-3 max-[700px]:w-full">
+  <div className="grid w-59 shrink-0 grid-cols-2 content-between gap-3 max-[700px]:w-full">
     <PanelGroup
       name="rdgSaleMode"
       options={["Sales", "Refund", "Net"]}
@@ -505,7 +505,7 @@ const BottomRow: React.FC<
         options={["Detail", "Summary"]}
         value={form.reportType}
         onChange={(v) => set("reportType", v)}
-        className="w-[168px]"
+        className="w-42"
       />
       <div className="flex gap-2">
         <button
@@ -529,7 +529,7 @@ const BottomRow: React.FC<
 
     <label
       htmlFor="chkIncludeIncentive"
-      className="flex h-[30px] cursor-pointer items-center gap-2 self-start border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
+      className="flex h-7.5 cursor-pointer items-center gap-2 self-start border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
     >
       <input
         id="chkIncludeIncentive"
@@ -575,7 +575,7 @@ const RptCustomerWiseProfitPage: React.FC<RptCustomerWiseProfitPageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-200 max-w-full bg-white p-0">
+      <div className="min-h-fit w-260 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
          <Header Name="Customer wise Profit"/>
 

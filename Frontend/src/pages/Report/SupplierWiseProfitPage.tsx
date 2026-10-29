@@ -174,7 +174,7 @@ const PairCombo: React.FC<{
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className="flex-1"
+      className="w-[450px] shrink-0"
     />
   </div>
 );
@@ -305,15 +305,16 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => {
           value={form.branchMode}
           onChange={(value) => set("branchMode", value)}
         />
-        <div className="w-[250px] max-w-full pt-3">
-          <Combo
-            id="lkpBranch"
-            options={branchOptions}
-            value={form.branch}
-            onChange={(value) => set("branch", value)}
-            disabled={form.branchMode !== "One Branch"}
-          />
-        </div>
+        {form.branchMode === "One Branch" && (
+          <div className="w-[250px] max-w-full pt-3">
+            <Combo
+              id="lkpBranch"
+              options={branchOptions}
+              value={form.branch}
+              onChange={(value) => set("branch", value)}
+            />
+          </div>
+        )}
       </div>
       <div className={row}>
         <RadioGroup
@@ -322,17 +323,18 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => {
           value={form.supplierMode}
           onChange={(value) => set("supplierMode", value)}
         />
-        <div className="max-w-[450px] pt-3">
-          <PairCombo
-            idId="lkpSupplierID"
-            nameId="lkpSupplierName"
-            idOptions={supplierIdOptions}
-            nameOptions={supplierNameOptions}
-            value={form.supplier}
-            onChange={(value) => set("supplier", value)}
-            disabled={form.supplierMode !== "One Supplier"}
-          />
-        </div>
+        {form.supplierMode === "One Supplier" && (
+          <div className="pt-3">
+            <PairCombo
+              idId="lkpSupplierID"
+              nameId="lkpSupplierName"
+              idOptions={supplierIdOptions}
+              nameOptions={supplierNameOptions}
+              value={form.supplier}
+              onChange={(value) => set("supplier", value)}
+            />
+          </div>
+        )}
       </div>
       <div className={row}>
         <RadioGroup
@@ -341,17 +343,18 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => {
           value={form.airlineMode}
           onChange={(value) => set("airlineMode", value)}
         />
-        <div className="max-w-[450px] pt-3">
-          <PairCombo
-            idId="lkpAirlineID"
-            nameId="lkpAirlineName"
-            idOptions={airlineIdOptions}
-            nameOptions={airlineNameOptions}
-            value={form.airline}
-            onChange={(value) => set("airline", value)}
-            disabled={form.airlineMode !== "One Airline"}
-          />
-        </div>
+        {form.airlineMode === "One Airline" && (
+          <div className="pt-3">
+            <PairCombo
+              idId="lkpAirlineID"
+              nameId="lkpAirlineName"
+              idOptions={airlineIdOptions}
+              nameOptions={airlineNameOptions}
+              value={form.airline}
+              onChange={(value) => set("airline", value)}
+            />
+          </div>
+        )}
       </div>
       <div className={`${row} items-center`}>
         <div className="flex h-[30px] items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
@@ -432,7 +435,7 @@ const SupplierWiseProfitPage = () => {
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-230 max-w-full bg-white p-0">
+      <div className="min-h-fit w-270 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white relative">
           <Header Name="Supplier wise Profit" />
           <section className="px-3.5 pb-6 pt-3">

@@ -198,7 +198,7 @@ const DateField: React.FC<{
 
 const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="flex min-w-0 flex-col gap-3">
-    <div className="grid grid-cols-[125px_minmax(0,220px)] items-center gap-4 max-[560px]:grid-cols-1">
+    <div className="grid grid-cols-[125px_minmax(0,250px)] items-center gap-4 max-[560px]:grid-cols-1">
       <RadioGroup
         name="branchMode"
         options={["One Branch", "All Branch"]}
@@ -206,12 +206,14 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         onChange={(value) => set("branchMode", value)}
       />
       {form.branchMode === "One Branch" && (
-        <Combo
-          id="lkpBranch"
-          options={branchOptions}
-          value={form.branch}
-          onChange={(value) => set("branch", value)}
-        />
+        <div className="w-[250px] max-w-full">
+          <Combo
+            id="lkpBranch"
+            options={branchOptions}
+            value={form.branch}
+            onChange={(value) => set("branch", value)}
+          />
+        </div>
       )}
     </div>
     <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-4 max-[560px]:grid-cols-1">
@@ -222,7 +224,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         onChange={(value) => set("staffMode", value)}
       />
       {form.staffMode === "One Staff" && (
-        <div className="grid w-[430px] max-w-[calc(100vw-300px)] min-w-0 grid-cols-[minmax(80px,110px)_minmax(0,1fr)] gap-1.5">
+        <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.5">
           <Combo
             id="lkpStaffID"
             options={staffIdOptions}
@@ -341,7 +343,7 @@ const StaffWiseProfitPage = () => {
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit min-w-230 w-230 max-w-full bg-white">
+      <div className="min-h-fit w-[1200px] max-w-full bg-white">
         <main className="relative w-full overflow-hidden border border-gray-400 bg-white">
           <Header Name="Staff wise Profit" />
           <section className="px-3.5 pb-5 pt-3">

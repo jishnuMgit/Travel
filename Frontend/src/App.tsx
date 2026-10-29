@@ -12,7 +12,8 @@ import RptStaffPage from "./pages/Report/RptStaffPage";
 import RptAirlinePage from "./pages/Report/RptAirlinePage";
 import RptDailyPage from "./pages/Report/RptDailyPage";
 import RptBspSalesTicketwisePage from "./pages/Report/Rptbspsalesticketwisepage";
-import RptBSPSalesAirlinewisepage from "./pages/Report/Rptbspsalesairlinewisepage";
+import RptBSPSalesAirlinewisepage from "./pages/Report/RptBSPSalesAirlinewisepage";
+import RptCustomerWiseProfitPage from "./pages/Report/Rptcustomerwiseprofitpage";
 import SupplierWiseProfitPage from "./pages/Report/SupplierWiseProfitPage";
 import StaffWiseProfitPage from "./pages/Report/StaffWiseProfitPage";
 import AirlineWiseProfitPage from "./pages/Report/AirlineWiseProfitPage";
@@ -25,6 +26,9 @@ const pageTitles: Record<string, string> = {
   "/Report/Staff": "Staff Sales",
   "/Report/Airline": "Airline Sales",
   "/Report/Daily": "Daily Sales",
+  "/Report/RptBspSalesTicketwisePage": "BSP Sales Ticketwise",
+  "/Report/RptBspSalesAirlinewisePage": "BSP Sales Airlinewise",
+  "/Report/CustomerWiseProfit": "Customer wise Profit",
   "/Report/SupplierWiseProfit": "Supplier wise Profit",
   "/Report/StaffWiseProfit": "Staff wise Profit",
   "/Report/AirlineWiseProfit": "Airline wise Profit",
@@ -79,7 +83,10 @@ const AppLayout = () => {
             <Route path="/Report/Stock" element={<RptStockPage/>}/>
             <Route path="/Report/Staff" element={<RptStaffPage/>}/>
             <Route path="/Report/Airline" element={<RptAirlinePage/>}/>
+            <Route path="/Report/Daily" element={<RptDailyPage/>}/>
+            <Route path="/Report/RptBspSalesTicketwisePage" element={<RptBspSalesTicketwisePage/>}/>
             <Route path="/Report/RptBspSalesAirlinewisePage" element={<RptBSPSalesAirlinewisepage/>}/>
+            <Route path="/Report/CustomerWiseProfit" element={<RptCustomerWiseProfitPage/>}/>
             <Route path="/Report/SupplierWiseProfit" element={<SupplierWiseProfitPage/>}/>
             <Route path="/Report/StaffWiseProfit" element={<StaffWiseProfitPage/>}/>
             <Route path="/Report/AirlineWiseProfit" element={<AirlineWiseProfitPage/>}/>

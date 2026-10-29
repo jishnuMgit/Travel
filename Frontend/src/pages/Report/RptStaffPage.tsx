@@ -33,7 +33,12 @@ const branchOptions: Option[] = [
   { value: "DAMMAM", label: "DAMMAM" },
 ];
 
-const staffOptions: Option[] = [
+const staffIdOptions: Option[] = [
+  { value: "S001", label: "S001" },
+  { value: "S002", label: "S002" },
+];
+
+const staffNameOptions: Option[] = [
   { value: "S001", label: "Staff One" },
   { value: "S002", label: "Staff Two" },
 ];
@@ -132,7 +137,7 @@ const CustomRadio: React.FC<RadioProps> = ({
   disabled = false,
 }) => (
   <label
-    className={`flex items-center gap-[5px] whitespace-nowrap select-none ${
+    className={`flex items-center gap-1.25 whitespace-nowrap select-none ${
       disabled
         ? "cursor-not-allowed opacity-40"
         : "cursor-pointer"
@@ -149,18 +154,18 @@ const CustomRadio: React.FC<RadioProps> = ({
     />
 
     <span
-      className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border ${
+      className={`flex h-4.75 w-4.75 shrink-0 items-center justify-center rounded-full border ${
         checked
           ? "border-[#4ade80]"
           : "border-[#cbd5e1]"
       } bg-white`}
     >
       {checked && (
-        <span className="h-[9px] w-[9px] rounded-full bg-[#4ade80]" />
+        <span className="h-2.25 w-2.25 rounded-full bg-[#4ade80]" />
       )}
     </span>
 
-    <span className="text-[12px] leading-[17px] text-[#30465d]">
+    <span className="text-[12px] leading-4.25 text-[#30465d]">
       {label}
     </span>
   </label>
@@ -172,7 +177,7 @@ const RadioPanel: React.FC<{
   className?: string;
 }> = ({ children, className = "" }) => (
   <div
-    className={`flex flex-col justify-center gap-[5px] rounded-[3px] border border-[#d9e1e9] bg-white px-[7px] py-[7px] ${className}`}
+    className={`flex flex-col justify-center gap-1.25 rounded-[3px] border border-[#d9e1e9] bg-white px-1.75 py-1.75 ${className}`}
   >
     {children}
   </div>
@@ -182,7 +187,7 @@ const RadioPanel: React.FC<{
 const FieldLabel: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => (
-  <div className="flex h-[28px] items-center justify-end rounded-[2px] border border-[#d9e1e9] bg-[#fafbfc] px-[8px] text-[12px] text-[#40566d]">
+  <div className="flex h-7 items-center justify-end rounded-xs border border-[#d9e1e9] bg-[#fafbfc] px-2 text-[12px] text-[#40566d]">
     {children}
   </div>
 );
@@ -284,7 +289,7 @@ const ActionButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className="flex h-[40px] min-w-[90px] items-center justify-center rounded-[4px] border border-[#a9c8ed] bg-gradient-to-b from-white to-[#edf3f9] px-[18px] text-[13px] text-green-700 hover:from-[#f7fbff] hover:to-[#e4eff9] active:translate-y-px"
+    className="flex h-10 min-w-22.5 items-center justify-center rounded-sm border border-[#a9c8ed] bg-linear-to-b from-white to-[#edf3f9] px-4.5 text-[13px] text-green-700 hover:from-[#f7fbff] hover:to-[#e4eff9] active:translate-y-px"
   >
     {children}
   </button>
@@ -300,7 +305,10 @@ const StaffSalesPage: React.FC = () => {
   const [staffMode, setStaffMode] =
     useState("One Staff");
 
-  const [staff, setStaff] =
+  const [staffId, setStaffId] =
+    useState<Option | null>(null);
+
+  const [staffName, setStaffName] =
     useState<Option | null>(null);
 
   const [customerMode, setCustomerMode] =
@@ -347,7 +355,12 @@ const StaffSalesPage: React.FC = () => {
       staffMode,
       staff:
         staffMode === "One Staff"
-          ? staff
+          ? staffId
+          : null,
+
+      staffName:
+        staffMode === "One Staff"
+          ? staffName
           : null,
 
       customerMode,
@@ -383,24 +396,24 @@ const StaffSalesPage: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
    <div className="flex w-full justify-center">
-  <div className="min-h-screen w-full bg-white p-[10px]">
-    <main className="mx-auto w-full max-w-[800px] overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
+  <div className="min-h-screen w-full bg-white p-2.5">
+    <main className="mx-auto w-full max-w-220 overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
    
 
           {/* Title */}
-          <header className="flex h-[33px] items-center rounded-t-[2px] bg-[#9fe0bd] px-[16px]">
+          <header className="flex h-8.25 items-center rounded-t-xs bg-[#9fe0bd] px-4">
             <h1 className="m-0 text-[16px] font-medium text-[#24435b]">
               Staff Sales
             </h1>
           </header>
 
-          <section className="px-[17px] pb-[19px] pt-[19px]">
+          <section className="px-4.25 pb-4.75 pt-4.75">
 
             {/* Five aligned rows */}
-            <div className="grid grid-cols-[125px_minmax(0,1fr)_228px] items-center gap-x-[12px] gap-y-[12px]">
+            <div className="grid grid-cols-[125px_minmax(0,1fr)_228px] items-center gap-x-3 gap-y-3">
 
               {/* ROW 1: Branch */}
-              <RadioPanel className="min-h-[70px]">
+              <RadioPanel className="min-h-17.5">
                 <CustomRadio
                   name="branch"
                   value="One Branch"
@@ -420,7 +433,7 @@ const StaffSalesPage: React.FC = () => {
 
               <div>
 
-                {branchMode==="One Branch" &&<div className="w-[220px] max-w-full -mt-5">
+                {branchMode==="One Branch" &&<div className="w-62.5 max-w-full -mt-5">
                   <Select
                     inputId="branch"
                     options={branchOptions}
@@ -433,8 +446,8 @@ const StaffSalesPage: React.FC = () => {
                 
               </div>
 
-              <div className="flex items-center gap-[8px]">
-                <RadioPanel className="w-[110px] min-h-[85px]">
+              <div className="flex items-center gap-2">
+                <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
                     name="payment"
                     value="Cash"
@@ -460,7 +473,7 @@ const StaffSalesPage: React.FC = () => {
                   />
                 </RadioPanel>
 
-                <RadioPanel className="w-[110px] min-h-[85px]">
+                <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
                     name="result"
                     value="Sales"
@@ -488,7 +501,7 @@ const StaffSalesPage: React.FC = () => {
               </div>
 
               {/* ROW 2: Staff */}
-              <RadioPanel className="min-h-[70px]">
+              <RadioPanel className="min-h-17.5">
                 <CustomRadio
                   name="staff"
                   value="One Staff"
@@ -507,22 +520,46 @@ const StaffSalesPage: React.FC = () => {
               </RadioPanel>
 
               <div>
-                <div className="w-[220px] max-w-full">
-                  <Select
-                    inputId="staff"
-                    options={staffOptions}
-                    value={staff}
-                    onChange={setStaff}
-                    isDisabled={staffMode !== "One Staff"}
-                    {...selectProps}
-                  />
-                </div>
+                {staffMode === "One Staff" && (
+                  <div className="grid min-w-0 grid-cols-[120px_minmax(0,1fr)] gap-1.25">
+                    <Select
+                      inputId="staffId"
+                      options={staffIdOptions}
+                      value={staffId}
+                      onChange={(option) => {
+                        setStaffId(option);
+                        setStaffName(
+                          staffNameOptions.find(
+                            (item) => item.value === option?.value,
+                          ) ?? null,
+                        );
+                      }}
+                      {...selectProps}
+                    />
+                   <div className="w-112.5">
+                     <Select
+                      inputId="staffName"
+                      options={staffNameOptions}
+                      value={staffName}
+                      onChange={(option) => {
+                        setStaffName(option);
+                        setStaffId(
+                          staffIdOptions.find(
+                            (item) => item.value === option?.value,
+                          ) ?? null,
+                        );
+                      }}
+                      {...selectProps}
+                    />
+                   </div>
+                  </div>
+                )}
               </div>
 
               <div />
 
               {/* ROW 3: Customer */}
-              <RadioPanel className="min-h-[70px]">
+              <RadioPanel className="min-h-17.5">
                 <CustomRadio
                   name="customer"
                   value="One Customer"
@@ -539,45 +576,49 @@ const StaffSalesPage: React.FC = () => {
                   onChange={() => setCustomerMode("All Customer")}
                 />
               </RadioPanel>
+  <div className="grid min-w-0 grid-cols-[120px_minmax(0,1fr)] gap-1.25">
+              {customerMode === "One Customer" && (
+              
+                <>
+                  <Select
+                    inputId="customerId"
+                    options={customerIdOptions}
+                    value={customerId}
+                    onChange={(option) => {
+                      setCustomerId(option);
 
-              <div className="grid min-w-0 grid-cols-[85px_minmax(0,1fr)] gap-[5px]">
-                <Select
-                  inputId="customerId"
-                  options={customerIdOptions}
-                  value={customerId}
-                  onChange={(option) => {
-                    setCustomerId(option);
+                      setCustomerName(
+                        customerNameOptions.find(
+                          (item) => item.value === option?.value,
+                        ) ?? null,
+                      );
+                    }}
+                    {...selectProps}
+                  />
 
-                    setCustomerName(
-                      customerNameOptions.find(
-                        (item) => item.value === option?.value,
-                      ) ?? null,
-                    );
-                  }}
-                  isDisabled={customerMode !== "One Customer"}
-                  {...selectProps}
-                />
+                  <div className="w-112.5">
+                    <Select
+                      inputId="customerName"
+                      options={customerNameOptions}
+                      value={customerName}
+                      onChange={(option) => {
+                        setCustomerName(option);
 
-                <Select
-                  inputId="customerName"
-                  options={customerNameOptions}
-                  value={customerName}
-                  onChange={(option) => {
-                    setCustomerName(option);
-
-                    setCustomerId(
-                      customerIdOptions.find(
-                        (item) => item.value === option?.value,
-                      ) ?? null,
-                    );
-                  }}
-                  isDisabled={customerMode !== "One Customer"}
-                  {...selectProps}
-                />
-              </div>
-
+                        setCustomerId(
+                          customerIdOptions.find(
+                            (item) => item.value === option?.value,
+                          ) ?? null,
+                        );
+                      }}
+                      {...selectProps}
+                    />
+                  </div>
+               
+                </>
+              )}
+ </div>
               <div className="flex justify-end">
-                <RadioPanel className="w-[110px] min-h-[85px]">
+                <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
                     name="category"
                     value="Travel"
@@ -607,7 +648,7 @@ const StaffSalesPage: React.FC = () => {
               {/* ROW 4: Period */}
               <div className="-mt-15"><FieldLabel>Period :</FieldLabel></div>
 
-              <div className="flex flex-wrap items-center gap-[6px] -mt-15">
+              <div className="flex flex-wrap items-center gap-1.5 -mt-15">
                 <AppDatePicker
                                   id="fromDate"
                                   value={fromDate}
@@ -619,8 +660,8 @@ const StaffSalesPage: React.FC = () => {
                                   onChange={setToDate} label={""}                />
               </div>
 
-              <div className="flex items-center gap-[8px] ">
-                <RadioPanel className="w-[110px] min-h-[85px]">
+              <div className="flex items-center gap-2 ">
+                <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
                     name="travel"
                     value="Domestic"
@@ -646,7 +687,7 @@ const StaffSalesPage: React.FC = () => {
                   />
                 </RadioPanel>
 
-                <RadioPanel className="w-[110px] min-h-[85px]">
+                <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
                     name="invoice"
                     value="Not-Invoiced"
@@ -674,7 +715,7 @@ const StaffSalesPage: React.FC = () => {
               </div>
 
               {/* ROW 5: Detail and Summary */}
-              <RadioPanel className="min-h-[70px] -mt-12">
+              <RadioPanel className="min-h-17.5 -mt-12">
                 <CustomRadio
                   name="detail"
                   value="Detail"
@@ -692,7 +733,7 @@ const StaffSalesPage: React.FC = () => {
                 />
               </RadioPanel>
 
-              <div className="flex items-center justify-center gap-[8px] -mt-5 ">
+              <div className="flex items-center justify-center gap-2 -mt-5 ">
                 <ActionButton onClick={handlePrint}>
                   <u>P</u>rint
                 </ActionButton>

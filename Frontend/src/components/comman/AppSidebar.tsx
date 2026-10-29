@@ -10,21 +10,27 @@ import { FaCar } from "react-icons/fa";
 import { GiCommercialAirplane } from "react-icons/gi";
 import { HiOutlineDocumentReport } from "react-icons/hi";
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 const navigation = [
   { label: "Ticket Sales", to: "/ticket-sales", icon: FiCreditCard },
   { label: "Hotel Sales", to: "/hotel-sales", icon: FiBriefcase },
-   { label: "Other Service", to: "/Other-Service", icon: FaCar },
-   {label:"Airline",to:"/Airline",icon:GiCommercialAirplane},
-   {label:"Stock",to:"/Report/Stock",icon:HiOutlineDocumentReport},
-   {label:"Staff Report",to:"/Report/Staff",icon:HiOutlineDocumentReport},
-   {label:"Airline Report",to:"/Report/Airline",icon:HiOutlineDocumentReport},
-   {label:"Bsp Sales Airlinewise ",to:"/Report/RptBspSalesAirlinewisePage",icon:HiOutlineDocumentReport},
-   {label:"Supplier Wise Profit",to:"/Report/SupplierWiseProfit",icon:HiOutlineDocumentReport},
-   {label:"Staff Wise Profit",to:"/Report/StaffWiseProfit",icon:HiOutlineDocumentReport},
-   {label:"Airline Wise Profit",to:"/Report/AirlineWiseProfit",icon:HiOutlineDocumentReport},
-   {label:"BSP Bill Import/Export",to:"/Report/BspBillImportExport",icon:HiOutlineDocumentReport}
+  { label: "Other Service", to: "/Other-Service", icon: FaCar },
+  { label: "Airline", to: "/Airline", icon: GiCommercialAirplane },
+];
+
+const reportNavigation = [
+  { label: "Stock", to: "/Report/Stock" },
+  { label: "Staff Report", to: "/Report/Staff" },
+  { label: "Airline Report", to: "/Report/Airline" },
+  { label: "Daily Report", to: "/Report/Daily" },
+  { label: "BSP Sales Ticketwise", to: "/Report/RptBspSalesTicketwisePage" },
+  { label: "Bsp Sales Airlinewise", to: "/Report/RptBspSalesAirlinewisePage" },
+  { label: "Customer Wise Profit", to: "/Report/CustomerWiseProfit" },
+  { label: "Supplier Wise Profit", to: "/Report/SupplierWiseProfit" },
+  { label: "Staff Wise Profit", to: "/Report/StaffWiseProfit" },
+  { label: "Airline Wise Profit", to: "/Report/AirlineWiseProfit" },
+  { label: "BSP Bill Import/Export", to: "/Report/BspBillImportExport" },
 ];
 
 const AppSidebar: React.FC<{
@@ -32,6 +38,10 @@ const AppSidebar: React.FC<{
   onDesktopClose: () => void;
 }> = ({ isDesktopOpen, onDesktopClose }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+  const [isReportOpen, setIsReportOpen] = useState(
+    pathname.startsWith("/Report/"),
+  );
 
   const sidebar = (
     <aside className="sticky top-0 flex h-screen w-66 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-5">
@@ -94,6 +104,59 @@ const AppSidebar: React.FC<{
             )}
           </NavLink>
         ))}
+        <div>
+          <button
+            type="button"
+            aria-expanded={isReportOpen}
+            onClick={() => setIsReportOpen((open) => !open)}
+            className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium transition-colors ${
+              pathname.startsWith("/Report/")
+                ? "bg-emerald-50 text-emerald-800"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                pathname.startsWith("/Report/")
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-white"
+              }`}
+            >
+              <HiOutlineDocumentReport size={16} />
+            </span>
+            <span className="flex-1">Report</span>
+            <FiChevronRight
+              aria-hidden="true"
+              className={`transition-transform ${
+                isReportOpen ? "rotate-90 text-emerald-600" : "text-slate-300"
+              }`}
+              size={15}
+            />
+          </button>
+          {isReportOpen && (
+            <div className="ml-7 mt-1 space-y-1 border-l border-slate-200 pl-3">
+              {reportNavigation.map(({ label, to }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => {
+                    setIsMobileOpen(false);
+                    onDesktopClose();
+                  }}
+                  className={({ isActive }) =>
+                    `block rounded-lg px-3 py-2 text-[12px] font-medium transition-colors ${
+                      isActive
+                        ? "bg-emerald-50 text-emerald-800"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`
+                  }
+                >
+                  {label}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
       </nav>
 
       <div className="mt-auto rounded-xl border border-emerald-100 bg-emerald-50/70 p-3.5">

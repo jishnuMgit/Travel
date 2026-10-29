@@ -19,7 +19,11 @@ const branchOptions: Option[] = [
   { value: "RIYADH", label: "RIYADH" },
   { value: "DAMMAM", label: "DAMMAM" },
 ];
-const staffOptions: Option[] = [
+const staffIdOptions: Option[] = [
+  { value: "S001", label: "S001" },
+  { value: "S002", label: "S002" },
+];
+const staffNameOptions: Option[] = [
   { value: "S001", label: "Staff One" },
   { value: "S002", label: "Staff Two" },
 ];
@@ -37,12 +41,12 @@ const RadioGroup: React.FC<{
   className?: string;
 }> = ({ name, options, value, onChange, className = "" }) => (
   <div
-    className={`flex flex-col justify-center gap-[5px] rounded-[3px] border border-[#d9e1e9] bg-white px-[7px] py-[6px] ${className}`}
+    className={`flex flex-col justify-center gap-1.25 rounded-[3px] border border-[#d9e1e9] bg-white px-1.75 py-1.5 ${className}`}
   >
     {options.map((option) => (
       <label
         key={option.value}
-        className="flex cursor-pointer select-none items-center gap-[5px] whitespace-nowrap"
+        className="flex cursor-pointer select-none items-center gap-1.25 whitespace-nowrap"
       >
         <input
           type="radio"
@@ -53,17 +57,17 @@ const RadioGroup: React.FC<{
           className="sr-only"
         />
         <span
-          className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border ${
+          className={`flex h-4.75 w-4.75 shrink-0 items-center justify-center rounded-full border ${
             value === option.value
               ? "border-[#4ade80]"
               : "border-[#cbd5e1]"
           } bg-white`}
         >
           {value === option.value && (
-            <span className="h-[9px] w-[9px] rounded-full bg-[#4ade80]" />
+            <span className="h-2.25 w-2.25 rounded-full bg-[#4ade80]" />
           )}
         </span>
-        <span className="text-[12px] leading-[17px] text-[#30465d]">
+        <span className="text-[12px] leading-4.25 text-[#30465d]">
           {option.label}
         </span>
       </label>
@@ -146,7 +150,7 @@ const AppDatePicker: React.FC<{
 );
 
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex h-[28px] items-center justify-end rounded-[2px] border border-[#d9e1e9] bg-[#fafbfc] px-[8px] text-[12px] text-[#40566d]">
+  <div className="flex h-7 items-center justify-end rounded-xs border border-[#d9e1e9] bg-[#fafbfc] px-2 text-[12px] text-[#40566d]">
     {children}
   </div>
 );
@@ -158,7 +162,7 @@ const ActionButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className="btn-style min-w-[80px]"
+    className="btn-style min-w-20"
   >
     {children}
   </button>
@@ -169,6 +173,7 @@ const RptDailyPage: React.FC = () => {
   const [branch, setBranch] = useState<Option | null>(branchOptions[0]);
   const [staffMode, setStaffMode] = useState("One Staff");
   const [staff, setStaff] = useState<Option | null>(null);
+  const [staffName, setStaffName] = useState<Option | null>(null);
   const [fromDate, setFromDate] = useState("01/10/2026");
   const [toDate, setToDate] = useState(dayjs().format(DATE_FORMAT));
   const [detailMode, setDetailMode] = useState("Detail");
@@ -184,6 +189,7 @@ const RptDailyPage: React.FC = () => {
       branch: branchMode === "One Branch" ? branch : null,
       staffMode,
       staff: staffMode === "One Staff" ? staff : null,
+      staffName: staffMode === "One Staff" ? staffName : null,
       fromDate,
       toDate,
       detailMode,
@@ -199,24 +205,24 @@ const RptDailyPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-white p-1 sm:p-2">
-      <main className="mx-auto w-full max-w-[680px] overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-245 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
         <Header Name="Daily Sales" />
-        <section className="px-4 pb-5 pt-4 sm:px-[17px]">
-          <div className="space-y-[10px]">
-            <div className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+        <section className="px-4 pb-5 pt-4 sm:px-4.25">
+          <div className="space-y-2.5">
+            <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
                   name="dailyBranchMode"
                   value={branchMode}
                   onChange={setBranchMode}
-                  className="h-[70px]"
+                  className="h-17.5"
                   options={[
                     { value: "One Branch", label: "One Branch" },
                     { value: "All Branch", label: "All Branch" },
                   ]}
                 />
                 {branchMode === "One Branch" && (
-                  <div className="w-full max-w-[220px]">
+                  <div className="w-full max-w-55">
                     <Select
                       inputId="dailySalesBranch"
                       options={branchOptions}
@@ -232,7 +238,7 @@ const RptDailyPage: React.FC = () => {
                   name="dailyResultType"
                   value={resultType}
                   onChange={setResultType}
-                  className="w-[100px]"
+                  className="w-25"
                   options={[
                     { value: "Sales", label: "Sales" },
                     { value: "Refund", label: "Refund" },
@@ -243,7 +249,7 @@ const RptDailyPage: React.FC = () => {
                   name="dailyTravelType"
                   value={travelType}
                   onChange={setTravelType}
-                  className="w-[110px]"
+                  className="w-27.5"
                   options={[
                     { value: "Domestic", label: "Domestic" },
                     { value: "International", label: "International" },
@@ -253,25 +259,46 @@ const RptDailyPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+            <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
                   name="dailyStaffMode"
                   value={staffMode}
                   onChange={setStaffMode}
-                  className="h-[70px]"
+                  className="h-17.5"
                   options={[
                     { value: "One Staff", label: "One Staff" },
                     { value: "All Staff", label: "All Staff" },
                   ]}
                 />
                 {staffMode === "One Staff" && (
-                  <div className="w-full max-w-[220px]">
+                  <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.25">
                     <Select
-                      inputId="dailySalesStaff"
-                      options={staffOptions}
+                      inputId="dailySalesStaffId"
+                      options={staffIdOptions}
                       value={staff}
-                      onChange={setStaff}
+                      onChange={(option) => {
+                        setStaff(option);
+                        setStaffName(
+                          staffNameOptions.find(
+                            (item) => item.value === option?.value,
+                          ) ?? null,
+                        );
+                      }}
+                      {...fieldSelectProps}
+                    />
+                    <Select
+                      inputId="dailySalesStaffName"
+                      options={staffNameOptions}
+                      value={staffName}
+                      onChange={(option) => {
+                        setStaffName(option);
+                        setStaff(
+                          staffIdOptions.find(
+                            (item) => item.value === option?.value,
+                          ) ?? null,
+                        );
+                      }}
                       {...fieldSelectProps}
                     />
                   </div>
@@ -282,7 +309,7 @@ const RptDailyPage: React.FC = () => {
                   name="dailySalesCategory"
                   value={salesCategory}
                   onChange={setSalesCategory}
-                  className="w-[110px]"
+                  className="w-27.5"
                   options={[
                     { value: "Travel", label: "Travel" },
                     { value: "Tourism", label: "Tourism" },
@@ -292,11 +319,11 @@ const RptDailyPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+            <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <FieldLabel>Period :</FieldLabel>
-                <div className="flex gap-[5px]">
-                  <div className="w-[100px]">
+                <div className="flex gap-1.25">
+                  <div className="w-25">
                     <AppDatePicker
                       id="dailySalesFromDate"
                       label="Period start date"
@@ -304,7 +331,7 @@ const RptDailyPage: React.FC = () => {
                       onChange={setFromDate}
                     />
                   </div>
-                  <div className="w-[100px]">
+                  <div className="w-25">
                     <AppDatePicker
                       id="dailySalesToDate"
                       label="Period end date"
@@ -319,7 +346,7 @@ const RptDailyPage: React.FC = () => {
                   name="dailyInvoiceStatus"
                   value={invoiceStatus}
                   onChange={setInvoiceStatus}
-                  className="w-[115px]"
+                  className="w-28.75"
                   options={[
                     { value: "Not-Invoiced", label: "Not-Invoiced" },
                     { value: "Invoiced", label: "Invoiced" },
@@ -329,13 +356,13 @@ const RptDailyPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+            <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
                   name="dailyDetailMode"
                   value={detailMode}
                   onChange={setDetailMode}
-                  className="h-[70px]"
+                  className="h-17.5"
                   options={[
                     { value: "Detail", label: "Detail" },
                     { value: "Summary", label: "Summary" },

@@ -190,10 +190,10 @@ const TabBar: React.FC<{
             tabIndex={selected ? 0 : -1}
             disabled={disabled && !selected}
             onClick={() => onChange(tab)}
-            className={`-mb-px rounded-t-[4px] border px-4 text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-[#91a7b9] disabled:cursor-not-allowed ${
+            className={`-mb-px rounded-t-sm border px-4 text-[12px] outline-none focus-visible:ring-1 focus-visible:ring-[#91a7b9] disabled:cursor-not-allowed ${
               selected
-                ? "h-[28px] border-[#B7ECD0] border-b-white bg-white text-[#24364d]"
-                : "h-[25px] border-[#d5dce2] bg-[#f2f8f4] text-[#405066] hover:bg-[#e7f7ed]"
+                ? "h-7 border-[#B7ECD0] border-b-white bg-white text-[#24364d]"
+                : "h-6.25 border-[#d5dce2] bg-[#f2f8f4] text-[#405066] hover:bg-[#e7f7ed]"
             }`}
           >
             {tab}
@@ -237,7 +237,7 @@ const ImportPanel: React.FC<{
             onKeyDown={(event) => {
               if (event.key === "Enter") onEnter();
             }}
-            className="h-[30px] w-full rounded-[4px] border border-[#cfd7df] bg-white py-0 pl-2 pr-9 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9] disabled:bg-[#f6f8fa]"
+            className="h-7.5 w-full rounded-sm border border-[#cfd7df] bg-white py-0 pl-2 pr-9 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9] disabled:bg-[#f6f8fa]"
           />
           <button
             id="btnBrowse"
@@ -246,7 +246,7 @@ const ImportPanel: React.FC<{
             title="Browse"
             disabled={running}
             onClick={() => fileRef.current?.click()}
-            className="absolute right-1 top-1/2 flex h-[22px] w-[28px] -translate-y-1/2 items-center justify-center rounded-[3px] pb-1 text-[17px] leading-none text-[#405066] hover:bg-[#eef3f7] disabled:cursor-not-allowed disabled:opacity-60"
+            className="absolute right-1 top-1/2 flex h-5.5 w-7 -translate-y-1/2 items-center justify-center rounded-[3px] pb-1 text-[17px] leading-none text-[#405066] hover:bg-[#eef3f7] disabled:cursor-not-allowed disabled:opacity-60"
           >
             &hellip;
           </button>
@@ -272,7 +272,7 @@ const ImportPanel: React.FC<{
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(progress)}
-        className="h-[20px] w-full overflow-hidden border border-[#cfd7df] bg-[#f2f5f8]"
+        className="h-5 w-full overflow-hidden border border-[#cfd7df] bg-[#f2f5f8]"
       >
         <div
           className="h-full bg-[#9fdfbc] transition-[width] duration-200"
@@ -305,7 +305,7 @@ const ExportPanel: React.FC<{
       value={values.iata}
       onChange={(v) => onChange("iata", v)}
       disabled={disabled}
-      className="w-[130px]"
+      className="w-32.5"
     />
     <LabeledCombo
       id="lkpYear"
@@ -314,7 +314,7 @@ const ExportPanel: React.FC<{
       value={values.year}
       onChange={(v) => onChange("year", v)}
       disabled={disabled}
-      className="w-[100px]"
+      className="w-25"
     />
     <LabeledCombo
       id="lkpMonth"
@@ -323,7 +323,7 @@ const ExportPanel: React.FC<{
       value={values.month}
       onChange={(v) => onChange("month", v)}
       disabled={disabled}
-      className="w-[150px]"
+      className="w-37.5"
     />
     <LabeledCombo
       id="lkpPeriod"
@@ -332,14 +332,14 @@ const ExportPanel: React.FC<{
       value={values.period}
       onChange={(v) => onChange("period", v)}
       disabled={disabled}
-      className="w-[72px]"
+      className="w-18"
     />
   </div>
 );
 
 /* 3d. Status message under the panel content */
 const StatusLine: React.FC<{ status: Status }> = ({ status }) => (
-  <div aria-live="polite" className="mt-4 min-h-[18px] text-[12px]">
+  <div aria-live="polite" className="mt-4 min-h-4.5 text-[12px]">
     {status.kind === "running" && (
       <span className="text-[#405066]">{status.text}</span>
     )}
@@ -509,7 +509,7 @@ const BspBillImportExportPage: React.FC<BspBillImportExportPageProps> = ({
               id={`panel${tab}`}
               role="tabpanel"
               aria-labelledby={`tab${tab}`}
-              className="min-h-[170px] border border-[#B7ECD0] bg-white px-4 pb-4"
+              className="min-h-42.5 border border-[#B7ECD0] bg-white px-4 pb-4"
             >
               {tab === "Import" ? (
                 <ImportPanel

@@ -142,7 +142,7 @@ const CustomRadio: React.FC<{
       className="sr-only"
     />
     <span
-      className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border bg-white ${
+      className={`flex h-4.75 w-4.75 shrink-0 items-center justify-center rounded-full border bg-white ${
         checked ? "border-[#64d96e]" : "border-[#cbd3dc]"
       }`}
     >
@@ -181,7 +181,7 @@ const PanelGroup: React.FC<{
 );
 
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex h-[30px] items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
+  <div className="flex h-7.5 items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
     {children}
   </div>
 );
@@ -230,14 +230,14 @@ const PairCombo: React.FC<{
       options={idOptions}
       value={value}
       onChange={onChange}
-      className="w-[85px] shrink-0"
+      className="w-30 shrink-0"
     />
     <Combo
       id={nameId}
       options={nameOptions}
       value={value}
       onChange={onChange}
-      className="flex-1"
+      className="w-112.5 shrink-0"
     />
   </div>
 );
@@ -336,16 +336,17 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         value={form.iataMode}
         onChange={(v) => set("iataMode", v)}
       />
-      <div className="w-[220px] max-w-full pt-3">
-
-        {form.iataMode==="One IATA" &&  <Combo
-          id="lkpIata"
-          options={iataOptions}
-          value={form.iata}
-          onChange={(v) => set("iata", v)}
-          disabled={form.iataMode !== "One IATA"}
-        />}
-       
+      <div className="pt-3">
+        {form.iataMode === "One IATA" && (
+          <PairCombo
+            idId="lkpIataID"
+            nameId="lkpIataName"
+            idOptions={iataOptions}
+            nameOptions={iataOptions}
+            value={form.iata}
+            onChange={(v) => set("iata", v)}
+          />
+        )}
       </div>
     </div>
 
@@ -357,7 +358,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         value={form.airlineMode}
         onChange={(v) => set("airlineMode", v)}
       />
-      <div className="max-w-[360px] pt-3">
+      <div className="pt-3">
         {form.airlineMode === "One Airline" && (
           <PairCombo
             idId="lkpAirlineID"
@@ -395,7 +396,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 /* 3b. Right column: Sales / Refund on top, Branchwise in the middle,
    Not-Reported / Reported / All at the bottom.                           */
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="flex w-[130px] shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
+  <div className="flex w-32.5 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
     <PanelGroup
       name="rdgSaleMode"
       options={["Sales", "Refund"]}
@@ -405,7 +406,7 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
 
     <label
       htmlFor="chkBranchwise"
-      className="flex h-[30px] cursor-pointer items-center justify-between border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
+      className="flex h-7.5 cursor-pointer items-center justify-between border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
     >
       Branchwise
       <input
@@ -436,7 +437,7 @@ const BottomRow: React.FC<
       options={["Detail", "Summary"]}
       value={form.reportType}
       onChange={(v) => set("reportType", v)}
-      className="w-[168px]"
+      className="w-42"
     />
     <div className="flex gap-2">
       <button
@@ -490,7 +491,7 @@ const RptBspSalesTicketwisePage: React.FC<RptBspSalesTicketwisePageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-175 max-w-full bg-white p-0">
+      <div className="min-h-fit w-240 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
          <Header Name="BSP Sales Ticketwise"/>
 

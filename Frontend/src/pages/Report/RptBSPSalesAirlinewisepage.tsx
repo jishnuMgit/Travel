@@ -230,14 +230,14 @@ const PairCombo: React.FC<{
       options={idOptions}
       value={value}
       onChange={onChange}
-      className="w-[105px] shrink-0"
+      className="w-30 shrink-0"
     />
     <Combo
       id={nameId}
       options={nameOptions}
       value={value}
       onChange={onChange}
-      className="w-[350px]"
+      className="w-112.5 shrink-0"
     />
   </div>
 );
@@ -336,15 +336,17 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         value={form.iataMode}
         onChange={(v) => set("iataMode", v)}
       />
-      <div className="w-55 max-w-full pt-3">
-        {form.iataMode==="One IATA" && <Combo
-          id="lkpIata"
-          options={iataOptions}
-          value={form.iata}
-          onChange={(v) => set("iata", v)}
-          disabled={form.iataMode !== "One IATA"}
-        />}
-        
+      <div className="pt-3">
+        {form.iataMode === "One IATA" && (
+          <PairCombo
+            idId="lkpIataID"
+            nameId="lkpIataName"
+            idOptions={iataOptions}
+            nameOptions={iataOptions}
+            value={form.iata}
+            onChange={(v) => set("iata", v)}
+          />
+        )}
       </div>
     </div>
 
@@ -356,7 +358,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         value={form.airlineMode}
         onChange={(v) => set("airlineMode", v)}
       />
-      <div className="max-w-200 pt-3">
+      <div className="pt-3">
         {form.airlineMode === "One Airline" && (
           <PairCombo
             idId="lkpAirlineID"
@@ -416,7 +418,7 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
         options={["Not-Reported", "Reported", "All"]}
         value={form.reportedMode}
         onChange={(v) => set("reportedMode", v)}
-        className="w-[200px] "
+        className="w-50 "
       />
     </div>
   </div>
@@ -432,7 +434,7 @@ const BottomRow: React.FC<
       options={["Detail", "Summary"]}
       value={form.reportType}
       onChange={(v) => set("reportType", v)}
-      className="w-[168px]"
+      className="w-42"
     />
     <div className="flex gap-2">
       <button
@@ -486,7 +488,7 @@ const RptBSPSalesAirlinewisepage: React.FC<RptBSPSalesAirlinewisepageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-210 max-w-full bg-white p-0">
+      <div className="min-h-fit w-240 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
        <Header Name="BSP Sales Airlinewise"/>
 

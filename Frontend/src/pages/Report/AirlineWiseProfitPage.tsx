@@ -141,7 +141,7 @@ const RadioGroup: React.FC<{
             className="sr-only"
           />
           <span
-            className={`flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border ${
+            className={`flex h-3.75 w-3.75 shrink-0 items-center justify-center rounded-full border ${
               checked ? "border-[#64d96e]" : "border-[#cbd3dc]"
             }`}
           >
@@ -212,7 +212,7 @@ const DateField: React.FC<{
 
 const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="flex min-w-0 flex-col gap-3">
-    <div className="grid grid-cols-[125px_minmax(0,220px)] items-center gap-4 max-[560px]:grid-cols-1">
+    <div className="grid grid-cols-[125px_minmax(0,250px)] items-center gap-4 max-[560px]:grid-cols-1">
       <RadioGroup
         name="branchMode"
         options={["One Branch", "All Branch"]}
@@ -220,7 +220,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         onChange={(value) => set("branchMode", value)}
       />
       {form.branchMode === "One Branch" && (
-       <div className="-mt-7">
+       <div className="w-62.5 max-w-full -mt-7">
          <Combo
           id="lkpBranch"
           options={branchOptions}
@@ -238,7 +238,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         onChange={(value) => set("airlineMode", value)}
       />
       {form.airlineMode === "One Airline" && (
-        <div className="grid w-[355px] max-w-full min-w-0 grid-cols-[minmax(65px,85px)_minmax(0,1fr)] gap-1.5 -mt-7">
+        <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.5 mt-3">
           <Combo
             id="lkpAirlineID"
             options={airlineIdOptions}
@@ -255,7 +255,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
       )}
     </div>
     <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-4 max-[560px]:grid-cols-1">
-      <div className="flex h-[30px] items-center justify-end border border-[#d5dce2] bg-[#fafbfc] px-2 text-[12px] text-[#405066]">
+      <div className="flex h-7.5 items-center justify-end border border-[#d5dce2] bg-[#fafbfc] px-2 text-[12px] text-[#405066]">
         Period :
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -291,9 +291,33 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
       onChange={(value) => set("invoiceMode", value)}
       className="px-2"
     />
-    <label
+
+
+    <div className="col-start-1  flex h-7.5 items-center gap-2  bg-white px-2.5 text-[12px] text-[#405066] select-none">
+
+    </div>
+    <RadioGroup
+      name="regionMode"
+      options={["Domestic", "International", "All"]}
+      value={form.regionMode}
+      onChange={(value) => set("regionMode", value)}
+      className="col-start-1 px-2 -mt-35"
+    />
+    <fieldset className="col-start-2 row-start-2 mt-7 min-w-0 border border-[#d5dce2] px-2 pb-2 pt-0.5 ">
+      <legend className="mx-auto whitespace-nowrap px-1.5 text-[12px] text-[#405066]">
+        Order By
+      </legend>
+      <RadioGroup
+        name="orderBy"
+        options={["Airline No.", "Billing Amt.", "Profit Amt.", "Profit %"]}
+        value={form.orderBy}
+        onChange={(value) => set("orderBy", value)}
+        className="gap-2! border-0! bg-transparent! px-1! py-1.5!"
+      />
+    </fieldset>
+        <label
       htmlFor="chkIncludeIncentive"
-      className="col-start-1 flex h-[30px] cursor-pointer items-center gap-2 border border-[#d5dce2] bg-white px-2.5 text-[12px] text-[#405066] select-none"
+      className="col-start-1  flex h-7.5 cursor-pointer items-center gap-2 border border-[#d5dce2] bg-white px-2.5 text-[12px] text-[#405066] select-none -mt-13"
     >
       <input
         id="chkIncludeIncentive"
@@ -304,25 +328,6 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
       />
       Include Incentive
     </label>
-    <RadioGroup
-      name="regionMode"
-      options={["Domestic", "International", "All"]}
-      value={form.regionMode}
-      onChange={(value) => set("regionMode", value)}
-      className="col-start-1 px-2 -mt-25"
-    />
-    <fieldset className="col-start-2 row-start-2 -mt-2 min-w-0 border border-[#d5dce2] px-2 pb-2 pt-0.5">
-      <legend className="mx-auto whitespace-nowrap px-1.5 text-[12px] text-[#405066]">
-        Order By
-      </legend>
-      <RadioGroup
-        name="orderBy"
-        options={["Airline No.", "Billing Amt.", "Profit Amt.", "Profit %"]}
-        value={form.orderBy}
-        onChange={(value) => set("orderBy", value)}
-        className="!gap-2 !border-0 !bg-transparent !px-1 !py-1.5"
-      />
-    </fieldset>
   </div>
 );
 
@@ -341,7 +346,7 @@ const AirlineWiseProfitPage = () => {
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-230 max-w-full bg-white">
+      <div className="min-h-fit w-300 max-w-full bg-white">
         <main className="relative w-full overflow-hidden border border-gray-400 bg-white">
           <Header Name="Airline wise Profit" />
           <section className="px-3.5 pb-5 pt-3">
@@ -354,7 +359,7 @@ const AirlineWiseProfitPage = () => {
                     options={["Detail", "Summary"]}
                     value={form.reportType}
                     onChange={(value) => set("reportType", value)}
-                    className="w-[125px]"
+                    className="w-31.25"
                   />
                   <div className="flex gap-2 ml-10">
                     <button

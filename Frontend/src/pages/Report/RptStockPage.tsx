@@ -287,7 +287,7 @@ const RptStockPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-white p-1 sm:p-2">
-      <main className="mx-auto w-full max-w-[715px] overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-220 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
         {/* Window title */}
       <Header Name="Customer Sales"/>
 
@@ -312,7 +312,7 @@ const RptStockPage: React.FC = () => {
             </RadioPanel>
 
             <div className="pt-[9px]">
-              {branchMode === "One Branch" && <div className="w-[220px] max-w-full">
+              {branchMode === "One Branch" && <div className="w-[250px] max-w-full">
                 <Select
                   inputId="branch"
                   options={branchOptions}
@@ -343,7 +343,7 @@ const RptStockPage: React.FC = () => {
 
             <div className="flex items-start gap-1 pt-[9px]">
               {customerMode === "One Customer" && <>
-              <div className="w-[85px]">
+              <div className="w-[120px]">
                 <Select
                   inputId="customerId"
                   options={customerIdOptions}
@@ -360,7 +360,7 @@ const RptStockPage: React.FC = () => {
                 />
               </div>
 
-              <div className="min-w-0 flex-1">
+              <div className="w-[450px] shrink-0">
                 <Select
                   inputId="customerName"
                   options={customerNameOptions}
@@ -458,7 +458,7 @@ const RptStockPage: React.FC = () => {
 
             <div className="flex items-start gap-1 pt-[9px]">
               {airlineMode === "One Airline" && <>
-              <div className="w-[68px]">
+              <div className="w-[120px]">
                 <Select
                   inputId="airlineId"
                   options={airlineIdOptions}
@@ -475,7 +475,7 @@ const RptStockPage: React.FC = () => {
                 />
               </div>
 
-              <div className="w-[248px] max-w-full">
+              <div className="w-[450px] max-w-full">
                 <Select
                   inputId="airlineName"
                   options={airlineNameOptions}
@@ -540,7 +540,7 @@ const RptStockPage: React.FC = () => {
 
             <div className="flex min-w-0 items-center justify-between gap-2">
               {staffMode === "One Staff" ? (
-                <div className="w-[220px] max-w-full">
+                <div className="w-[250px] max-w-full">
                   <Select
                     inputId="staff"
                     options={staffOptions}
