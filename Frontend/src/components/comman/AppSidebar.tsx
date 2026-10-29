@@ -5,6 +5,7 @@ import {
   FiCreditCard,
   FiGrid,
   FiMenu,
+  FiSettings,
   FiX,
 } from "react-icons/fi";
 import { FaCar } from "react-icons/fa";
@@ -45,6 +46,9 @@ const AppSidebar: React.FC<{
   );
   const [isTableOpen, setIsTableOpen] = useState(
     pathname.startsWith("/Tables/"),
+  );
+  const [isSetupOpen, setIsSetupOpen] = useState(
+    pathname.startsWith("/Setup/"),
   );
 
   const sidebar = (
@@ -223,6 +227,72 @@ const AppSidebar: React.FC<{
                 }
               >
                 B2C Invoice
+              </NavLink>
+            </div>
+          )}
+        </div>
+        <div>
+          <button
+            type="button"
+            aria-expanded={isSetupOpen}
+            onClick={() => setIsSetupOpen((open) => !open)}
+            className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium transition-colors ${
+              pathname.startsWith("/Setup/")
+                ? "bg-emerald-50 text-emerald-800"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                pathname.startsWith("/Setup/")
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-white"
+              }`}
+            >
+              <FiSettings size={16} />
+            </span>
+            <span className="flex-1">Setup</span>
+            <FiChevronRight
+              aria-hidden="true"
+              className={`transition-transform ${
+                isSetupOpen ? "rotate-90 text-emerald-600" : "text-slate-300"
+              }`}
+              size={15}
+            />
+          </button>
+          {isSetupOpen && (
+            <div className="ml-7 mt-1 space-y-1 border-l border-slate-200 pl-3">
+              <NavLink
+                to="/Setup/ServiceChargePolicy"
+                onClick={() => {
+                  setIsMobileOpen(false);
+                  onDesktopClose();
+                }}
+                className={({ isActive }) =>
+                  `block rounded-lg px-3 py-2 text-[12px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-emerald-50 text-emerald-800"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`
+                }
+              >
+                Service Charge Policy
+              </NavLink>
+              <NavLink
+                to="/Setup/ServiceType"
+                onClick={() => {
+                  setIsMobileOpen(false);
+                  onDesktopClose();
+                }}
+                className={({ isActive }) =>
+                  `block rounded-lg px-3 py-2 text-[12px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-emerald-50 text-emerald-800"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`
+                }
+              >
+                Service Type
               </NavLink>
             </div>
           )}

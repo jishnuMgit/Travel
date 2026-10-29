@@ -3,23 +3,25 @@ import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { FiMenu } from "react-icons/fi";
 import AppSidebar from "./components/comman/AppSidebar";
-import HotelSalesPage from "./pages/Sales/HotelSalesPage";
-import TicketSalesPage from "./pages/Sales/TicketSalesPage";
-import OtherServicePage from "./pages/Sales/OtherServicePage";
-import AirlinePage from "./pages/Sales/AirlinePage";
-import RptStockPage from "./pages/Report/RptCustomerSalesPage";
-import RptStaffPage from "./pages/Report/RptStaffPage";
-import RptAirlinePage from "./pages/Report/RptAirlinePage";
-import RptDailyPage from "./pages/Report/RptDailyPage";
-import RptBspSalesTicketwisePage from "./pages/Report/Rptbspsalesticketwisepage";
-import RptBSPSalesAirlinewisepage from "./pages/Report/RptBSPSalesAirlinewisepage";
-import RptCustomerWiseProfitPage from "./pages/Report/Rptcustomerwiseprofitpage";
-import SupplierWiseProfitPage from "./pages/Report/SupplierWiseProfitPage";
-import StaffWiseProfitPage from "./pages/Report/StaffWiseProfitPage";
-import AirlineWiseProfitPage from "./pages/Report/AirlineWiseProfitPage";
-import BspBillImportExportPage from "./pages/Report/BspBillImportExportPage";
+import HotelSalesPage from "./pages/Travel/Sales/HotelSalesPage";
+import TicketSalesPage from "./pages/Travel/Sales/TicketSalesPage";
+import OtherServicePage from "./pages/Travel/Sales/OtherServicePage";
+import AirlinePage from "./pages/Travel/Sales/AirlinePage";
+import RptStockPage from "./pages/Travel/SalesReport/RptCustomerSalesPage";
+import RptStaffPage from "./pages/Travel/SalesReport/RptStaffPage";
+import RptAirlinePage from "./pages/Travel/SalesReport/RptAirlinePage";
+import RptDailyPage from "./pages/Travel/SalesReport/RptDailyPage";
+import RptBspSalesTicketwisePage from "./pages/Travel/SalesReport/Rptbspsalesticketwisepage";
+import RptBSPSalesAirlinewisepage from "./pages/Travel/SalesReport/RptBSPSalesAirlinewisepage";
+import RptCustomerWiseProfitPage from "./pages/Travel/SalesReport/Rptcustomerwiseprofitpage";
+import SupplierWiseProfitPage from "./pages/Travel/SalesReport/SupplierWiseProfitPage";
+import StaffWiseProfitPage from "./pages/Travel/SalesReport/StaffWiseProfitPage";
+import AirlineWiseProfitPage from "./pages/Travel/SalesReport/AirlineWiseProfitPage";
+import BspBillImportExportPage from "./pages/Travel/SalesReport/BspBillImportExportPage";
 import B2BInvoicePage from "./pages/Tables/B2BInvoicePage";
 import B2CInvoicePage from "./pages/Tables/B2cinvoicepage";
+import ServiceChargePolicy from "./pages/Travel/Setup/ServiceChargePolicy";
+import ServiceTypePage from "./pages/Travel/Setup/ServiceTypePage";
 
 const pageTitles: Record<string, string> = {
   "/ticket-sales": "Ticket Sales",
@@ -37,6 +39,8 @@ const pageTitles: Record<string, string> = {
   "/Report/BspBillImportExport": "BSP Bill Import/Export",
   "/Tables/B2BInvoice": "B2B Invoice",
   "/Tables/B2CInvoice": "B2C Invoice",
+  "/Setup/ServiceChargePolicy": "Service Charge Policy",
+  "/Setup/ServiceType": "Service Type",
 };
 
 const AppLayout = () => {
@@ -97,6 +101,11 @@ const AppLayout = () => {
             <Route path="/Report/BspBillImportExport" element={<BspBillImportExportPage/>}/>
             <Route path="/Tables/B2BInvoice" element={<B2BInvoicePage/>}/>
             <Route path="/Tables/B2CInvoice" element={<B2CInvoicePage/>}/>
+            <Route
+              path="/Setup/ServiceChargePolicy"
+              element={<ServiceChargePolicy />}
+            />
+            <Route path="/Setup/ServiceType" element={<ServiceTypePage />} />
           </Routes>
         </main>
       </div>

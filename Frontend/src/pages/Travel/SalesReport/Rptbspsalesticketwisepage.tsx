@@ -5,7 +5,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../components/comman/Header";
+import Header from "../../../components/comman/Header";
 
 dayjs.extend(customParseFormat);
 
@@ -14,8 +14,8 @@ dayjs.extend(customParseFormat);
    1. Types, constants and sample options
    2. Shared building blocks
    3. Parts : LeftFilters (IATA, airline, period), RightFilters
-              (sales / refund / net, amex, reported), BottomRow
-   4. RptBSPSalesAirlinewisepage : owns the state and renders the parts
+              (sales / refund, branchwise, reported), BottomRow
+   4. RptBspSalesTicketwisePage : owns the state and renders the parts
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -52,8 +52,8 @@ type FormState = {
   fromDate: string;
   toDate: string;
   reportType: string; // Detail / Summary
-  saleMode: string; // Sales / Refund / Net
-  amexMode: string; // Non Amex / Amex / All
+  saleMode: string; // Sales / Refund
+  branchwise: boolean;
   reportedMode: string; // Not-Reported / Reported / All
 };
 
@@ -73,7 +73,7 @@ const initialForm = (): FormState => ({
   toDate: TODAY,
   reportType: "Summary",
   saleMode: "Sales",
-  amexMode: "Non Amex",
+  branchwise: false,
   reportedMode: "All",
 });
 
@@ -393,34 +393,37 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
   </div>
 );
 
-/* 3b. Right side: Sales / Refund / Net on top (right aligned), and at the
-   bottom the Amex panel next to the Not-Reported / Reported panel.        */
+/* 3b. Right column: Sales / Refund on top, Branchwise in the middle,
+   Not-Reported / Reported / All at the bottom.                           */
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="flex w-59 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
+  <div className="flex w-32.5 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
     <PanelGroup
       name="rdgSaleMode"
-      options={["Sales", "Refund", "Net"]}
+      options={["Sales", "Refund"]}
       value={form.saleMode}
       onChange={(v) => set("saleMode", v)}
-      className="w-28 self-end max-[640px]:self-start"
     />
 
-    <div className="flex gap-3">
-      <PanelGroup
-        name="rdgAmex"
-        options={["Non Amex", "Amex", "All"]}
-        value={form.amexMode}
-        onChange={(v) => set("amexMode", v)}
-        className="w-28 -ml-10"
+    <label
+      htmlFor="chkBranchwise"
+      className="flex h-7.5 cursor-pointer items-center justify-between border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
+    >
+      Branchwise
+      <input
+        id="chkBranchwise"
+        type="checkbox"
+        checked={form.branchwise}
+        onChange={(event) => set("branchwise", event.target.checked)}
+        className="h-4 w-4 accent-[#64d96e]"
       />
-      <PanelGroup
-        name="rdgReported"
-        options={["Not-Reported", "Reported", "All"]}
-        value={form.reportedMode}
-        onChange={(v) => set("reportedMode", v)}
-        className="w-50 "
-      />
-    </div>
+    </label>
+
+    <PanelGroup
+      name="rdgReported"
+      options={["Not-Reported", "Reported", "All"]}
+      value={form.reportedMode}
+      onChange={(v) => set("reportedMode", v)}
+    />
   </div>
 );
 
@@ -460,11 +463,11 @@ const BottomRow: React.FC<
 /* ---------------------------------------------------------------------
    4. MAIN PAGE : owns the state and renders the parts
    --------------------------------------------------------------------- */
-type RptBSPSalesAirlinewisepageProps = {
+type RptBspSalesTicketwisePageProps = {
   onClose?: () => void;
 };
 
-const RptBSPSalesAirlinewisepage: React.FC<RptBSPSalesAirlinewisepageProps> = ({
+const RptBspSalesTicketwisePage: React.FC<RptBspSalesTicketwisePageProps> = ({
   onClose,
 }) => {
   const [form, setForm] = useState<FormState>(initialForm);
@@ -490,7 +493,7 @@ const RptBSPSalesAirlinewisepage: React.FC<RptBSPSalesAirlinewisepageProps> = ({
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
       <div className="min-h-fit w-240 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-       <Header Name="BSP Sales Airlinewise"/>
+         <Header Name="BSP Sales Ticketwise"/>
 
           <section className="px-3.5 pb-6 pt-3">
             <div className="flex gap-4 max-[640px]:flex-col">
@@ -512,4 +515,4 @@ const RptBSPSalesAirlinewisepage: React.FC<RptBSPSalesAirlinewisepageProps> = ({
   );
 };
 
-export default RptBSPSalesAirlinewisepage;
+export default RptBspSalesTicketwisePage;
