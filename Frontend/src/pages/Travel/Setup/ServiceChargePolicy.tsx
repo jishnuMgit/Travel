@@ -188,12 +188,12 @@ const ServiceChargePolicy: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-slate-100 p-3 sm:p-5">
-      <main className="mx-auto w-full max-w-[1500px] overflow-hidden border border-slate-400 bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-375 overflow-hidden border border-slate-400 bg-white shadow-sm">
         <Header Name="Service Charge Policy"/>
 
         <section className="space-y-4 p-4 sm:p-5">
           <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-            <div className="flex min-w-0 flex-1 basis-[450px] items-center gap-3">
+            <div className="flex min-w-0 flex-1 basis-112.5 items-center gap-3">
               <label
                 htmlFor="servicePolicyCustomerId"
                 className="shrink-0 text-sm font-medium text-slate-600"
@@ -225,7 +225,7 @@ const ServiceChargePolicy: React.FC = () => {
                     setMerchantFee(event.target.value);
                   }
                 }}
-                className="h-[30px] w-[100px] rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
+                className="h-7.5 w-25 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
               />
             </label>
           </div>
@@ -254,18 +254,18 @@ const ServiceChargePolicy: React.FC = () => {
             className="overflow-hidden border border-slate-200"
           >
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] table-fixed border-collapse">
+              <table className="w-full min-w-280 table-fixed border-collapse">
                 <colgroup>
-                  <col className="w-[210px]" />
-                  <col className="w-[75px]" />
-                  <col className="w-[70px]" />
-                  <col className="w-[110px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[70px]" />
-                  <col className="w-[110px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[120px]" />
+                  <col className="w-52.5" />
+                  <col className="w-18.75" />
+                  <col className="w-17.5" />
+                  <col className="w-27.5" />
+                  <col className="w-30" />
+                  <col className="w-30" />
+                  <col className="w-17.5" />
+                  <col className="w-27.5" />
+                  <col className="w-30" />
+                  <col className="w-30" />
                 </colgroup>
                 <thead>
                   <tr className="border border-gray-400">
@@ -433,7 +433,7 @@ const ServiceChargePolicy: React.FC = () => {
               type="button"
               disabled
               name="btnCopy"
-              className="btn-style min-w-[90px] disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-style min-w-22.5 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Copy
             </button>
