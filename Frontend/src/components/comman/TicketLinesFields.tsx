@@ -1,5 +1,6 @@
 import Select from "react-select";
 import selectComponents from "./selectComponents";
+import { fieldSelectProps } from "./Combo";
 
 
 
@@ -49,40 +50,7 @@ const formatMoney = (value: number) =>
 
 
 
-const fieldSelectProps = {
-  isSearchable: true,
-  isClearable: false,
-  placeholder: "",
-  menuPosition: "fixed" as const,
-  menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-  classNames: {
-    control: ({ isFocused }: { isFocused: boolean }) => `
-      !min-h-[30px] !h-[30px] !rounded-[4px] !border !shadow-none !text-[12px]
-      hover:!border-[#aab8c5] !bg-white
-      ${isFocused ? "!border-[#91a7b9]" : "!border-[#cfd7df]"}
-    `,
-    valueContainer: () => "!h-[26px] !py-0 !px-[5px] !overflow-hidden",
-    singleValue: () => "!m-0 !text-[12px] !text-[#24364d]",
-    placeholder: () => "!m-0 !text-[12px] !text-[#7a8794]",
-    input: () => "!m-0 !p-0 !text-[12px] !text-[#24364d]",
-    indicatorsContainer: () => "!h-[26px]",
-    dropdownIndicator: () => "!p-[2px] !text-[#657486]",
-    indicatorSeparator: () => "!hidden",
-    menu: () =>
-      "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md",
-    menuList: () => "!p-0 !max-h-[180px]",
-    option: ({
-      isFocused,
-      isSelected,
-    }: {
-      isFocused: boolean;
-      isSelected: boolean;
-    }) => `
-      !cursor-pointer !px-[6px] !py-[4px] !text-[12px] !text-[#24364d]
-      ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
-    `,
-  },
-};
+
 
 const Field: React.FC<{
   label: string;
@@ -105,7 +73,8 @@ const TicketLinesFields: React.FC<{
   form: DetailForm;
   set: SetDetail;
   profitAmt: number;
-}> = ({ form, set, profitAmt }) => (
+  onAction?: (name: "customerAttach" | "supplierAttach") => void;
+}> = ({ form, set, profitAmt, onAction }) => (
   <div
     className={`${panelClass} grid grid-cols-1 items-center gap-x-4 gap-y-2.5 md:grid-cols-2 lg:grid-cols-12`}
   >
@@ -215,6 +184,27 @@ const TicketLinesFields: React.FC<{
           className={readOnlyClass}
         />
       </Field>
+
+    {onAction && (
+      <div className="flex flex-col items-stretch justify-center gap-2 md:col-span-2 lg:col-span-2 lg:row-span-2">
+        <button
+          id="btnCustomerAttach"
+          type="button"
+          onClick={() => onAction("customerAttach")}
+          className="btn-style min-w-0 text-[12px]  max-w-[140px]"
+        >
+          Cust. Attach
+        </button>
+        <button
+          id="btnSupplierAttach"
+          type="button"
+          onClick={() => onAction("supplierAttach")}
+          className="btn-style h-7.5 min-w-0 px-2 text-[12px] max-w-[140px]"
+        >
+          Supp. Attach
+        </button>
+      </div>
+    )}
 
     {/* row 3 : INV. Note | Note */}
     <Field

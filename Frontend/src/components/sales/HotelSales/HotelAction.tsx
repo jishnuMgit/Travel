@@ -73,16 +73,7 @@ const HotelActions: React.FC<{
         label="Print"
         onClick={() => onAction("print")}
       />
-      <ActionButton
-        id="btnCustomerAttach"
-        label="Cust. Attach"
-        onClick={() => onAction("customerAttach")}
-      />
-      <ActionButton
-        id="btnSupplierAttach"
-        label="Supp. Attach"
-        onClick={() => onAction("supplierAttach")}
-      />
+      
       <ActionButton
         id="btnCancel"
         label="Cancel"

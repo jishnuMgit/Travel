@@ -201,10 +201,10 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
                 <thead className="sticky top-0 z-10">
                   <tr>
                     <th className={thClass} />
-                    <th className={`${thClass} text-left`}>Airline No</th>
-                    <th className={`${thClass} text-left`}>Airline Name</th>
-                    <th className={`${thClass} text-left`}>Airline Code</th>
-                    <th className={`${thClass} text-center`}>
+                    <th id="txtAirlineNo" className={`${thClass} text-left`}>Airline No</th>
+                    <th id="txtAirlineName" className={`${thClass} text-left`}>Airline Name</th>
+                    <th id="txtAirlineCode" className={`${thClass} text-left`}>Airline Code</th>
+                    <th id="txtVatOnCommission" className={`${thClass} text-center`}>
                       VAT On Commission
                     </th>
                   </tr>

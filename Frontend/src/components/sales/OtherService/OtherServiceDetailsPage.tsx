@@ -6,6 +6,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../comman/Header";
+import { Combo, PairCombo, type Option } from "../../comman/Combo";
 import selectComponents from "../../comman/selectComponents";
 import TicketLinesPage from "../../comman/TicketLinesPage";
 
@@ -26,8 +27,6 @@ dayjs.extend(customParseFormat);
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-type Option = { value: string; label: string };
-
 const DATE_FORMAT = "DD-MM-YYYY";
 const TODAY = dayjs().format(DATE_FORMAT);
 
@@ -283,18 +282,13 @@ const selectClassNames = {
   `,
 };
 
-const selectProps = {
+/* select that fills a grid cell (no border) */
+const cellSelectProps = {
   isSearchable: false,
   isClearable: false,
   placeholder: "",
-  classNames: selectClassNames,
   menuPosition: "fixed" as const,
   menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-};
-
-/* select that fills a grid cell (no border) */
-const cellSelectProps = {
-  ...selectProps,
   classNames: {
     ...selectClassNames,
     control: ({ isFocused }: { isFocused: boolean }) => `
@@ -357,72 +351,6 @@ const Field: React.FC<{
       {label}
     </label>
     <div className="flex min-w-0 flex-1 items-center gap-1.5">{children}</div>
-  </div>
-);
-
-/** single react-select */
-const Combo: React.FC<{
-  id: string;
-  options: Option[];
-  value: string | null;
-  onChange?: (value: string | null) => void;
-  className?: string;
-  disabled?: boolean;
-}> = ({
-  id,
-  options,
-  value,
-  onChange,
-  className = "w-full",
-  disabled = false,
-}) => (
-  <div className={`min-w-0 ${className}`}>
-    <Select
-      inputId={id}
-      instanceId={id}
-      components={selectComponents}
-      options={options}
-      value={options.find((o) => o.value === value) ?? null}
-      onChange={(option) => onChange?.(option?.value ?? null)}
-      isDisabled={disabled}
-      {...selectProps}
-    />
-  </div>
-);
-
-/** ID select + name select that always show the same record */
-const PairCombo: React.FC<{
-  idId: string;
-  nameId: string;
-  idOptions: Option[];
-  nameOptions: Option[];
-  value: string | null;
-  onChange: (value: string | null) => void;
-  idWidth?: string;
-}> = ({
-  idId,
-  nameId,
-  idOptions,
-  nameOptions,
-  value,
-  onChange,
-  idWidth = "w-[92px]",
-}) => (
-  <div className="flex min-w-0 flex-1 items-center gap-1.5">
-    <Combo
-      id={idId}
-      options={idOptions}
-      value={value}
-      onChange={onChange}
-      className={`${idWidth} shrink-0`}
-    />
-    <Combo
-      id={nameId}
-      options={nameOptions}
-      value={value}
-      onChange={onChange}
-      className="flex-1"
-    />
   </div>
 );
 
@@ -853,8 +781,8 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
         />
       </Field>
 
-      {/* row 2 : Date | X/O No. | D/I | Carrier */}
-      <Field label="Date :" labelClassName={LL} className="lg:col-span-4">
+      {/* row 2 : Date | D/I | Carrier */}
+      <Field label="Date :" labelClassName={LL} className="lg:col-span-6">
         <div className="w-35 shrink-0">
           <AppDatePicker
             id="dtpDate"
@@ -864,9 +792,9 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           />
         </div>
       </Field>
-      <Field label="X/O No. :" labelClassName={LE} className="lg:col-span-2">
+      {/* <Field label="X/O No. :" labelClassName={LE} className="lg:col-span-2">
         <ReadOnlyBox id="txtXoNo" value="" />
-      </Field>
+      </Field> */}
       <Field label="D/I :" labelClassName={LR1} className="lg:col-span-3">
         <Combo
           id="lkpDI"
@@ -1041,6 +969,7 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           value={form.staff}
           onChange={(v) => set("staff", v)}
           idWidth="w-[72px]"
+          containerClassName="flex min-w-0 flex-1 items-center gap-1.5"
         />
       </Field>
 
@@ -1140,6 +1069,7 @@ const CarSupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             value={form.supplier}
             onChange={(v) => set("supplier", v)}
             idWidth="w-[110px]"
+            containerClassName="flex min-w-0 flex-1 items-center gap-1.5"
           />
         </Field>
         <Field
@@ -1155,6 +1085,7 @@ const CarSupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             value={form.supPayment}
             onChange={(v) => set("supPayment", v)}
             idWidth="w-[110px]"
+            containerClassName="flex min-w-0 flex-1 items-center gap-1.5"
           />
         </Field>
 
