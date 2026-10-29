@@ -219,7 +219,7 @@ const ActionButton: React.FC<{
   </button>
 );
 
-const RptStockPage: React.FC = () => {
+const RptCustomerSalesPage: React.FC = () => {
   const [branchMode, setBranchMode] = useState("One Branch");
   const [branch, setBranch] = useState<Option | null>(
     branchOptions[0],
@@ -695,4 +695,4 @@ const RptStockPage: React.FC = () => {
   );
 };
 
-export default RptStockPage;
+export default RptCustomerSalesPage;

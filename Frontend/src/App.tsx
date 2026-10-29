@@ -7,7 +7,7 @@ import HotelSalesPage from "./pages/Sales/HotelSalesPage";
 import TicketSalesPage from "./pages/Sales/TicketSalesPage";
 import OtherServicePage from "./pages/Sales/OtherServicePage";
 import AirlinePage from "./pages/Sales/AirlinePage";
-import RptStockPage from "./pages/Report/RptStockPage";
+import RptStockPage from "./pages/Report/RptCustomerSalesPage";
 import RptStaffPage from "./pages/Report/RptStaffPage";
 import RptAirlinePage from "./pages/Report/RptAirlinePage";
 import RptDailyPage from "./pages/Report/RptDailyPage";
@@ -18,6 +18,8 @@ import SupplierWiseProfitPage from "./pages/Report/SupplierWiseProfitPage";
 import StaffWiseProfitPage from "./pages/Report/StaffWiseProfitPage";
 import AirlineWiseProfitPage from "./pages/Report/AirlineWiseProfitPage";
 import BspBillImportExportPage from "./pages/Report/BspBillImportExportPage";
+import B2BInvoicePage from "./pages/Tables/B2BInvoicePage";
+import B2CInvoicePage from "./pages/Tables/B2cinvoicepage";
 
 const pageTitles: Record<string, string> = {
   "/ticket-sales": "Ticket Sales",
@@ -33,6 +35,8 @@ const pageTitles: Record<string, string> = {
   "/Report/StaffWiseProfit": "Staff wise Profit",
   "/Report/AirlineWiseProfit": "Airline wise Profit",
   "/Report/BspBillImportExport": "BSP Bill Import/Export",
+  "/Tables/B2BInvoice": "B2B Invoice",
+  "/Tables/B2CInvoice": "B2C Invoice",
 };
 
 const AppLayout = () => {
@@ -80,7 +84,7 @@ const AppLayout = () => {
             <Route path="*" element={<Navigate to="/ticket-sales" replace />} />
             <Route path="/Other-Service" element={<OtherServicePage/>}/>
             <Route path="/Airline" element={<AirlinePage/>}/>
-            <Route path="/Report/Stock" element={<RptStockPage/>}/>
+            <Route path="/Report/RptCustomerSales" element={<RptStockPage/>}/>
             <Route path="/Report/Staff" element={<RptStaffPage/>}/>
             <Route path="/Report/Airline" element={<RptAirlinePage/>}/>
             <Route path="/Report/Daily" element={<RptDailyPage/>}/>
@@ -91,6 +95,8 @@ const AppLayout = () => {
             <Route path="/Report/StaffWiseProfit" element={<StaffWiseProfitPage/>}/>
             <Route path="/Report/AirlineWiseProfit" element={<AirlineWiseProfitPage/>}/>
             <Route path="/Report/BspBillImportExport" element={<BspBillImportExportPage/>}/>
+            <Route path="/Tables/B2BInvoice" element={<B2BInvoicePage/>}/>
+            <Route path="/Tables/B2CInvoice" element={<B2CInvoicePage/>}/>
           </Routes>
         </main>
       </div>

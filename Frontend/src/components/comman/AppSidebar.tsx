@@ -3,6 +3,7 @@ import {
   FiBriefcase,
   FiChevronRight,
   FiCreditCard,
+  FiGrid,
   FiMenu,
   FiX,
 } from "react-icons/fi";
@@ -20,7 +21,7 @@ const navigation = [
 ];
 
 const reportNavigation = [
-  { label: "Stock", to: "/Report/Stock" },
+  { label: "Customer Sales", to: "/Report/RptCustomerSales" },
   { label: "Staff Report", to: "/Report/Staff" },
   { label: "Airline Report", to: "/Report/Airline" },
   { label: "Daily Report", to: "/Report/Daily" },
@@ -41,6 +42,9 @@ const AppSidebar: React.FC<{
   const { pathname } = useLocation();
   const [isReportOpen, setIsReportOpen] = useState(
     pathname.startsWith("/Report/"),
+  );
+  const [isTableOpen, setIsTableOpen] = useState(
+    pathname.startsWith("/Tables/"),
   );
 
   const sidebar = (
@@ -154,6 +158,72 @@ const AppSidebar: React.FC<{
                   {label}
                 </NavLink>
               ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <button
+            type="button"
+            aria-expanded={isTableOpen}
+            onClick={() => setIsTableOpen((open) => !open)}
+            className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium transition-colors ${
+              pathname.startsWith("/Tables/")
+                ? "bg-emerald-50 text-emerald-800"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                pathname.startsWith("/Tables/")
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-white"
+              }`}
+            >
+              <FiGrid size={16} />
+            </span>
+            <span className="flex-1">Table</span>
+            <FiChevronRight
+              aria-hidden="true"
+              className={`transition-transform ${
+                isTableOpen ? "rotate-90 text-emerald-600" : "text-slate-300"
+              }`}
+              size={15}
+            />
+          </button>
+          {isTableOpen && (
+            <div className="ml-7 mt-1 space-y-1 border-l border-slate-200 pl-3">
+              <NavLink
+                to="/Tables/B2BInvoice"
+                onClick={() => {
+                  setIsMobileOpen(false);
+                  onDesktopClose();
+                }}
+                className={({ isActive }) =>
+                  `block rounded-lg px-3 py-2 text-[12px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-emerald-50 text-emerald-800"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`
+                }
+              >
+                B2B Invoice
+              </NavLink>
+              <NavLink
+                to="/Tables/B2CInvoice"
+                onClick={() => {
+                  setIsMobileOpen(false);
+                  onDesktopClose();
+                }}
+                className={({ isActive }) =>
+                  `block rounded-lg px-3 py-2 text-[12px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-emerald-50 text-emerald-800"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`
+                }
+              >
+                B2C Invoice
+              </NavLink>
             </div>
           )}
         </div>

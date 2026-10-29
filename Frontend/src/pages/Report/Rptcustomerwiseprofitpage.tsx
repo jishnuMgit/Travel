@@ -444,7 +444,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
      row 2 : Domestic / International    | Cash / Credit / All
      row 3 : Order By box                | Travel / Tourism / All (bottom)   */
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="grid w-59 shrink-0 grid-cols-2 content-between gap-3 max-[700px]:w-full">
+  <div className="grid w-70 shrink-0 grid-cols-2 content-between gap-3 max-[700px]:w-full">
     <PanelGroup
       name="rdgSaleMode"
       options={["Sales", "Refund", "Net"]}
@@ -575,7 +575,7 @@ const RptCustomerWiseProfitPage: React.FC<RptCustomerWiseProfitPageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-260 max-w-full bg-white p-0">
+      <div className="min-h-fit w-270 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
          <Header Name="Customer wise Profit"/>
 

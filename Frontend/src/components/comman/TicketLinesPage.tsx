@@ -79,7 +79,7 @@ type ActionName =
   | "cnj"
   | "printSv"
   | "print"
-  | "attach"
+  // | "attach"
   | "customerAttach"
   | "supplierAttach"
   | "cancel"
@@ -546,19 +546,6 @@ const TicketLinesActions: React.FC<{
             onClick={() => onAction("print")}
           />
           <ActionButton
-            id="btnCustomerAttach"
-            label="Cust. Attach"
-            compact
-            onClick={() => onAction("customerAttach")}
-          />
-          <ActionButton
-            id="btnSupplierAttach"
-            label="Supp. Attach"
-            disabled
-            compact
-            onClick={() => onAction("supplierAttach")}
-          />
-          <ActionButton
             id="btnCancel"
             label="Cancel"
             compact
@@ -629,11 +616,11 @@ const TicketLinesActions: React.FC<{
           label="Print"
           onClick={() => onAction("print")}
         />
-        <ActionButton
+        {/* <ActionButton
           id="btnAttach"
           label="Attach"
           onClick={() => onAction("attach")}
-        />
+        /> */}
         <ActionButton
           id="btnCancel"
           label="Cancel"
@@ -766,7 +753,12 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         onMoneyChange={(key, field, value) => updateRow(key, { [field]: value })} onTypeChange={function (): void {
           throw new Error("Function not implemented.");
         } }      />
-      <TicketLinesFields form={detail} set={set} profitAmt={profitAmt} />
+      <TicketLinesFields
+        form={detail}
+        set={set}
+        profitAmt={profitAmt}
+        onAction={handleAction}
+      />
       <TicketLinesActions
         onAction={handleAction}
         enabled={enabled}

@@ -73,7 +73,8 @@ const TicketLinesFields: React.FC<{
   form: DetailForm;
   set: SetDetail;
   profitAmt: number;
-}> = ({ form, set, profitAmt }) => (
+  onAction?: (name: "customerAttach" | "supplierAttach") => void;
+}> = ({ form, set, profitAmt, onAction }) => (
   <div
     className={`${panelClass} grid grid-cols-1 items-center gap-x-4 gap-y-2.5 md:grid-cols-2 lg:grid-cols-12`}
   >
@@ -183,6 +184,27 @@ const TicketLinesFields: React.FC<{
           className={readOnlyClass}
         />
       </Field>
+
+    {onAction && (
+      <div className="flex flex-col items-stretch justify-center gap-2 md:col-span-2 lg:col-span-2 lg:row-span-2">
+        <button
+          id="btnCustomerAttach"
+          type="button"
+          onClick={() => onAction("customerAttach")}
+          className="btn-style min-w-0 text-[12px]  max-w-[140px]"
+        >
+          Cust. Attach
+        </button>
+        <button
+          id="btnSupplierAttach"
+          type="button"
+          onClick={() => onAction("supplierAttach")}
+          className="btn-style h-7.5 min-w-0 px-2 text-[12px] max-w-[140px]"
+        >
+          Supp. Attach
+        </button>
+      </div>
+    )}
 
     {/* row 3 : INV. Note | Note */}
     <Field

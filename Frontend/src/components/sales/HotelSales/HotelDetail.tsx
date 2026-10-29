@@ -1392,7 +1392,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
     <Field
       label="Infants :"
       labelClassName={HE}
-      className="md:col-span-2 ml-13"
+      className="md:col-span-2 lg:ml-25"
     >
       <div className="w-16">
         <IntInput
@@ -1402,7 +1402,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         />
       </div>
     </Field>
-     <Field
+     {/* <Field
       label="Guest Qty.:"
       labelClassName={HE}
       className="md:col-span-2 ml-10 gap-1 "
@@ -1414,7 +1414,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
           onChange={(v) => set("infants", v)}
         />
       </div>
-    </Field>
+    </Field> */}
    </div>
 
     {/* Row 2: Supplier | FOP | CC Type */}
@@ -1914,6 +1914,7 @@ const HotelDetail: React.FC<HotelDetailProps> = ({
                 form={detail}
                 set={setDetailField}
                 profitAmt={profitAmt}
+                onAction={handleHotelAction}
               />
 
               <HotelActions
