@@ -5,7 +5,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../components/comman/Header";
+import Header from "../../../components/comman/Header";
 
 dayjs.extend(customParseFormat);
 
@@ -13,17 +13,15 @@ type Option = { value: string; label: string };
 type FormState = {
   branchMode: string;
   branch: string | null;
-  staffMode: string;
-  staff: string | null;
+  airlineMode: string;
+  airline: string | null;
   fromDate: string;
   toDate: string;
   reportType: string;
   saleMode: string;
-  paymentMode: string;
   invoiceMode: string;
   regionMode: string;
   orderBy: string;
-  categoryMode: string;
   includeIncentive: boolean;
 };
 
@@ -32,28 +30,29 @@ const branchOptions: Option[] = [
   { value: "JEDDAH", label: "JEDDAH" },
   { value: "RIYADH", label: "RIYADH" },
 ];
-const staffIdOptions: Option[] = [
-  { value: "STF001", label: "STF001" },
-  { value: "STF002", label: "STF002" },
+const airlineIdOptions: Option[] = [
+  { value: "SV", label: "SV" },
+  { value: "EK", label: "EK" },
+  { value: "QR", label: "QR" },
 ];
-const staffNameOptions: Option[] = [
-  { value: "STF001", label: "Staff One" },
-  { value: "STF002", label: "Staff Two" },
+const airlineNameOptions: Option[] = [
+  { value: "SV", label: "SAUDIA" },
+  { value: "EK", label: "EMIRATES" },
+  { value: "QR", label: "QATAR AIRWAYS" },
 ];
+
 const initialForm = (): FormState => ({
   branchMode: "One Branch",
   branch: "JEDDAH",
-  staffMode: "All Staff",
-  staff: null,
+  airlineMode: "One Airline",
+  airline: null,
   fromDate: dayjs().startOf("month").format(DATE_FORMAT),
   toDate: dayjs().format(DATE_FORMAT),
   reportType: "Summary",
   saleMode: "Net",
-  paymentMode: "All",
   invoiceMode: "All",
-  regionMode: "Both",
-  orderBy: "Staff ID",
-  categoryMode: "All",
+  regionMode: "All",
+  orderBy: "Airline No.",
   includeIncentive: false,
 });
 
@@ -64,7 +63,13 @@ type SetField = <K extends keyof FormState>(
 type PartProps = { form: FormState; set: SetField };
 
 const selectClassNames = {
-  control: ({ isFocused, isDisabled }: { isFocused: boolean; isDisabled: boolean }) =>
+  control: ({
+    isFocused,
+    isDisabled,
+  }: {
+    isFocused: boolean;
+    isDisabled: boolean;
+  }) =>
     `!h-[30px] !min-h-[30px] !rounded-[4px] !border !text-[13px] !shadow-none ${
       isDisabled ? "!bg-[#f6f8fa]" : "!bg-white"
     } ${isFocused ? "!border-[#91a7b9]" : "!border-[#cfd7df]"}`,
@@ -75,7 +80,13 @@ const selectClassNames = {
   indicatorSeparator: () => "!hidden",
   menu: () => "!z-[999999] !mt-[1px] !rounded-none !border !border-[#cfd7df]",
   menuList: () => "!p-0 !max-h-[180px]",
-  option: ({ isFocused, isSelected }: { isFocused: boolean; isSelected: boolean }) =>
+  option: ({
+    isFocused,
+    isSelected,
+  }: {
+    isFocused: boolean;
+    isSelected: boolean;
+  }) =>
     `!px-2 !py-1 !text-[13px] !text-[#24364d] ${
       isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"
     }`,
@@ -86,21 +97,22 @@ const Combo: React.FC<{
   options: Option[];
   value: string | null;
   onChange: (value: string | null) => void;
-  disabled?: boolean;
-}> = ({ id, options, value, onChange, disabled = false }) => (
-  <Select
-    inputId={id}
-    instanceId={id}
-    options={options}
-    value={options.find((option) => option.value === value) ?? null}
-    onChange={(option) => onChange(option?.value ?? null)}
-    isDisabled={disabled}
-    isSearchable={false}
-    isClearable={false}
-    classNames={selectClassNames}
-    menuPosition="fixed"
-    menuPortalTarget={typeof document === "undefined" ? undefined : document.body}
-  />
+  className?: string;
+}> = ({ id, options, value, onChange, className = "" }) => (
+  <div className={`min-w-0 ${className}`}>
+    <Select
+      inputId={id}
+      instanceId={id}
+      options={options}
+      value={options.find((option) => option.value === value) ?? null}
+      onChange={(option) => onChange(option?.value ?? null)}
+      isSearchable={false}
+      isClearable={false}
+      classNames={selectClassNames}
+      menuPosition="fixed"
+      menuPortalTarget={typeof document === "undefined" ? undefined : document.body}
+    />
+  </div>
 );
 
 const RadioGroup: React.FC<{
@@ -110,7 +122,9 @@ const RadioGroup: React.FC<{
   onChange: (value: string) => void;
   className?: string;
 }> = ({ name, options, value, onChange, className = "" }) => (
-  <div className={`flex flex-col gap-2.5 border border-[#d5dce2] bg-white px-3 py-2.5 ${className}`}>
+  <div
+    className={`flex flex-col gap-2.5 border border-[#d5dce2] bg-white px-3 py-2.5 ${className}`}
+  >
     {options.map((option) => {
       const checked = value === option;
       return (
@@ -127,7 +141,7 @@ const RadioGroup: React.FC<{
             className="sr-only"
           />
           <span
-            className={`flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border ${
+            className={`flex h-3.75 w-3.75 shrink-0 items-center justify-center rounded-full border ${
               checked ? "border-[#64d96e]" : "border-[#cbd3dc]"
             }`}
           >
@@ -206,45 +220,45 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         onChange={(value) => set("branchMode", value)}
       />
       {form.branchMode === "One Branch" && (
-        <div className="w-[250px] max-w-full">
-          <Combo
-            id="lkpBranch"
-            options={branchOptions}
-            value={form.branch}
-            onChange={(value) => set("branch", value)}
-          />
-        </div>
+       <div className="w-62.5 max-w-full -mt-7">
+         <Combo
+          id="lkpBranch"
+          options={branchOptions}
+          value={form.branch}
+          onChange={(value) => set("branch", value)}
+        />
+       </div>
       )}
     </div>
     <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-4 max-[560px]:grid-cols-1">
       <RadioGroup
-        name="staffMode"
-        options={["One Staff", "All Staff"]}
-        value={form.staffMode}
-        onChange={(value) => set("staffMode", value)}
+        name="airlineMode"
+        options={["One Airline", "All Airline"]}
+        value={form.airlineMode}
+        onChange={(value) => set("airlineMode", value)}
       />
-      {form.staffMode === "One Staff" && (
-        <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.5">
+      {form.airlineMode === "One Airline" && (
+        <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.5 mt-3">
           <Combo
-            id="lkpStaffID"
-            options={staffIdOptions}
-            value={form.staff}
-            onChange={(value) => set("staff", value)}
+            id="lkpAirlineID"
+            options={airlineIdOptions}
+            value={form.airline}
+            onChange={(value) => set("airline", value)}
           />
           <Combo
-            id="lkpStaffName"
-            options={staffNameOptions}
-            value={form.staff}
-            onChange={(value) => set("staff", value)}
+            id="lkpAirlineName"
+            options={airlineNameOptions}
+            value={form.airline}
+            onChange={(value) => set("airline", value)}
           />
         </div>
       )}
     </div>
     <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-4 max-[560px]:grid-cols-1">
-      <div className="flex h-[30px] items-center justify-end border border-[#d5dce2] bg-[#fafbfc] px-2 text-[12px] text-[#405066]">
+      <div className="flex h-7.5 items-center justify-end border border-[#d5dce2] bg-[#fafbfc] px-2 text-[12px] text-[#405066]">
         Period :
       </div>
-      <div className="flex  items-center gap-5">
+      <div className="flex flex-wrap items-center gap-2">
         <DateField
           id="dtpFromDate"
           label="From Date"
@@ -263,18 +277,12 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 );
 
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="grid min-w-0 grid-cols-3 items-start gap-2.5 max-[560px]:grid-cols-2">
+  <div className="grid min-w-0 grid-cols-2 items-start gap-3">
     <RadioGroup
       name="saleMode"
       options={["Sales", "Refund", "Net"]}
       value={form.saleMode}
       onChange={(value) => set("saleMode", value)}
-    />
-    <RadioGroup
-      name="paymentMode"
-      options={["Cash", "Credit", "All"]}
-      value={form.paymentMode}
-      onChange={(value) => set("paymentMode", value)}
     />
     <RadioGroup
       name="invoiceMode"
@@ -283,9 +291,33 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
       onChange={(value) => set("invoiceMode", value)}
       className="px-2"
     />
-    <label
+
+
+    <div className="col-start-1  flex h-7.5 items-center gap-2  bg-white px-2.5 text-[12px] text-[#405066] select-none">
+
+    </div>
+    <RadioGroup
+      name="regionMode"
+      options={["Domestic", "International", "All"]}
+      value={form.regionMode}
+      onChange={(value) => set("regionMode", value)}
+      className="col-start-1 px-2 -mt-35"
+    />
+    <fieldset className="col-start-2 row-start-2 mt-7 min-w-0 border border-[#d5dce2] px-2 pb-2 pt-0.5 ">
+      <legend className="mx-auto whitespace-nowrap px-1.5 text-[12px] text-[#405066]">
+        Order By
+      </legend>
+      <RadioGroup
+        name="orderBy"
+        options={["Airline No.", "Billing Amt.", "Profit Amt.", "Profit %"]}
+        value={form.orderBy}
+        onChange={(value) => set("orderBy", value)}
+        className="gap-2! border-0! bg-transparent! px-1! py-1.5!"
+      />
+    </fieldset>
+        <label
       htmlFor="chkIncludeIncentive"
-      className="col-span-2 flex h-[30px] absolute w-[150px]  bottom-10 right-42 cursor-pointer items-center gap-2 self-center border border-[#d5dce2] bg-white px-2.5 text-[12px] text-[#405066] select-none max-[560px]:col-span-1"
+      className="col-start-1  flex h-7.5 cursor-pointer items-center gap-2 border border-[#d5dce2] bg-white px-2.5 text-[12px] text-[#405066] select-none -mt-13"
     >
       <input
         id="chkIncludeIncentive"
@@ -296,39 +328,10 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
       />
       Include Incentive
     </label>
-    <RadioGroup
-      name="regionMode"
-      options={["Travel", "Tourism", "All"]}
-         value={form.categoryMode}
-      onChange={(value) => set("categoryMode", value)}
-      className="px-2 absolute bottom-2 right-3.5 w-[145px]"
-    />
-    <div className="col-start-2 max-[560px]:col-start-auto">
-      <fieldset className="min-w-0 border border-[#d5dce2] px-2 pb-2 pt-0.5 -mt-2">
-        <legend className="mx-auto whitespace-nowrap px-1.5 text-[12px] text-[#405066]">
-          Order By
-        </legend>
-        <RadioGroup
-          name="orderBy"
-          options={["Staff ID", "Billing Amt", "Profit Amt.", "Profit %"]}
-          value={form.orderBy}
-          onChange={(value) => set("orderBy", value)}
-          className="!gap-2 !border-0 !bg-transparent !px-1 !py-1.5 "
-        />
-      </fieldset>
-    </div>
-    <RadioGroup
-      name="categoryMode"
-      options={["Domestic", "International", "Both"]}
-      value={form.regionMode}
-      onChange={(value) => set("regionMode", value)}
-   
-      className="px-2"
-    />
   </div>
 );
 
-const StaffWiseProfitPage = () => {
+const AirlineWiseProfitPage = () => {
   const [form, setForm] = useState<FormState>(initialForm);
   const set: SetField = (key, value) =>
     setForm((previous) => ({ ...previous, [key]: value }));
@@ -337,17 +340,17 @@ const StaffWiseProfitPage = () => {
     console.log({
       ...form,
       branch: form.branchMode === "One Branch" ? form.branch : null,
-      staff: form.staffMode === "One Staff" ? form.staff : null,
+      airline: form.airlineMode === "One Airline" ? form.airline : null,
     });
   };
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-[1200px] max-w-full bg-white">
+      <div className="min-h-fit w-300 max-w-full bg-white">
         <main className="relative w-full overflow-hidden border border-gray-400 bg-white">
-          <Header Name="Staff wise Profit" />
+          <Header Name="Airline wise Profit" />
           <section className="px-3.5 pb-5 pt-3">
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(340px,1.1fr)] items-start gap-5 max-[1064px]:grid-cols-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(250px,0.8fr)] items-start gap-5 max-[900px]:grid-cols-1">
               <div className="flex min-w-0 flex-col justify-between gap-10">
                 <LeftFilters form={form} set={set} />
                 <div className="flex flex-wrap items-end gap-3">
@@ -356,10 +359,14 @@ const StaffWiseProfitPage = () => {
                     options={["Detail", "Summary"]}
                     value={form.reportType}
                     onChange={(value) => set("reportType", value)}
-                    className="w-[125px]"
+                    className="w-31.25"
                   />
-                  <div className="flex gap-2">
-                    <button type="button" onClick={handlePrint} className="btn-style">
+                  <div className="flex gap-2 ml-10">
+                    <button
+                      type="button"
+                      onClick={handlePrint}
+                      className="btn-style"
+                    >
                       <u>P</u>rint
                     </button>
                     <button
@@ -381,4 +388,4 @@ const StaffWiseProfitPage = () => {
   );
 };
 
-export default StaffWiseProfitPage;
+export default AirlineWiseProfitPage;

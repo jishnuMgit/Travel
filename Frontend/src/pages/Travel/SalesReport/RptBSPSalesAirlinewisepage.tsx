@@ -5,7 +5,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../components/comman/Header";
+import Header from "../../../components/comman/Header";
 
 dayjs.extend(customParseFormat);
 
@@ -13,10 +13,9 @@ dayjs.extend(customParseFormat);
    FILE MAP
    1. Types, constants and sample options
    2. Shared building blocks
-   3. Parts : LeftFilters (branch, customer, airline, period), RightFilters
-              (two columns of radio panels + the Order By box), BottomRow
-              (Detail / Summary, buttons, Include Incentive)
-   4. RptCustomerWiseProfitPage : owns the state and renders the parts
+   3. Parts : LeftFilters (IATA, airline, period), RightFilters
+              (sales / refund / net, amex, reported), BottomRow
+   4. RptBSPSalesAirlinewisepage : owns the state and renders the parts
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -29,44 +28,33 @@ const FIRST_OF_MONTH = dayjs().startOf("month").format(DATE_FORMAT);
 const TODAY = dayjs().format(DATE_FORMAT);
 
 /* Replace these with data from your API */
-const branchOptions: Option[] = [
+const iataOptions: Option[] = [
+  { value: "KHOBAR", label: "KHOBAR" },
   { value: "JEDDAH", label: "JEDDAH" },
   { value: "RIYADH", label: "RIYADH" },
-];
-const customerIdOptions: Option[] = [
-  { value: "C001", label: "C001" },
-  { value: "C002", label: "C002" },
-];
-const customerNameOptions: Option[] = [
-  { value: "C001", label: "Customer One" },
-  { value: "C002", label: "Customer Two" },
 ];
 const airlineIdOptions: Option[] = [
   { value: "SV", label: "SV" },
   { value: "EK", label: "EK" },
+  { value: "QR", label: "QR" },
 ];
 const airlineNameOptions: Option[] = [
   { value: "SV", label: "SAUDIA" },
   { value: "EK", label: "EMIRATES" },
+  { value: "QR", label: "QATAR AIRWAYS" },
 ];
 
 type FormState = {
-  branchMode: string; // One Branch / All Branch
-  branch: string | null;
-  customerMode: string; // One Customer / All Customer
-  customer: string | null;
+  iataMode: string; // One IATA / All IATA
+  iata: string | null;
   airlineMode: string; // One Airline / All Airline
   airline: string | null;
   fromDate: string;
   toDate: string;
   reportType: string; // Detail / Summary
   saleMode: string; // Sales / Refund / Net
-  invoiceMode: string; // Not-Invoiced / Invoiced / All
-  regionMode: string; // Domestic / International / All
-  paymentMode: string; // Cash / Credit / All
-  orderBy: string; // Customer ID / Billing Amt / Profit Amt. / Profit %
-  categoryMode: string; // Travel / Tourism / All
-  includeIncentive: boolean;
+  amexMode: string; // Non Amex / Amex / All
+  reportedMode: string; // Not-Reported / Reported / All
 };
 
 type SetField = <K extends keyof FormState>(
@@ -77,22 +65,16 @@ type SetField = <K extends keyof FormState>(
 type PartProps = { form: FormState; set: SetField };
 
 const initialForm = (): FormState => ({
-  branchMode: "One Branch",
-  branch: "JEDDAH",
-  customerMode: "One Customer",
-  customer: null,
-  airlineMode: "One Airline",
+  iataMode: "One IATA",
+  iata: "KHOBAR",
+  airlineMode: "All Airline",
   airline: null,
   fromDate: FIRST_OF_MONTH,
   toDate: TODAY,
   reportType: "Summary",
-  saleMode: "Net",
-  invoiceMode: "All",
-  regionMode: "All",
-  paymentMode: "All",
-  orderBy: "Customer ID",
-  categoryMode: "All",
-  includeIncentive: false,
+  saleMode: "Sales",
+  amexMode: "Non Amex",
+  reportedMode: "All",
 });
 
 /* ---------------------------------------------------------------------
@@ -241,23 +223,13 @@ const PairCombo: React.FC<{
   nameOptions: Option[];
   value: string | null;
   onChange: (value: string | null) => void;
-  disabled?: boolean;
-}> = ({
-  idId,
-  nameId,
-  idOptions,
-  nameOptions,
-  value,
-  onChange,
-  disabled = false,
-}) => (
+}> = ({ idId, nameId, idOptions, nameOptions, value, onChange }) => (
   <div className="flex min-w-0 items-center gap-2">
     <Combo
       id={idId}
       options={idOptions}
       value={value}
       onChange={onChange}
-      disabled={disabled}
       className="w-30 shrink-0"
     />
     <Combo
@@ -265,7 +237,6 @@ const PairCombo: React.FC<{
       options={nameOptions}
       value={value}
       onChange={onChange}
-      disabled={disabled}
       className="w-112.5 shrink-0"
     />
   </div>
@@ -354,50 +325,32 @@ const AppDatePicker: React.FC<{
    --------------------------------------------------------------------- */
 const filterRow = "grid grid-cols-[168px_1fr] items-start gap-x-4";
 
-/* 3a. Left filters: branch, customer, airline, period */
+/* 3a. Left filters: IATA, airline, period */
 const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="flex flex-col gap-3">
-    {/* Branch */}
+    {/* IATA */}
     <div className={filterRow}>
       <PanelGroup
-        name="rdgBranch"
-        options={["One Branch", "All Branch"]}
-        value={form.branchMode}
-        onChange={(v) => set("branchMode", v)}
-      />
-      <div className="w-62.5 max-w-full pt-3">
-        <Combo
-          id="lkpBranch"
-          options={branchOptions}
-          value={form.branch}
-          onChange={(v) => set("branch", v)}
-          disabled={form.branchMode !== "One Branch"}
-        />
-      </div>
-    </div>
-
-    {/* Customer */}
-    <div className={filterRow}>
-      <PanelGroup
-        name="rdgCustomer"
-        options={["One Customer", "All Customer"]}
-        value={form.customerMode}
-        onChange={(v) => set("customerMode", v)}
+        name="rdgIata"
+        options={["One IATA", "All IATA"]}
+        value={form.iataMode}
+        onChange={(v) => set("iataMode", v)}
       />
       <div className="pt-3">
-        <PairCombo
-          idId="lkpCustomerID"
-          nameId="lkpCustomerName"
-          idOptions={customerIdOptions}
-          nameOptions={customerNameOptions}
-          value={form.customer}
-          onChange={(v) => set("customer", v)}
-          disabled={form.customerMode !== "One Customer"}
-        />
+        {form.iataMode === "One IATA" && (
+          <PairCombo
+            idId="lkpIataID"
+            nameId="lkpIataName"
+            idOptions={iataOptions}
+            nameOptions={iataOptions}
+            value={form.iata}
+            onChange={(v) => set("iata", v)}
+          />
+        )}
       </div>
     </div>
 
-    {/* Airline */}
+    {/* Airline: the lookups appear only for "One Airline" */}
     <div className={filterRow}>
       <PanelGroup
         name="rdgAirline"
@@ -406,15 +359,16 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
         onChange={(v) => set("airlineMode", v)}
       />
       <div className="pt-3">
-        <PairCombo
-          idId="lkpAirlineID"
-          nameId="lkpAirlineName"
-          idOptions={airlineIdOptions}
-          nameOptions={airlineNameOptions}
-          value={form.airline}
-          onChange={(v) => set("airline", v)}
-          disabled={form.airlineMode !== "One Airline"}
-        />
+        {form.airlineMode === "One Airline" && (
+          <PairCombo
+            idId="lkpAirlineID"
+            nameId="lkpAirlineName"
+            idOptions={airlineIdOptions}
+            nameOptions={airlineNameOptions}
+            value={form.airline}
+            onChange={(v) => set("airline", v)}
+          />
+        )}
       </div>
     </div>
 
@@ -439,118 +393,78 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
   </div>
 );
 
-/* 3b. Right side: two columns of panels.
-     row 1 : Sales / Refund / Net        | Not-Invoiced / Invoiced / All
-     row 2 : Domestic / International    | Cash / Credit / All
-     row 3 : Order By box                | Travel / Tourism / All (bottom)   */
+/* 3b. Right side: Sales / Refund / Net on top (right aligned), and at the
+   bottom the Amex panel next to the Not-Reported / Reported panel.        */
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="grid w-70 shrink-0 grid-cols-2 content-between gap-3 max-[700px]:w-full">
+  <div className="flex w-59 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
     <PanelGroup
       name="rdgSaleMode"
       options={["Sales", "Refund", "Net"]}
       value={form.saleMode}
       onChange={(v) => set("saleMode", v)}
-    />
-    <PanelGroup
-      name="rdgInvoice"
-      options={["Not-Invoiced", "Invoiced", "All"]}
-      value={form.invoiceMode}
-      onChange={(v) => set("invoiceMode", v)}
+      className="w-28 self-end max-[640px]:self-start"
     />
 
-    <PanelGroup
-      name="rdgRegion"
-      options={["Domestic", "International", "All"]}
-      value={form.regionMode}
-      onChange={(v) => set("regionMode", v)}
-    />
-    <PanelGroup
-      name="rdgPayment"
-      options={["Cash", "Credit", "All"]}
-      value={form.paymentMode}
-      onChange={(v) => set("paymentMode", v)}
-    />
-
-    {/* Order By: a titled box around its own radio panel */}
-    <div className="relative border border-[#d5dce2] px-2 pb-2 pt-3.5">
-      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-white px-1.5 text-[12px] text-[#405066]">
-        Order By
-      </span>
+    <div className="flex gap-3">
       <PanelGroup
-        name="rdgOrderBy"
-        options={["Customer ID", "Billing Amt", "Profit Amt.", "Profit %"]}
-        value={form.orderBy}
-        onChange={(v) => set("orderBy", v)}
-        className="px-2.5"
+        name="rdgAmex"
+        options={["Non Amex", "Amex", "All"]}
+        value={form.amexMode}
+        onChange={(v) => set("amexMode", v)}
+        className="w-28 -ml-10"
+      />
+      <PanelGroup
+        name="rdgReported"
+        options={["Not-Reported", "Reported", "All"]}
+        value={form.reportedMode}
+        onChange={(v) => set("reportedMode", v)}
+        className="w-50 "
       />
     </div>
-    <PanelGroup
-      name="rdgCategory"
-      options={["Travel", "Tourism", "All"]}
-      value={form.categoryMode}
-      onChange={(v) => set("categoryMode", v)}
-      className="self-end"
-    />
   </div>
 );
 
-/* 3c. Bottom row: Detail / Summary, buttons, Include Incentive */
+/* 3c. Bottom row: Detail / Summary and the buttons */
 const BottomRow: React.FC<
   PartProps & { onPrint: () => void; onClose: () => void }
 > = ({ form, set, onPrint, onClose }) => (
-  <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-    <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-      <PanelGroup
-        name="rdgReportType"
-        options={["Detail", "Summary"]}
-        value={form.reportType}
-        onChange={(v) => set("reportType", v)}
-        className="w-42"
-      />
-      <div className="flex gap-2">
-        <button
-          id="btnPrint"
-          type="button"
-          onClick={onPrint}
-          className="btn-style"
-        >
-          <u>P</u>rint
-        </button>
-        <button
-          id="btnClose"
-          type="button"
-          onClick={onClose}
-          className="btn-style"
-        >
-          <u>C</u>lose
-        </button>
-      </div>
+  <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+    <PanelGroup
+      name="rdgReportType"
+      options={["Detail", "Summary"]}
+      value={form.reportType}
+      onChange={(v) => set("reportType", v)}
+      className="w-42"
+    />
+    <div className="flex gap-2">
+      <button
+        id="btnPrint"
+        type="button"
+        onClick={onPrint}
+        className="btn-style"
+      >
+        <u>P</u>rint
+      </button>
+      <button
+        id="btnClose"
+        type="button"
+        onClick={onClose}
+        className="btn-style"
+      >
+        <u>C</u>lose
+      </button>
     </div>
-
-    <label
-      htmlFor="chkIncludeIncentive"
-      className="flex h-7.5 cursor-pointer items-center gap-2 self-start border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
-    >
-      <input
-        id="chkIncludeIncentive"
-        type="checkbox"
-        checked={form.includeIncentive}
-        onChange={(event) => set("includeIncentive", event.target.checked)}
-        className="h-4 w-4 accent-[#64d96e]"
-      />
-      Include Incentive
-    </label>
   </div>
 );
 
 /* ---------------------------------------------------------------------
    4. MAIN PAGE : owns the state and renders the parts
    --------------------------------------------------------------------- */
-type RptCustomerWiseProfitPageProps = {
+type RptBSPSalesAirlinewisepageProps = {
   onClose?: () => void;
 };
 
-const RptCustomerWiseProfitPage: React.FC<RptCustomerWiseProfitPageProps> = ({
+const RptBSPSalesAirlinewisepage: React.FC<RptBSPSalesAirlinewisepageProps> = ({
   onClose,
 }) => {
   const [form, setForm] = useState<FormState>(initialForm);
@@ -562,8 +476,7 @@ const RptCustomerWiseProfitPage: React.FC<RptCustomerWiseProfitPageProps> = ({
     // only the lookups that belong to a "One ..." choice are sent
     console.log({
       ...form,
-      branch: form.branchMode === "One Branch" ? form.branch : null,
-      customer: form.customerMode === "One Customer" ? form.customer : null,
+      iata: form.iataMode === "One IATA" ? form.iata : null,
       airline: form.airlineMode === "One Airline" ? form.airline : null,
     });
   };
@@ -575,14 +488,13 @@ const RptCustomerWiseProfitPage: React.FC<RptCustomerWiseProfitPageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-270 max-w-full bg-white p-0">
-        <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
-         <Header Name="Customer wise Profit"/>
+      <div className="min-h-fit w-240 max-w-full bg-white p-0">
+        <main className="w-full overflow-hidden border border-gray-400 bg-white">
+       <Header Name="BSP Sales Airlinewise"/>
 
           <section className="px-3.5 pb-6 pt-3">
-            <div className="flex gap-4 max-[700px]:flex-col">
-              {/* left side: filters and the bottom row */}
-              <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+            <div className="flex gap-4 max-[640px]:flex-col">
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <LeftFilters form={form} set={set} />
                 <BottomRow
                   form={form}
@@ -591,8 +503,6 @@ const RptCustomerWiseProfitPage: React.FC<RptCustomerWiseProfitPageProps> = ({
                   onClose={handleClose}
                 />
               </div>
-
-              {/* right side: radio panels and the Order By box */}
               <RightFilters form={form} set={set} />
             </div>
           </section>
@@ -602,4 +512,4 @@ const RptCustomerWiseProfitPage: React.FC<RptCustomerWiseProfitPageProps> = ({
   );
 };
 
-export default RptCustomerWiseProfitPage;
+export default RptBSPSalesAirlinewisepage;

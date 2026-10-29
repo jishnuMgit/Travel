@@ -1,4 +1,4 @@
-import OtherServiceDetailsPage from "../../components/sales/OtherService/OtherServiceDetailsPage";
+import OtherServiceDetailsPage from "../../../components/sales/OtherService/OtherServiceDetailsPage";
 
 
 

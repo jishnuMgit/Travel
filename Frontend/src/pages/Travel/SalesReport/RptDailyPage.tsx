@@ -5,11 +5,11 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../components/comman/Header";
+import Header from "../../../components/comman/Header";
 import {
   fieldSelectProps,
   type Option,
-} from "../../components/comman/Combo";
+} from "../../../components/comman/Combo";
 
 dayjs.extend(customParseFormat);
 
