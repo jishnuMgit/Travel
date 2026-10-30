@@ -79,7 +79,7 @@ const ChargeTypeSelect: React.FC<{
     onChange={(option) => {
       if (option) onChange(option.value as ChargeType);
     }}
-    isSearchable={false}
+    isSearchable={true}
     isClearable={false}
     classNames={chargeTypeSelectClassNames}
     menuPosition="fixed"
@@ -290,13 +290,13 @@ const ServiceChargePolicy: React.FC = () => {
                     <th id="txtServiceType" className={headCellClass}>Service Type</th>
                     <th id="txtID" className={headCellClass}>ID</th>
                     <th id="lkpType" className={headCellClass}>Type</th>
-                    <th id="txtSCharge" className={headCellClass}>S. Charge %</th>
-                    <th id="txtMinSCharge" className={headCellClass}>Min. S. Charge</th>
-                    <th id="txtSChargeAmt" className={headCellClass}>S. Charge Amt</th>
+                    <th id="txtSCharge" className={`${headCellClass} text-right`}>S. Charge %</th>
+                    <th id="txtMinSCharge" className={`${headCellClass} text-right`}>Min. S. Charge</th>
+                    <th id="txtSChargeAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
                    <th id="lkpType" className={headCellClass}>Type</th>
-                    <th id="txtSCharge" className={headCellClass}>S. Charge %</th>
-                    <th id="txtMinSCharge" className={headCellClass}>Min. S. Charge</th>
-                    <th id="txtSChargeAmt" className={headCellClass}>S. Charge Amt</th>
+                    <th id="txtSCharge" className={`${headCellClass} text-right`}>S. Charge %</th>
+                    <th id="txtMinSCharge" className={`${headCellClass} text-right`}>Min. S. Charge</th>
+                    <th id="txtSChargeAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
                   </tr>
                 </thead>
                 <tbody>

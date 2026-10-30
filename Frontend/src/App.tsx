@@ -22,8 +22,10 @@ import B2BInvoicePage from "./pages/Tables/B2BInvoicePage";
 import B2CInvoicePage from "./pages/Tables/B2cinvoicepage";
 import ServiceChargePolicy from "./pages/Travel/Setup/ServiceChargePolicy";
 import ServiceTypePage from "./pages/Travel/Setup/ServiceTypePage";
+import LoginPage from "./pages/Auth/LoginPage";
 
 const pageTitles: Record<string, string> = {
+  "/login": "Login",
   "/ticket-sales": "Ticket Sales",
   "/hotel-sales": "Hotel Sales",
   "/Report/Stock": "Stock Sales",
@@ -47,6 +49,10 @@ const AppLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { pathname } = useLocation();
   const pageTitle = pageTitles[pathname] ?? "Sales";
+
+  if (pathname === "/login") {
+    return <LoginPage />;
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-800">
@@ -82,10 +88,11 @@ const AppLayout = () => {
         </header>
         <main className="min-w-0 flex-1">
           <Routes>
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/ticket-sales" element={<TicketSalesPage />} />
             <Route path="/hotel-sales" element={<HotelSalesPage />} />
-            <Route path="/" element={<Navigate to="/ticket-sales" replace />} />
-            <Route path="*" element={<Navigate to="/ticket-sales" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
             <Route path="/Other-Service" element={<OtherServicePage/>}/>
             <Route path="/Airline" element={<AirlinePage/>}/>
             <Route path="/Report/RptCustomerSales" element={<RptStockPage/>}/>

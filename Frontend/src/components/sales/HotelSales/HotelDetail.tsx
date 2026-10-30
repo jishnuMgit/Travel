@@ -40,8 +40,6 @@ const toOptions = (values: string[]): Option[] =>
   values.map((v) => ({ value: v, label: v }));
 
 const branchOptions = toOptions(["JEDDAH", "RIYADH"]);
-const serviceOptions = toOptions(["H", "T", "V"]);
-const serviceCpOptions = toOptions(["HTL", "TKT", "VISA"]);
 const carrierOptions = toOptions(["HOTEL", "AIRLINE"]);
 const yesNoOptions = toOptions(["No", "Yes"]);
 const diOptions = toOptions(["D", "I"]);
