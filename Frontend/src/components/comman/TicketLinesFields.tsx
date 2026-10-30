@@ -191,7 +191,7 @@ const TicketLinesFields: React.FC<{
           id="btnCustomerAttach"
           type="button"
           onClick={() => onAction("customerAttach")}
-          className="btn-style min-w-0 text-[12px]  max-w-[140px]"
+          className="btn-style min-w-0 text-[12px]  max-w-35"
         >
           Cust. Attach
         </button>
@@ -199,7 +199,7 @@ const TicketLinesFields: React.FC<{
           id="btnSupplierAttach"
           type="button"
           onClick={() => onAction("supplierAttach")}
-          className="btn-style h-7.5 min-w-0 px-2 text-[12px] max-w-[140px]"
+          className="btn-style h-7.5 min-w-0 px-2 text-[12px] max-w-35"
         >
           Supp. Attach
         </button>

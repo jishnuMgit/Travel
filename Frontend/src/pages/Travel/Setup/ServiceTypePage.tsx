@@ -73,8 +73,8 @@ const ServiceTypePage: React.FC = () => {
                 <th id="txtServiceTypeName" scope="col" className={headCellClass}>
                   Service Type Name
                 </th>
-                <th id="txtPosition" scope="col" className={`${headCellClass} w-32`}>
-                  Position
+                <th id="txtPositionNo" scope="col" className={`${headCellClass} w-32`}>
+                  Position No.
                 </th>
               </tr>
             </thead>
