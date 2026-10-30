@@ -1,0 +1,137 @@
+import { useCallback, useEffect, useState } from "react";
+import type { MenuRow } from "../types/menu";
+import { API_BASE_URL } from "../config/api";
+
+interface MenuResponse {
+  success: boolean;
+  message?: string;
+  data?: MenuRow[];
+}
+
+/* =========================================================
+   PURE FETCH (NO setState)
+
+   Kept separate from the hook's state so the mount effect
+   below never calls setState synchronously in its own body
+   — every state update happens inside a .then()/.catch(),
+   which is the pattern React's "no setState in effect body"
+   lint rule expects for data fetching.
+========================================================= */
+
+async function fetchMenuRows(): Promise<MenuRow[]> {
+  const companyId = localStorage.getItem("PstrCoID");
+
+  if (!companyId) {
+    throw new Error("Company ID not found. Please log in again.");
+  }
+
+  // userId / userType are read server-side from the
+  // authenticated session (req.user), not sent here.
+  const response = await fetch(
+    `${API_BASE_URL}/api/menu?companyId=${encodeURIComponent(companyId)}`,
+    {
+      method: "GET",
+      credentials: "include",
+    },
+  );
+
+  const data: MenuResponse = await response.json();
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || "Failed to load menus");
+  }
+
+  return data.data ?? [];
+}
+
+/* =========================================================
+   HOOK
+
+   enabled = false  -> no request is made (e.g. nobody is
+                       logged in yet), no error is logged.
+   Nothing is stored under PstrCoID -> the same: no request,
+   no error. The menu simply stays empty until login.
+========================================================= */
+
+export const useMenus = (enabled = true) => {
+  const [menus, setMenus] = useState<MenuRow[]>([]);
+  const [loading, setLoading] = useState(true); // true by default: we always try to fetch on mount
+  const [error, setError] = useState("");
+
+  /* =====================================================
+     REFETCH (for a manual "Retry" button, etc.)
+
+     Called from an event handler, not an effect, so a
+     synchronous setLoading(true) here is fine — the lint
+     rule only concerns setState calls inside an effect's
+     own body.
+  ===================================================== */
+
+  const refetch = useCallback(() => {
+    setLoading(true);
+    setError("");
+
+    return fetchMenuRows()
+      .then((rows) => {
+        setMenus(rows);
+      })
+      .catch((err: unknown) => {
+        console.error("Get menus error:", err);
+        setError(err instanceof Error ? err.message : "Failed to load menus");
+        setMenus([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  /* =====================================================
+     FETCH ON MOUNT (and when `enabled` changes)
+
+     No setState call is made synchronously in the effect
+     body — every update runs inside a .then()/.catch()/
+     .finally() callback.
+  ===================================================== */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    // not logged in (yet): skip the request quietly
+    if (!enabled || !localStorage.getItem("PstrCoID")) {
+      Promise.resolve().then(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    fetchMenuRows()
+      .then((rows) => {
+        if (!cancelled) {
+          setMenus(rows);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error("Get menus error:", err);
+          setError(err instanceof Error ? err.message : "Failed to load menus");
+          setMenus([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+
+  return { menus, loading, error, refetch };
+};

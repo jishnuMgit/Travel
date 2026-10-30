@@ -20,7 +20,7 @@ import ServiceChargePolicy from "../pages/Travel/Setup/ServiceChargePolicy";
 import ServiceTypePage from "../pages/Travel/Setup/ServiceTypePage";
 import LoginPage from "../pages/Auth/LoginPage";
 
-const AppRoute = () => (
+const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route path="/ticket-sales" element={<TicketSalesPage />} />
@@ -68,4 +68,4 @@ const AppRoute = () => (
   </Routes>
 );
 
-export default AppRoute;
+export default AppRoutes;
