@@ -1,78 +1,143 @@
 
-import { useState } from "react";
-import { BrowserRouter, useLocation } from "react-router-dom";
-import { FiMenu } from "react-icons/fi";
-import AppSidebar from "./components/comman/AppSidebar";
-import LoginPage from "./pages/Auth/LoginPage";
-import AppRoute from "./routes/AppRoute";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  BrowserRouter,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import NavShell from "./components/NavShell/NavShell";
+import AppRoutes from "./routes/AppRoutes";
+import { API_BASE_URL } from "./config/api";
+import "./App.css";
 
-const pageTitles: Record<string, string> = {
-  "/login": "Login",
-  "/ticket-sales": "Ticket Sales",
-  "/hotel-sales": "Hotel Sales",
-  "/Report/Stock": "Stock Sales",
-  "/Report/Staff": "Staff Sales",
-  "/Report/Airline": "Airline Sales",
-  "/Report/Daily": "Daily Sales",
-  "/Report/RptBspSalesTicketwisePage": "BSP Sales Ticketwise",
-  "/Report/RptBspSalesAirlinewisePage": "BSP Sales Airlinewise",
-  "/Report/CustomerWiseProfit": "Customer wise Profit",
-  "/Report/SupplierWiseProfit": "Supplier wise Profit",
-  "/Report/StaffWiseProfit": "Staff wise Profit",
-  "/Report/AirlineWiseProfit": "Airline wise Profit",
-  "/Report/BspBillImportExport": "BSP Bill Import/Export",
-  "/Tables/B2BInvoice": "B2B Invoice",
-  "/Tables/B2CInvoice": "B2C Invoice",
-  "/Setup/ServiceChargePolicy": "Service Charge Policy",
-  "/Setup/ServiceType": "Service Type",
+type CurrentUserResponse = {
+  success: boolean;
+  data?: {
+    userId: string;
+    userType: string | null;
+  };
+  message?: string;
 };
 
-const AppLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { pathname } = useLocation();
-  const pageTitle = pageTitles[pathname] ?? "Sales";
+type AuthStatus = "checking" | "authenticated" | "unauthenticated" | "error";
 
-  if (pathname === "/login") {
-    return <LoginPage />;
+const AppLayout = () => {
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [authError, setAuthError] = useState("");
+  const [authCheckKey, setAuthCheckKey] = useState(0);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
+    const checkAuthentication = async () => {
+      setAuthStatus("checking");
+      setAuthError("");
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (response.status === 401) {
+          if (active) {
+            setAuthStatus("unauthenticated");
+          }
+          return;
+        }
+
+        const result = (await response.json()) as CurrentUserResponse;
+
+        if (!response.ok || !result.success || !result.data?.userId) {
+          throw new Error(result.message ?? "Unable to verify your session");
+        }
+
+        if (active) {
+          setAuthStatus("authenticated");
+        }
+      } catch (error: unknown) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Authentication check failed:", error);
+        if (active) {
+          setAuthError(
+            error instanceof Error
+              ? error.message
+              : "Unable to verify your session",
+          );
+          setAuthStatus("error");
+        }
+      }
+    };
+
+    void checkAuthentication();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [pathname, authCheckKey]);
+
+  const isLogin = pathname === "/login";
+  let page: ReactNode;
+
+  if (isLogin) {
+    page =
+      authStatus === "authenticated" ? (
+        <Navigate to="/ticket-sales" replace />
+      ) : (
+        <AppRoutes />
+      );
+  } else if (authStatus === "checking") {
+    page = (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-600">
+        Checking your session...
+      </div>
+    );
+  } else if (authStatus === "unauthenticated") {
+    page = <Navigate to="/login" replace />;
+  } else if (authStatus === "error") {
+    page = (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-100 px-4 text-center">
+        <p className="text-sm text-red-700" role="alert">
+          {authError}
+        </p>
+        <button
+          type="button"
+          onClick={() => setAuthCheckKey((key) => key + 1)}
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  } else {
+    page = (
+      <NavShell>
+        <AppRoutes />
+      </NavShell>
+    );
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-800">
-      <AppSidebar
-        isDesktopOpen={isSidebarOpen}
-        onDesktopClose={() => setIsSidebarOpen(false)}
+    <>
+      {page}
+      <ToastContainer
+        position="top-right"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
       />
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="hidden h-16 items-center justify-between border-b border-slate-200 bg-white px-7 md:flex">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              aria-label={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
-              aria-expanded={isSidebarOpen}
-              onClick={() => setIsSidebarOpen((open) => !open)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-            >
-              <FiMenu size={17} />
-            </button>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                Sales workspace
-              </p>
-              <h1 className="mt-0.5 text-base font-semibold text-slate-800">
-                {pageTitle}
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-800">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Workspace active
-          </div>
-        </header>
-        <main className="min-w-0 flex-1">
-          <AppRoute />
-        </main>
-      </div>
-    </div>
+    </>
   );
 };
 
