@@ -24,6 +24,15 @@ type CurrentUserResponse = {
 
 type AuthStatus = "checking" | "authenticated" | "unauthenticated" | "error";
 
+const SessionChecking = () => (
+  <div className="session-check-screen" role="status" aria-live="polite">
+    <span className="session-check-spinner" aria-hidden="true" />
+    <span className="session-check-text">
+      Checking your session<span className="session-check-dots">...</span>
+    </span>
+  </div>
+);
+
 const AppLayout = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [authError, setAuthError] = useState("");
@@ -107,20 +116,12 @@ const AppLayout = () => {
     if (authStatus === "authenticated") {
       page = <Navigate to="/ticket-sales" replace />;
     } else if (authStatus === "checking") {
-      page = (
-        <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-600">
-          Checking your session...
-        </div>
-      );
+      page = <SessionChecking />;
     } else {
       page = <AppRoutes />;
     }
   } else if (authStatus === "checking") {
-    page = (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-600">
-        Checking your session...
-      </div>
-    );
+    page = <SessionChecking />;
   } else if (authStatus === "unauthenticated") {
     page = <Navigate to="/login" replace />;
   } else if (authStatus === "error") {
