@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import "./LoginPage.css";
 import selectComponents from "../../components/comman/selectComponents";
+import { notifyAuthStateChanged } from "../../utils/authStorage";
 
 type LoginResponse = {
   success: boolean;
@@ -305,6 +306,7 @@ const LoginPage = () => {
         }
       }
 
+      notifyAuthStateChanged();
       navigate("/ticket-sales", { replace: true });
     } catch (error: unknown) {
       console.error("Login request failed:", error);

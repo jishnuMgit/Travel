@@ -10,6 +10,7 @@ import "react-toastify/dist/ReactToastify.css";
 import NavShell from "./components/NavShell/NavShell";
 import AppRoutes from "./routes/AppRoutes";
 import { API_BASE_URL } from "./config/api";
+import { AUTH_STATE_CHANGED_EVENT } from "./utils/authStorage";
 import "./App.css";
 
 type CurrentUserResponse = {
@@ -23,6 +24,15 @@ type CurrentUserResponse = {
 
 type AuthStatus = "checking" | "authenticated" | "unauthenticated" | "error";
 
+const SessionChecking = () => (
+  <div className="session-check-screen" role="status" aria-live="polite">
+    <span className="session-check-spinner" aria-hidden="true" />
+    <span className="session-check-text">
+      Checking your session<span className="session-check-dots">...</span>
+    </span>
+  </div>
+);
+
 const AppLayout = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [authError, setAuthError] = useState("");
@@ -30,21 +40,24 @@ const AppLayout = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    const controller = new AbortController();
     let active = true;
+    let controller: AbortController | undefined;
 
     const checkAuthentication = async () => {
+      controller?.abort();
+      const requestController = new AbortController();
+      controller = requestController;
       setAuthStatus("checking");
       setAuthError("");
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           credentials: "include",
-          signal: controller.signal,
+          signal: requestController.signal,
         });
 
         if (response.status === 401) {
-          if (active) {
+          if (active && !requestController.signal.aborted) {
             setAuthStatus("unauthenticated");
           }
           return;
@@ -56,16 +69,19 @@ const AppLayout = () => {
           throw new Error(result.message ?? "Unable to verify your session");
         }
 
-        if (active) {
+        if (active && !requestController.signal.aborted) {
           setAuthStatus("authenticated");
         }
       } catch (error: unknown) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (
+          requestController.signal.aborted ||
+          (error instanceof DOMException && error.name === "AbortError")
+        ) {
           return;
         }
 
         console.error("Authentication check failed:", error);
-        if (active) {
+        if (active && !requestController.signal.aborted) {
           setAuthError(
             error instanceof Error
               ? error.message
@@ -76,30 +92,36 @@ const AppLayout = () => {
       }
     };
 
+    const handleAuthStateChanged = () => {
+      void checkAuthentication();
+    };
+
+    window.addEventListener(AUTH_STATE_CHANGED_EVENT, handleAuthStateChanged);
     void checkAuthentication();
 
     return () => {
       active = false;
-      controller.abort();
+      controller?.abort();
+      window.removeEventListener(
+        AUTH_STATE_CHANGED_EVENT,
+        handleAuthStateChanged,
+      );
     };
-  }, [pathname, authCheckKey]);
+  }, [authCheckKey]);
 
   const isLogin = pathname === "/login";
   let page: ReactNode;
 
   if (isLogin) {
-    page =
-      authStatus === "authenticated" ? (
-        <Navigate to="/ticket-sales" replace />
-      ) : (
-        <AppRoutes />
-      );
+    if (authStatus === "authenticated") {
+      page = <Navigate to="/ticket-sales" replace />;
+    } else if (authStatus === "checking") {
+      page = <SessionChecking />;
+    } else {
+      page = <AppRoutes />;
+    }
   } else if (authStatus === "checking") {
-    page = (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-600">
-        Checking your session...
-      </div>
-    );
+    page = <SessionChecking />;
   } else if (authStatus === "unauthenticated") {
     page = <Navigate to="/login" replace />;
   } else if (authStatus === "error") {
