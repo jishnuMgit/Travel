@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Select, { components } from "react-select";
 import type {
   MenuListProps,
@@ -7,16 +7,19 @@ import type {
 } from "react-select";
 import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiTrash2 } from "react-icons/fi";
 import type { Option } from "../../../components/comman/Combo";
 import Header from "../../../components/comman/Header";
 import selectComponents from "../../../components/comman/selectComponents";
+import { API_BASE_URL } from "../../../config/api";
 
 type ServiceTypeRow = {
   id: number;
-  group: Option | null;
-  serviceTypeId: string;
-  name: string;
-  position: string;
+  lkpServiceGroupName: Option | null;
+  txtServiceTypeID: string;
+  persistedTxtServiceTypeID: string | null;
+  txtServiceTypeName: string;
+  txtPositionNo: string;
 };
 
 type ServiceGroup = Option & {
@@ -40,14 +43,15 @@ type ServiceTypeApi = {
   fpositionno: number | null;
 };
 
-const API_URL = "http://localhost:5000/api/service-types";
+const API_URL = `${API_BASE_URL}/api/service-types`;
 
 const createEmptyRow = (id: number): ServiceTypeRow => ({
   id,
-  group: null,
-  serviceTypeId: "",
-  name: "",
-  position: "",
+  lkpServiceGroupName: null,
+  txtServiceTypeID: "",
+  persistedTxtServiceTypeID: null,
+  txtServiceTypeName: "",
+  txtPositionNo: "",
 });
 
 const headCellClass =
@@ -84,11 +88,21 @@ const ServiceTypePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ServiceTypeRow | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const noButtonRef = useRef<HTMLButtonElement>(null);
 
   // Tracks which dropdown is open so Enter can select an option normally.
   const [openDropdownRowId, setOpenDropdownRowId] = useState<number | null>(
     null
   );
+
+  useEffect(() => {
+    if (deleteTarget) {
+      noButtonRef.current?.focus();
+    }
+  }, [deleteTarget]);
 
   const ensureEmptyRow = (
     currentRows: ServiceTypeRow[]
@@ -102,10 +116,10 @@ const ServiceTypePage: React.FC = () => {
     const lastRow = result[result.length - 1];
 
     const lastRowIsEmpty =
-      !lastRow.group &&
-      !lastRow.serviceTypeId.trim() &&
-      !lastRow.name.trim() &&
-      !lastRow.position.trim();
+      !lastRow.lkpServiceGroupName &&
+      !lastRow.txtServiceTypeID.trim() &&
+      !lastRow.txtServiceTypeName.trim() &&
+      !lastRow.txtPositionNo.trim();
 
     if (!lastRowIsEmpty) {
       result.push(createEmptyRow(result.length + 1));
@@ -129,19 +143,19 @@ const ServiceTypePage: React.FC = () => {
   const handleEnter = (
     event: KeyboardEvent<HTMLInputElement>,
     rowId: number,
-    field: "serviceTypeId" | "name" | "position"
+    field: "txtServiceTypeID" | "txtServiceTypeName" | "txtPositionNo"
   ) => {
     if (event.key !== "Enter" || event.shiftKey) return;
 
     event.preventDefault();
 
-    if (field === "serviceTypeId") {
-      focusField(rowId, "name");
+    if (field === "txtServiceTypeID") {
+      focusField(rowId, "txtServiceTypeName");
       return;
     }
 
-    if (field === "name") {
-      focusField(rowId, "position");
+    if (field === "txtServiceTypeName") {
+      focusField(rowId, "txtPositionNo");
       return;
     }
 
@@ -150,7 +164,7 @@ const ServiceTypePage: React.FC = () => {
     const nextRow = rows[currentIndex + 1];
 
     if (nextRow) {
-      focusField(nextRow.id, "group");
+      focusField(nextRow.id, "lkpServiceGroupName");
       return;
     }
 
@@ -162,7 +176,7 @@ const ServiceTypePage: React.FC = () => {
         const nextRows = rows.length + 1;
         const nextRowId = nextRows;
         document
-          .getElementById(`service-type-group-${nextRowId}`)
+          .getElementById(`service-type-lkpServiceGroupName-${nextRowId}`)
           ?.focus();
       });
     });
@@ -170,9 +184,9 @@ const ServiceTypePage: React.FC = () => {
 
   useEffect(() => {
     const getData = async () => {
-      const companyId = localStorage.getItem("PstrCoID");
+      const PstrCoID = localStorage.getItem("PstrCoID");
 
-      if (!companyId) {
+      if (!PstrCoID) {
         setError("Company ID (PstrCoID) was not found in localStorage.");
         setLoading(false);
         return;
@@ -184,9 +198,9 @@ const ServiceTypePage: React.FC = () => {
 
         const [groupResponse, serviceTypeResponse] = await Promise.all([
           fetch(
-            `${API_URL}/groups?companyId=${encodeURIComponent(companyId)}`
+            `${API_URL}/groups?PstrCoID=${encodeURIComponent(PstrCoID)}`
           ),
-          fetch(`${API_URL}?companyId=${encodeURIComponent(companyId)}`),
+          fetch(`${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}`),
         ]);
 
         const groupData = await groupResponse.json();
@@ -217,13 +231,14 @@ const ServiceTypePage: React.FC = () => {
           serviceTypeData as ServiceTypeApi[]
         ).map((item, index) => ({
           id: index + 1,
-          group:
+          lkpServiceGroupName:
             options.find(
               (option) => option.value === item.fservicetypegroupid
             ) ?? null,
-          serviceTypeId: item.fservicetypeid ?? "",
-          name: item.fservicetypename ?? "",
-          position:
+          txtServiceTypeID: item.fservicetypeid ?? "",
+          persistedTxtServiceTypeID: item.fservicetypeid ?? "",
+          txtServiceTypeName: item.fservicetypename ?? "",
+          txtPositionNo:
             item.fpositionno == null ? "" : String(item.fpositionno),
         }));
 
@@ -254,21 +269,66 @@ const ServiceTypePage: React.FC = () => {
     });
   };
 
-  const handleSave = async () => {
-    const userId = localStorage.getItem("PstrUserID");
-    const companyId = localStorage.getItem("PstrCoID");
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
 
-    if (!userId || !companyId) {
+    const PstrCoID = localStorage.getItem("PstrCoID");
+    const persistedTxtServiceTypeID =
+      deleteTarget.persistedTxtServiceTypeID;
+
+    if (persistedTxtServiceTypeID && !PstrCoID) {
+      setDeleteError("Company ID (PstrCoID) was not found in localStorage.");
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeleteError("");
+
+      if (persistedTxtServiceTypeID && PstrCoID) {
+        const response = await fetch(
+          `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}&txtServiceTypeID=${encodeURIComponent(persistedTxtServiceTypeID)}`,
+          { method: "DELETE" }
+        );
+        const result = (await response.json()) as { message?: string };
+
+        if (!response.ok) {
+          throw new Error(result.message || "Failed to delete service type.");
+        }
+      }
+
+      setRows((currentRows) =>
+        ensureEmptyRow(
+          currentRows
+            .filter((row) => row.id !== deleteTarget.id)
+            .map((row, index) => ({ ...row, id: index + 1 }))
+        )
+      );
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete service type."
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSave = async () => {
+    const PstrUserID = localStorage.getItem("PstrUserID");
+    const PstrCoID = localStorage.getItem("PstrCoID");
+
+    if (!PstrUserID || !PstrCoID) {
       alert("User ID or Company ID was not found in localStorage.");
       return;
     }
 
     const validRows = rows.filter(
       (row) =>
-        row.serviceTypeId.trim() ||
-        row.group ||
-        row.name.trim() ||
-        row.position.trim()
+        row.txtServiceTypeID.trim() ||
+        row.lkpServiceGroupName ||
+        row.txtServiceTypeName.trim() ||
+        row.txtPositionNo.trim()
     );
 
     if (validRows.length === 0) {
@@ -279,40 +339,40 @@ const ServiceTypePage: React.FC = () => {
     const seenIds = new Set<string>();
 
     for (const row of validRows) {
-      const serviceTypeId = row.serviceTypeId.trim();
-      const name = row.name.trim();
-      const positionText = row.position.trim();
+      const txtServiceTypeID = row.txtServiceTypeID.trim();
+      const txtServiceTypeName = row.txtServiceTypeName.trim();
+      const txtPositionNo = row.txtPositionNo.trim();
 
-      if (!row.group) {
+      if (!row.lkpServiceGroupName) {
         alert(`Please select Service Group Name in line ${row.id}.`);
         return;
       }
 
-      if (!serviceTypeId) {
+      if (!txtServiceTypeID) {
         alert(`Please enter Service Type ID in line ${row.id}.`);
         return;
       }
 
-      if (serviceTypeId.length > 4) {
+      if (txtServiceTypeID.length > 4) {
         alert(`Service Type ID in line ${row.id} cannot exceed 4 characters.`);
         return;
       }
 
-      if (!name) {
+      if (!txtServiceTypeName) {
         alert(`Please enter Service Type Name in line ${row.id}.`);
         return;
       }
 
-      if (name.length > 50) {
+      if (txtServiceTypeName.length > 50) {
         alert(`Service Type Name in line ${row.id} cannot exceed 50 characters.`);
         return;
       }
 
       if (
-        positionText &&
-        (!/^-?\d+$/.test(positionText) ||
-          Number(positionText) < -32768 ||
-          Number(positionText) > 32767)
+        txtPositionNo &&
+        (!/^-?\d+$/.test(txtPositionNo) ||
+          Number(txtPositionNo) < -32768 ||
+          Number(txtPositionNo) > 32767)
       ) {
         alert(
           `Position No. in line ${row.id} must be a whole number between -32768 and 32767.`
@@ -320,12 +380,12 @@ const ServiceTypePage: React.FC = () => {
         return;
       }
 
-      if (seenIds.has(serviceTypeId)) {
-        alert(`Duplicate Service Type ID: ${serviceTypeId}`);
+      if (seenIds.has(txtServiceTypeID)) {
+        alert(`Duplicate Service Type ID: ${txtServiceTypeID}`);
         return;
       }
 
-      seenIds.add(serviceTypeId);
+      seenIds.add(txtServiceTypeID);
     }
 
     try {
@@ -338,13 +398,13 @@ const ServiceTypePage: React.FC = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId,
-          companyId,
+           PstrUserID,
+           PstrCoID,
           rows: validRows.map((row) => ({
-            serviceTypeId: row.serviceTypeId.trim(),
-            serviceGroupId: row.group!.value,
-            name: row.name.trim(),
-            position: row.position.trim(),
+            txtServiceTypeID: row.txtServiceTypeID.trim(),
+            lkpServiceGroupName: row.lkpServiceGroupName!.value,
+            txtServiceTypeName: row.txtServiceTypeName.trim(),
+            txtPositionNo: row.txtPositionNo.trim(),
           })),
         }),
       });
@@ -358,7 +418,7 @@ const ServiceTypePage: React.FC = () => {
       alert(result.message || "Service types saved successfully.");
 
       const refreshedResponse = await fetch(
-        `${API_URL}?companyId=${encodeURIComponent(companyId)}`
+        `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}`
       );
 
       if (!refreshedResponse.ok) {
@@ -370,13 +430,14 @@ const ServiceTypePage: React.FC = () => {
       const refreshedRows: ServiceTypeRow[] = refreshedData.map(
         (item, index) => ({
           id: index + 1,
-          group:
+          lkpServiceGroupName:
             serviceGroupOptions.find(
               (option) => option.value === item.fservicetypegroupid
             ) ?? null,
-          serviceTypeId: item.fservicetypeid ?? "",
-          name: item.fservicetypename ?? "",
-          position:
+          txtServiceTypeID: item.fservicetypeid ?? "",
+          persistedTxtServiceTypeID: item.fservicetypeid ?? "",
+          txtServiceTypeName: item.fservicetypename ?? "",
+          txtPositionNo:
             item.fpositionno == null ? "" : String(item.fpositionno),
         })
       );
@@ -444,6 +505,9 @@ const ServiceTypePage: React.FC = () => {
                   >
                     Position No.
                   </th>
+                  <th scope="col" className={`${headCellClass} w-20 text-center`}>
+                    Delete
+                  </th>
                 </tr>
               </thead>
 
@@ -459,17 +523,17 @@ const ServiceTypePage: React.FC = () => {
 
                     <td className="border border-[#B7ECD0] p-0">
                       <Select<ServiceGroup, false>
-                        inputId={`service-type-group-${row.id}`}
-                        instanceId={`service-type-group-${row.id}`}
+                        inputId={`service-type-lkpServiceGroupName-${row.id}`}
+                        instanceId={`service-type-lkpServiceGroupName-${row.id}`}
                         aria-label={`Service group for line ${index + 1}`}
                         components={{
                           ...selectComponents,
                           MenuList: ServiceGroupMenuList,
                         }}
                         options={serviceGroupOptions}
-                        value={row.group as ServiceGroup | null}
+                        value={row.lkpServiceGroupName as ServiceGroup | null}
                         onChange={(option) =>
-                          updateRow(row.id, "group", option)
+                          updateRow(row.id, "lkpServiceGroupName", option)
                         }
                         onMenuOpen={() => setOpenDropdownRowId(row.id)}
                         onMenuClose={() => setOpenDropdownRowId(null)}
@@ -480,7 +544,7 @@ const ServiceTypePage: React.FC = () => {
                           if (openDropdownRowId === row.id) return;
 
                           event.preventDefault();
-                          focusField(row.id, "serviceTypeId");
+                          focusField(row.id, "txtServiceTypeID");
                         }}
                         getOptionLabel={(option) => option.label}
                         formatOptionLabel={(option, { context }) => {
@@ -561,15 +625,15 @@ const ServiceTypePage: React.FC = () => {
 
                     <td className="border border-[#B7ECD0] p-0">
                       <input
-                        id={`service-type-serviceTypeId-${row.id}`}
+                        id={`service-type-txtServiceTypeID-${row.id}`}
                         aria-label={`Service type ID for line ${index + 1}`}
                         maxLength={4}
-                        value={row.serviceTypeId}
+                        value={row.txtServiceTypeID}
                         onChange={(event) =>
-                          updateRow(row.id, "serviceTypeId", event.target.value)
+                          updateRow(row.id, "txtServiceTypeID", event.target.value)
                         }
                         onKeyDown={(event) =>
-                          handleEnter(event, row.id, "serviceTypeId")
+                          handleEnter(event, row.id, "txtServiceTypeID")
                         }
                         className={inputClass}
                       />
@@ -577,15 +641,15 @@ const ServiceTypePage: React.FC = () => {
 
                     <td className="border border-[#B7ECD0] p-0">
                       <input
-                        id={`service-type-name-${row.id}`}
+                        id={`service-type-txtServiceTypeName-${row.id}`}
                         aria-label={`Service type name for line ${index + 1}`}
                         maxLength={50}
-                        value={row.name}
+                        value={row.txtServiceTypeName}
                         onChange={(event) =>
-                          updateRow(row.id, "name", event.target.value)
+                          updateRow(row.id, "txtServiceTypeName", event.target.value)
                         }
                         onKeyDown={(event) =>
-                          handleEnter(event, row.id, "name")
+                          handleEnter(event, row.id, "txtServiceTypeName")
                         }
                         className={inputClass}
                       />
@@ -593,19 +657,35 @@ const ServiceTypePage: React.FC = () => {
 
                     <td className="border border-[#B7ECD0] p-0">
                       <input
-                        id={`service-type-position-${row.id}`}
+                        id={`service-type-txtPositionNo-${row.id}`}
                         type="number"
                         step="1"
                         aria-label={`Position for line ${index + 1}`}
-                        value={row.position}
+                        value={row.txtPositionNo}
                         onChange={(event) =>
-                          updateRow(row.id, "position", event.target.value)
+                          updateRow(row.id, "txtPositionNo", event.target.value)
                         }
                         onKeyDown={(event) =>
-                          handleEnter(event, row.id, "position")
+                          handleEnter(event, row.id, "txtPositionNo")
                         }
                         className={`${inputClass} text-right`}
                       />
+                    </td>
+
+                    <td className="border border-[#B7ECD0] px-2 py-1 text-center">
+                      <button
+                        type="button"
+                        aria-label={`Delete service type on line ${index + 1}`}
+                        title="Delete service type"
+                        disabled={saving || deleting}
+                        onClick={() => {
+                          setDeleteError("");
+                          setDeleteTarget(row);
+                        }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-red-600 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <FiTrash2 aria-hidden="true" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -634,6 +714,69 @@ const ServiceTypePage: React.FC = () => {
           </button>
         </footer>
       </main>
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-slate-950/40 p-4"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && !deleting) {
+              setDeleteTarget(null);
+              setDeleteError("");
+            }
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-service-type-title"
+            aria-describedby="delete-service-type-description"
+            className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+          >
+            <h2
+              id="delete-service-type-title"
+              className="text-lg font-semibold text-slate-800"
+            >
+              Delete service type?
+            </h2>
+            <p
+              id="delete-service-type-description"
+              className="mt-2 text-sm text-slate-600"
+            >
+              Do you want to delete service type{" "}
+              <span className="font-medium text-slate-800">
+                {deleteTarget.txtServiceTypeID || "on this row"}
+              </span>
+              ?
+            </p>
+            {deleteError && (
+              <p className="mt-3 text-sm text-red-700" role="alert">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                ref={noButtonRef}
+                type="button"
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setDeleteError("");
+                }}
+                disabled={deleting}
+                className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 disabled:opacity-50"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={deleting}
+                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Yes"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

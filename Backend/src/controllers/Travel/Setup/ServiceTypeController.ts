@@ -1,5 +1,5 @@
 
-import { Router, Request, Response } from "express";
+import { Request, Response } from "express";
 import pool from "../../../DB/db";
 
 
@@ -8,9 +8,9 @@ import pool from "../../../DB/db";
  */
 export const getGroupOptions = async (req: Request, res: Response) => {
   try {
-    const companyId = String(req.query.companyId ?? "").trim();
+    const PstrCoID = String(req.query.PstrCoID ?? "").trim();
 
-    if (!companyId) {
+    if (!PstrCoID) {
       return res.status(400).json({
         message: "Company ID is required.",
       });
@@ -27,7 +27,7 @@ export const getGroupOptions = async (req: Request, res: Response) => {
        ORDER BY
           dbo.tblservicetypegroup.fpositionno NULLS LAST,
           dbo.tblservicetypegroup.fservicetypegroupname`,
-      [companyId]
+      [PstrCoID]
     );
 
     return res.json(result.rows);
@@ -46,9 +46,9 @@ export const getGroupOptions = async (req: Request, res: Response) => {
  */
 export const GetData = async (req: Request, res: Response) => {
   try {
-    const companyId = String(req.query.companyId ?? "").trim();
+    const PstrCoID = String(req.query.PstrCoID ?? "").trim();
 
-    if (!companyId) {
+    if (!PstrCoID) {
       return res.status(400).json({
         message: "Company ID is required.",
       });
@@ -72,7 +72,7 @@ export const GetData = async (req: Request, res: Response) => {
        ORDER BY
           dbo.tblservicetype.fpositionno NULLS LAST,
           dbo.tblservicetype.fservicetypeid`,
-      [companyId]
+      [PstrCoID]
     );
 
     return res.json(result.rows);
@@ -86,13 +86,56 @@ export const GetData = async (req: Request, res: Response) => {
 };
 
 /**
+ * DELETE dbo.tblservicetype
+ */
+export const DeleteData = async (req: Request, res: Response) => {
+  const PstrCoID = String(req.query.PstrCoID ?? "").trim();
+  const txtServiceTypeID = String(req.query.txtServiceTypeID ?? "").trim();
+
+  if (!PstrCoID || !txtServiceTypeID) {
+    return res.status(400).json({
+      message: "Company ID and service type ID are required.",
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM dbo.tblservicetype
+       WHERE fcoid = $1
+         AND fservicetypeid = $2
+       RETURNING fservicetypeid`,
+      [PstrCoID, txtServiceTypeID]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        message: "Service type was not found.",
+      });
+    }
+
+    return res.json({
+      message: "Service type deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Error deleting dbo.tblservicetype:", error);
+
+    return res.status(500).json({
+      message: "Failed to delete service type.",
+    });
+  }
+};
+
+/**
  * INSERT / UPDATE dbo.tblservicetype
  */
 export const SaveData = async (req: Request, res: Response) => {
-  const { rows,  pstrUserID,
-           pstrCoID,} = req.body;
+  const { rows,  PstrUserID,
+           PstrCoID,} = req.body;
 
-  if (!pstrCoID || !pstrUserID) {
+
+           console.log("Received request body:", req.body);
+
+  if (!PstrCoID || !PstrUserID) {
     return res.status(400).json({
       message: "Company ID and user ID are required.",
     });
@@ -106,10 +149,10 @@ export const SaveData = async (req: Request, res: Response) => {
 
   const validRows = rows.filter(
     (row: any) =>
-      String(row.serviceTypeId ?? "").trim() ||
-      String(row.serviceGroupId ?? "").trim() ||
-      String(row.name ?? "").trim() ||
-      String(row.position ?? "").trim()
+      String(row.txtServiceTypeID ?? "").trim() ||
+      String(row.lkpServiceGroupName ?? "").trim() ||
+      String(row.txtServiceTypeName ?? "").trim() ||
+      String(row.txtPositionNo ?? "").trim()
   );
 
   if (validRows.length === 0) {
@@ -121,38 +164,38 @@ export const SaveData = async (req: Request, res: Response) => {
   const seenIds = new Set<string>();
 
   for (const row of validRows) {
-    const serviceTypeId = String(row.serviceTypeId ?? "").trim();
-    const serviceGroupId = String(row.serviceGroupId ?? "").trim();
-    const name = String(row.name ?? "").trim();
-    const positionText = String(row.position ?? "").trim();
+    const txtServiceTypeID = String(row.txtServiceTypeID ?? "").trim();
+    const lkpServiceGroupName = String(row.lkpServiceGroupName ?? "").trim();
+    const txtServiceTypeName = String(row.txtServiceTypeName ?? "").trim();
+    const txtPositionNo = String(row.txtPositionNo ?? "").trim();
 
-    if (!serviceTypeId || !serviceGroupId || !name) {
+    if (!txtServiceTypeID || !lkpServiceGroupName || !txtServiceTypeName) {
       return res.status(400).json({
         message:
           "Service Type ID, Service Group Name, and Service Type Name are required.",
       });
     }
 
-    if (serviceTypeId.length > 4) {
+    if (txtServiceTypeID.length > 4) {
       return res.status(400).json({
-        message: `Service Type ID "${serviceTypeId}" must not exceed 4 characters.`,
+        message: `Service Type ID "${txtServiceTypeID}" must not exceed 4 characters.`,
       });
     }
 
-    if (serviceGroupId.length > 4) {
+    if (lkpServiceGroupName.length > 4) {
       return res.status(400).json({
         message: "Service Group ID must not exceed 4 characters.",
       });
     }
 
-    if (name.length > 50) {
+    if (txtServiceTypeName.length > 50) {
       return res.status(400).json({
-        message: `Service Type Name for "${serviceTypeId}" must not exceed 50 characters.`,
+        message: `Service Type Name for "${txtServiceTypeID}" must not exceed 50 characters.`,
       });
     }
 
-    if (positionText) {
-      const position = Number(positionText);
+    if (txtPositionNo) {
+      const position = Number(txtPositionNo);
 
       if (
         !Number.isInteger(position) ||
@@ -160,18 +203,18 @@ export const SaveData = async (req: Request, res: Response) => {
         position > 32767
       ) {
         return res.status(400).json({
-          message: `Position No. for "${serviceTypeId}" must be a whole number between -32768 and 32767.`,
+          message: `Position No. for "${txtServiceTypeID}" must be a whole number between -32768 and 32767.`,
         });
       }
     }
 
-    if (seenIds.has(serviceTypeId)) {
+    if (seenIds.has(txtServiceTypeID)) {
       return res.status(400).json({
-        message: `Duplicate Service Type ID: ${serviceTypeId}`,
+        message: `Duplicate Service Type ID: ${txtServiceTypeID}`,
       });
     }
 
-    seenIds.add(serviceTypeId);
+    seenIds.add(txtServiceTypeID);
   }
 
   const client = await pool.connect();
@@ -180,23 +223,23 @@ export const SaveData = async (req: Request, res: Response) => {
     await client.query("BEGIN");
 
     for (const row of validRows) {
-      const serviceTypeId = String(row.serviceTypeId).trim();
-      const serviceGroupId = String(row.serviceGroupId).trim();
-      const name = String(row.name).trim();
-      const positionText = String(row.position ?? "").trim();
-      const position = positionText ? Number(positionText) : null;
+      const txtServiceTypeID = String(row.txtServiceTypeID).trim();
+      const lkpServiceGroupName = String(row.lkpServiceGroupName).trim();
+      const txtServiceTypeName = String(row.txtServiceTypeName).trim();
+      const txtPositionNo = String(row.txtPositionNo ?? "").trim();
+      const position = txtPositionNo ? Number(txtPositionNo) : null;
 
       const groupResult = await client.query(
         `SELECT 1
          FROM dbo.tblservicetypegroup
          WHERE dbo.tblservicetypegroup.fcoid = $1
            AND dbo.tblservicetypegroup.fservicetypegroupid = $2`,
-        [pstrCoID, serviceGroupId]
+        [PstrCoID, lkpServiceGroupName]
       );
 
       if (groupResult.rowCount === 0) {
         throw new Error(
-          `Service group "${serviceGroupId}" does not exist for this company.`
+          `Service group "${lkpServiceGroupName}" does not exist for this company.`
         );
       }
 
@@ -227,11 +270,11 @@ export const SaveData = async (req: Request, res: Response) => {
             fmuserdate = CURRENT_TIMESTAMP,
             fpositionno = EXCLUDED.fpositionno`,
         [
-          pstrCoID,
-          serviceTypeId,
-          serviceGroupId,
-          name,
-          String(pstrUserID),
+          PstrCoID,
+          txtServiceTypeID,
+          lkpServiceGroupName,
+          txtServiceTypeName,
+          String(PstrUserID),
           position,
         ]
       );
@@ -255,5 +298,3 @@ export const SaveData = async (req: Request, res: Response) => {
     client.release();
   }
 };
-
-
