@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Header from "../../../components/comman/Header";
+import { MdAdd } from "react-icons/md";
 
 type AirlineRow = {
   key: number;
@@ -167,7 +168,21 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
       <div className="min-h-fit w-200 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
           <Header Name="Airline"/>
+    <div className="flex items-center gap-5 ">
+ <input
+   aria-label="Search airlines"
+   placeholder="Search by Airline No, Airline Name or Airline Code"
+   className="input-style border border-gray-500! w-[500px] mt-3 ml-3 rounded-sm h-[30px]"
+ />
 
+        <button className="flex items-center gap-1 rounded-sm  px-3 py-1 mt-3  text-sm text-green-500 bg-[#E6F0FA] border border-gray-600 hover:bg-[#dbeafa] cursor-pointer" >
+
+          <MdAdd className="text-white bg-green-600 rounded-full " /> Add
+
+        </button>
+
+
+       </div>
           <section className="px-3.5 pb-3 pt-3">
             {/* {showSearch && (
               <div className="mb-3 flex items-center gap-3">
