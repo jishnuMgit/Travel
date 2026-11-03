@@ -9,7 +9,7 @@ export const useLogout = () => {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      const response = await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

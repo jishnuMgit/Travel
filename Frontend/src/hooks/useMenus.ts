@@ -28,7 +28,7 @@ async function fetchMenuRows(): Promise<MenuRow[]> {
   // userId / userType are read server-side from the
   // authenticated session (req.user), not sent here.
   const response = await fetch(
-    `${API_BASE_URL}/api/menu?companyId=${encodeURIComponent(companyId)}`,
+    `${API_BASE_URL}/menu?companyId=${encodeURIComponent(companyId)}`,
     {
       method: "GET",
       credentials: "include",

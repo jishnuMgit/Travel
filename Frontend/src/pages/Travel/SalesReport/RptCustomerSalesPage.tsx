@@ -1,6 +1,5 @@
 
 import React, { useState } from "react";
-import Select from "react-select";
 import {
   LocalizationProvider,
 } from "@mui/x-date-pickers/LocalizationProvider";
@@ -9,8 +8,12 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../../components/comman/Header";
-import { fieldSelectProps } from "../../../components/comman/Combo";
-
+import CommonTableSelect, {
+  type TableSelectOption,
+} from "../../../components/comman/CommonTableSelect";
+import CustomLinkedPairSelect, {
+  type PairSelectOption,
+} from "../../../components/comman/CustomLinkedPairSelect";
 dayjs.extend(customParseFormat);
 
 type Option = {
@@ -20,11 +23,14 @@ type Option = {
 
 const DATE_FORMAT = "DD/MM/YYYY";
 const TODAY = dayjs().format(DATE_FORMAT);
+const branchOptions = [
+  { label: "Jeddah", value: "JD", id: "JD" },
+  { label: "Riyadh", value: "RH", id: "RH" },
+];
 
-const branchOptions: Option[] = [
-  { value: "JEDDAH", label: "JEDDAH" },
-  { value: "RIYADH", label: "RIYADH" },
-  { value: "DAMMAM", label: "DAMMAM" },
+const branchColumns = [
+  { key: "label", label: "Branch", width: "1fr" },
+  { key: "id", label: "ID", width: "70px", align: "right" as const },
 ];
 
 const customerIdOptions: Option[] = [
@@ -47,15 +53,53 @@ const airlineNameOptions: Option[] = [
   { value: "A002", label: "Airline Two" },
 ];
 
-const staffOptions: Option[] = [
+const staffIdOptions: Option[] = [
+  { value: "S001", label: "S001" },
+  { value: "S002", label: "S002" },
+];
+
+const staffNameOptions: Option[] = [
   { value: "S001", label: "Staff One" },
   { value: "S002", label: "Staff Two" },
 ];
 
-const divisionOptions: Option[] = [
-  { value: "TRAVEL", label: "Travel" },
-  { value: "TOURISM", label: "Tourism" },
+const divisionOptions: TableSelectOption[] = [
+  { value: "TRAVEL", label: "Travel", id: "TRAVEL" },
+  { value: "TOURISM", label: "Tourism", id: "TOURISM" },
 ];
+
+const divisionColumns = [
+  { key: "label", label: "Division", width: "1fr" },
+  { key: "id", label: "ID", width: "70px", align: "right" as const },
+];
+
+const createPairOptions = (
+  idOptions: Option[],
+  nameOptions: Option[],
+): PairSelectOption[] => {
+  return idOptions.map((id) => ({
+    value: id.value,
+    firstLabel: id.label,
+    secondLabel:
+      nameOptions.find((item) => item.value === id.value)?.label ?? "",
+  }));
+};
+
+const customerPairOptions = createPairOptions(
+  customerIdOptions,
+  customerNameOptions,
+);
+
+const airlinePairOptions = createPairOptions(
+  airlineIdOptions,
+  airlineNameOptions,
+);
+
+const staffPairOptions = createPairOptions(
+  staffIdOptions,
+  staffNameOptions,
+);
+
 
 type RadioProps = {
   name: string;
@@ -230,14 +274,15 @@ const RptCustomerSalesPage: React.FC = () => {
   const [customerName, setCustomerName] = useState<Option | null>(null);
 
   const [divisionMode, setDivisionMode] = useState("All Division");
-  const [division, setDivision] = useState<Option | null>(null);
+  const [division, setDivision] = useState<TableSelectOption | null>(null);
 
   const [airlineMode, setAirlineMode] = useState("One Airline");
   const [airlineId, setAirlineId] = useState<Option | null>(null);
   const [airlineName, setAirlineName] = useState<Option | null>(null);
 
   const [staffMode, setStaffMode] = useState("One Staff");
-  const [staff, setStaff] = useState<Option | null>(null);
+  const [staffId, setStaffId] = useState<Option | null>(null);
+  const [staffName, setStaffName] = useState<Option | null>(null);
 
   const [fromDate, setFromDate] = useState("01/10/2026");
   const [toDate, setToDate] = useState(TODAY);
@@ -264,7 +309,8 @@ const RptCustomerSalesPage: React.FC = () => {
       airlineId: airlineMode === "One Airline" ? airlineId : null,
       airlineName: airlineMode === "One Airline" ? airlineName : null,
       staffMode,
-      staff: staffMode === "One Staff" ? staff : null,
+      staffId: staffMode === "One Staff" ? staffId : null,
+      staffName: staffMode === "One Staff" ? staffName : null,
       fromDate,
       toDate,
       detailMode,
@@ -289,7 +335,7 @@ const RptCustomerSalesPage: React.FC = () => {
     <div className="min-h-screen w-full bg-white p-1 sm:p-2">
       <main className="mx-auto w-full max-w-220 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
         {/* Window title */}
-      <Header Name="Customer Sales"/>
+        <Header Name="Customer Sales" />
 
         <section className="px-[17px] pb-[38px] pt-[17px]">
           <div className="grid grid-cols-[125px_minmax(0,1fr)] gap-x-[17px] gap-y-[10px]">
@@ -312,15 +358,20 @@ const RptCustomerSalesPage: React.FC = () => {
             </RadioPanel>
 
             <div className="pt-[9px]">
-              {branchMode === "One Branch" && <div className="w-[250px] max-w-full">
-                <Select
-                  inputId="branch"
-                  options={branchOptions}
-                  value={branch}
-                  onChange={setBranch}
-                  {...fieldSelectProps}
-                />
-              </div>}
+             {branchMode === "One Branch" && (
+  <div className="w-[250px] max-w-full">
+    <CommonTableSelect
+      inputId="branch"
+      options={branchOptions}
+      value={branch}
+      onChange={setBranch}
+      columns={branchColumns}
+      width="250px"
+      menuWidth="305px"
+      placeholder="Select Branch"
+    />
+  </div>
+)}
             </div>
 
             {/* Customer */}
@@ -342,41 +393,33 @@ const RptCustomerSalesPage: React.FC = () => {
             </RadioPanel>
 
             <div className="flex items-start gap-1 pt-[9px]">
-              {customerMode === "One Customer" && <>
-              <div className="w-[120px]">
-                <Select
-                  inputId="customerId"
-                  options={customerIdOptions}
-                  value={customerId}
+              {customerMode === "One Customer" && (
+                <CustomLinkedPairSelect
+                  firstInputId="customerId"
+                  secondInputId="customerName"
+                  options={customerPairOptions}
+                  firstValue={customerId?.value ?? null}
+                  secondValue={customerName?.value ?? null}
+                  firstHeader="Customer ID"
+                  secondHeader="Customer Name"
+                  firstWidth={120}
+                  secondWidth={450}
+                  gap={4}
+                  headerFontSize="12px"
                   onChange={(option) => {
-                    setCustomerId(option);
-                    setCustomerName(
-                      customerNameOptions.find(
-                        (item) => item.value === option?.value,
-                      ) ?? null,
-                    );
-                  }}
-                  {...fieldSelectProps}
-                />
-              </div>
-
-              <div className="w-[450px] shrink-0">
-                <Select
-                  inputId="customerName"
-                  options={customerNameOptions}
-                  value={customerName}
-                  onChange={(option) => {
-                    setCustomerName(option);
                     setCustomerId(
-                      customerIdOptions.find(
-                        (item) => item.value === option?.value,
-                      ) ?? null,
+                      option
+                        ? { value: option.value, label: option.firstLabel }
+                        : null,
+                    );
+                    setCustomerName(
+                      option
+                        ? { value: option.value, label: option.secondLabel }
+                        : null,
                     );
                   }}
-                  {...fieldSelectProps}
                 />
-              </div>
-              </>}
+              )}
             </div>
 
             {/* Division */}
@@ -401,13 +444,16 @@ const RptCustomerSalesPage: React.FC = () => {
 
             <div className="flex min-w-0 items-center justify-between gap-2">
               {divisionMode === "One Division" ? (
-                <div className="w-[220px] max-w-full">
-                  <Select
+                <div className="w-[250px] max-w-full">
+                  <CommonTableSelect
                     inputId="division"
                     options={divisionOptions}
                     value={division}
                     onChange={setDivision}
-                    {...fieldSelectProps}
+                    columns={divisionColumns}
+                    width="250px"
+                    menuWidth="305px"
+                    placeholder="Select Division"
                   />
                 </div>
               ) : (
@@ -457,41 +503,33 @@ const RptCustomerSalesPage: React.FC = () => {
             </RadioPanel>
 
             <div className="flex items-start gap-1 pt-[9px]">
-              {airlineMode === "One Airline" && <>
-              <div className="w-[120px]">
-                <Select
-                  inputId="airlineId"
-                  options={airlineIdOptions}
-                  value={airlineId}
+              {airlineMode === "One Airline" && (
+                <CustomLinkedPairSelect
+                  firstInputId="airlineId"
+                  secondInputId="airlineName"
+                  options={airlinePairOptions}
+                  firstValue={airlineId?.value ?? null}
+                  secondValue={airlineName?.value ?? null}
+                  firstHeader="Airline ID"
+                  secondHeader="Airline Name"
+                  firstWidth={120}
+                  secondWidth={450}
+                  gap={4}
+                  headerFontSize="12px"
                   onChange={(option) => {
-                    setAirlineId(option);
-                    setAirlineName(
-                      airlineNameOptions.find(
-                        (item) => item.value === option?.value,
-                      ) ?? null,
-                    );
-                  }}
-                  {...fieldSelectProps}
-                />
-              </div>
-
-              <div className="w-[450px] max-w-full">
-                <Select
-                  inputId="airlineName"
-                  options={airlineNameOptions}
-                  value={airlineName}
-                  onChange={(option) => {
-                    setAirlineName(option);
                     setAirlineId(
-                      airlineIdOptions.find(
-                        (item) => item.value === option?.value,
-                      ) ?? null,
+                      option
+                        ? { value: option.value, label: option.firstLabel }
+                        : null,
+                    );
+                    setAirlineName(
+                      option
+                        ? { value: option.value, label: option.secondLabel }
+                        : null,
                     );
                   }}
-                  {...fieldSelectProps}
                 />
-              </div>
-              </>}
+              )}
 
               <div className="ml-auto">
                 <RadioPanel className="w-[115px] min-h-[80px]">
@@ -538,21 +576,37 @@ const RptCustomerSalesPage: React.FC = () => {
               />
             </RadioPanel>
 
-            <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center justify-between gap-1">
               {staffMode === "One Staff" ? (
-                <div className="w-[250px] max-w-full">
-                  <Select
-                    inputId="staff"
-                    options={staffOptions}
-                    value={staff}
-                    onChange={setStaff}
-                    {...fieldSelectProps}
-                  />
-                </div>
+                <CustomLinkedPairSelect
+                  firstInputId="staffId"
+                  secondInputId="staffName"
+                  options={staffPairOptions}
+                  firstValue={staffId?.value ?? null}
+                  secondValue={staffName?.value ?? null}
+                  firstHeader="Staff ID"
+                  secondHeader="Staff Name"
+                  firstWidth={120}
+                  secondWidth={450}
+                  gap={4}
+                  headerFontSize="12px"
+                  onChange={(option) => {
+                    setStaffId(
+                      option
+                        ? { value: option.value, label: option.firstLabel }
+                        : null,
+                    );
+                    setStaffName(
+                      option
+                        ? { value: option.value, label: option.secondLabel }
+                        : null,
+                    );
+                  }}
+                />
               ) : (
                 <div />
               )}
-              <RadioPanel className="w-[145px] shrink-0">
+              <RadioPanel className="w-[125px] shrink-0">
                 <CustomRadio
                   name="travel"
                   value="Domestic"
