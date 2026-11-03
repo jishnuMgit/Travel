@@ -4,6 +4,7 @@ import companyRouter from "./CompanyRouter";
 import menuRouter from "./MenuRouter";
 import yearRouter from "./YearRouter";
 import ServiceTypeRouter from "./Travel/Setup/ServiceTypeRouter";
+import AirlineRouter from "./Travel/Sales/airlineRoutes";
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use("/companies", companyRouter);
 router.use("/menu", menuRouter);
 router.use("/years", yearRouter);
 router.use("/service-types", ServiceTypeRouter);
+router.use("/airlines", AirlineRouter);
 
 export default router;

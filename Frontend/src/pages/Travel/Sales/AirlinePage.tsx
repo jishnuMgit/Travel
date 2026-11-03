@@ -1,46 +1,43 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import Header from "../../../components/comman/Header";
-import { MdAdd } from "react-icons/md";
+import { MdAdd,  MdClose } from "react-icons/md";
+import {
+  createAirline,
+  deleteAirline,
+  getAirlines,
+  updateAirline,
+} from "../../../utils/airlineApi";
+import type { AirlinePayload, AirlineRecord } from "../../../utils/airlineApi";
+import { FiTrash2 } from "react-icons/fi";
 
 type AirlineRow = {
   key: number;
+  /** Original primary-key value, retained when the airline number is edited. */
+  originalNo: string | null;
+  originalValues: { no: string; name: string; code: string; vatOnCommission: boolean } | null;
   no: string;
   name: string;
   code: string;
   vatOnCommission: boolean;
 };
 
+type AirlinePageProps = {
+  onClose?: () => void;
+  /** Company ID (dbo.tblairline.fcoid). If omitted, VITE_COMPANY_ID is used. */
+  fcoid?: string;
+  /** User ID saved in fsuserid/fmuserid. */
+  fsuserid?: string;
+};
+
 const MIN_ROWS = 20;
-
-/* Replace with data from your API */
-const initialData: Omit<AirlineRow, "key">[] = [
-  { no: "000", name: "CHAM WINGS", code: "6Q", vatOnCommission: true },
-  { no: "001", name: "AMERICAN AIRLINES", code: "AA", vatOnCommission: true },
-  { no: "005", name: "CONTINENTAL AIRLINES", code: "CO", vatOnCommission: true },
-  { no: "006", name: "DELTA AIRLINES", code: "DL", vatOnCommission: true },
-  { no: "007", name: "FLYADEAL", code: "FY", vatOnCommission: true },
-  { no: "009", name: "GMG AIRLINES", code: "Z5", vatOnCommission: true },
-  { no: "014", name: "AIR CANADA", code: "AC", vatOnCommission: true },
-  { no: "016", name: "UNITED AIRLINES", code: "UA", vatOnCommission: true },
-  { no: "018", name: "Juneyao Airlines Co. Ltd", code: "DK", vatOnCommission: true },
-  { no: "032", name: "ASKY AIR", code: "KP", vatOnCommission: true },
-  { no: "037", name: "US AIRWAYS", code: "US", vatOnCommission: true },
-  { no: "047", name: "TAP Portugal", code: "TP", vatOnCommission: true },
-  { no: "048", name: "CYPRUS AIRWAYS", code: "CY", vatOnCommission: true },
-  { no: "055", name: "ALITALIA SPA", code: "AZ", vatOnCommission: true },
-  { no: "057", name: "AIR FRANCE", code: "AF", vatOnCommission: true },
-  { no: "058", name: "INDIAN AIRLINES", code: "IC", vatOnCommission: true },
-  { no: "065", name: "SAUDIA", code: "SV", vatOnCommission: true },
-  { no: "066", name: "Onur Air Tasimacilik A.S", code: "8Q", vatOnCommission: true },
-  { no: "06E", name: "INDIGO", code: "6E", vatOnCommission: true },
-  { no: "070", name: "SYRIAN ARAB AIRLINES", code: "RB", vatOnCommission: true },
-];
-
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
 
 const emptyRow = (): AirlineRow => ({
   key: nextKey(),
+  originalNo: null,
+  originalValues: null,
   no: "",
   name: "",
   code: "",
@@ -48,9 +45,12 @@ const emptyRow = (): AirlineRow => ({
 });
 
 const isEmptyRow = (row: AirlineRow) =>
-  !row.no && !row.name && !row.code && !row.vatOnCommission;
+  row.originalNo === null &&
+  !row.no.trim() &&
+  !row.name.trim() &&
+  !row.code.trim() &&
+  !row.vatOnCommission;
 
-/** keeps one empty "new" row at the end and at least MIN_ROWS rows in total */
 const padRows = (rows: AirlineRow[]): AirlineRow[] => {
   const result = [...rows];
   if (result.length === 0 || !isEmptyRow(result[result.length - 1])) {
@@ -60,10 +60,21 @@ const padRows = (rows: AirlineRow[]): AirlineRow[] => {
   return result;
 };
 
-const buildInitialRows = (): AirlineRow[] =>
-  padRows(initialData.map((row) => ({ key: nextKey(), ...row })));
+const mapRecordToRow = (record: AirlineRecord): AirlineRow => ({
+  key: nextKey(),
+  originalNo: record.fairlineno,
+  originalValues: {
+    no: record.fairlineno ?? "",
+    name: record.fairlinename ?? "",
+    code: record.fairlineid ?? "",
+    vatOnCommission: Boolean(record.fvatoncommission),
+  },
+  no: record.fairlineno ?? "",
+  name: record.fairlinename ?? "",
+  code: record.fairlineid ?? "",
+  vatOnCommission: Boolean(record.fvatoncommission),
+});
 
-/* slim green scrollbar (Chrome, Edge, Safari) */
 const niceScrollbar = [
   "[&::-webkit-scrollbar]:h-2.5",
   "[&::-webkit-scrollbar]:w-2.5",
@@ -80,25 +91,62 @@ const niceScrollbar = [
 
 const cellInputClass =
   "h-[30px] w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]";
-
 const thClass =
   "h-[30px] border border-[#B7ECD0] bg-[#E7F7ED] px-2 font-normal text-[#405066]";
 
-type AirlinePageProps = {
-  onClose?: () => void;
-};
-
-const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
-  const [rows, setRows] = useState<AirlineRow[]>(buildInitialRows);
-  const [selectedKey, setSelectedKey] = useState<number | null>(
-    () => rows[0]?.key ?? null,
-  );
-  //@ts-ignore
-  const [showSearch, setShowSearch] = useState(false);
+const AirlinePage: React.FC<AirlinePageProps> = ({ onClose, fcoid, fsuserid }) => {
+const CoID = (
+  fcoid ||
+  localStorage.getItem("PstrCoID") ||
+  ""
+).trim();
+  const [rows, setRows] = useState<AirlineRow[]>(() => padRows([]));
+  const [selectedKey, setSelectedKey] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AirlineRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // the first empty row is the "new row" at the end of the data
+  const [formNo, setFormNo] = useState("");
+  const [formName, setFormName] = useState("");
+  const [formCode, setFormCode] = useState("");
+  const [formVat, setFormVat] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const loadAirlines = async () => {
+    if (!CoID) {
+      setError("Company ID (fcoid) is missing. Pass fcoid to AirlinePage or set VITE_COMPANY_ID.");
+      setRows(padRows([]));
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await getAirlines(CoID);
+      const mapped = data.map(mapRecordToRow);
+      const nextRows = padRows(mapped);
+      setRows(nextRows);
+      setSelectedKey(nextRows[0]?.key ?? null);
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load airlines.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadAirlines();
+    // loadAirlines intentionally runs when the company changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [CoID]);
+
   const firstEmptyKey = rows.find((row) => isEmptyRow(row))?.key ?? null;
 
   const updateCell = <K extends "no" | "name" | "code" | "vatOnCommission">(
@@ -107,104 +155,184 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
     value: AirlineRow[K],
   ) => {
     setError("");
-    setRows((prev) =>
-      padRows(
-        prev.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
-      ),
+    setRows((previous) =>
+      padRows(previous.map((row) => (row.key === key ? { ...row, [field]: value } : row))),
     );
   };
 
-  const handleSave = () => {
-    const filled = rows.filter((row) => !isEmptyRow(row));
+  const visibleRows = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    if (!search) return rows;
+    return rows.filter(
+      (row) =>
+        row.no.toLowerCase().includes(search) ||
+        row.name.toLowerCase().includes(search) ||
+        row.code.toLowerCase().includes(search),
+    );
+  }, [rows, query]);
 
+  const validateRows = (filled: AirlineRow[]) => {
     if (filled.some((row) => !row.no.trim() || !row.name.trim())) {
-      setError("Every airline needs an airline no and an airline name.");
-      return;
+      return "Every airline needs an airline no and an airline name.";
+    }
+    if (filled.some((row) => row.no.trim().length > 3 || row.code.trim().length > 3 || row.name.trim().length > 50)) {
+      return "Airline No and Airline Code allow 3 characters; Airline Name allows 50 characters.";
     }
     const numbers = filled.map((row) => row.no.trim().toLowerCase());
     if (new Set(numbers).size !== numbers.length) {
-      setError("Airline numbers must be unique.");
+      return "Airline numbers must be unique.";
+    }
+    return "";
+  };
+
+  const toPayload = (row: AirlineRow): AirlinePayload => ({
+    fairlineno: row.no.trim(),
+    fairlinename: row.name.trim(),
+    fairlineid: row.code.trim() || null,
+    fvatoncommission: row.vatOnCommission,
+    fsuserid: fsuserid || null,
+    fmuserid: fsuserid || null,
+  });
+
+  // Save applies inline grid edits: new rows are POSTed and existing rows are PUT.
+  const handleSave = async () => {
+    if (!CoID) {
+      setError("Company ID (fcoid) is missing.");
       return;
     }
 
+    const filled = rows.filter((row) => !isEmptyRow(row));
+    const validationError = validateRows(filled);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setSaving(true);
     setError("");
-    console.log(
-      filled.map((row) => ({
-        no: row.no.trim(),
-        name: row.name.trim(),
-        code: row.code.trim(),
-        vatOnCommission: row.vatOnCommission,
-      })),
-    );
+    try {
+      for (const row of filled) {
+        const payload = toPayload(row);
+        if (row.originalNo) {
+          const original = row.originalValues;
+          const unchanged =
+            original !== null &&
+            row.no.trim() === original.no &&
+            row.name.trim() === original.name &&
+            row.code.trim() === original.code &&
+            row.vatOnCommission === original.vatOnCommission;
+          if (!unchanged) {
+            await updateAirline(CoID, row.originalNo, payload);
+          }
+        } else {
+          await createAirline(CoID, payload);
+        }
+      }
+      await loadAirlines();
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save airlines.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSearch = () => {
-    setShowSearch((prev) => !prev);
-    setQuery("");
-  };
-
-  const handleClose = () => {
-    const fresh = buildInitialRows();
-    setRows(fresh);
-    setSelectedKey(fresh[0]?.key ?? null);
-    setShowSearch(false);
-    setQuery("");
+  const handleDelete = async () => {
+    if (!deleteTarget || isEmptyRow(deleteTarget)) return;
+    const row = deleteTarget;
     setError("");
-    onClose?.();
+    setDeleting(true);
+    try {
+      if (row.originalNo) {
+        if (!CoID) throw new Error("Company ID (fcoid) is missing.");
+        await deleteAirline(CoID, row.originalNo);
+        await loadAirlines();
+      } else {
+        setRows((previous) => padRows(previous.filter((item) => item.key !== row.key)));
+      }
+      setDeleteTarget(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete airline.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const search = query.trim().toLowerCase();
-  const visibleRows = search
-    ? rows.filter(
-        (row) =>
-          row.no.toLowerCase().includes(search) ||
-          row.name.toLowerCase().includes(search) ||
-          row.code.toLowerCase().includes(search),
-      )
-    : rows;
+  const resetAddForm = () => {
+    setFormNo("");
+    setFormName("");
+    setFormCode("");
+    setFormVat(false);
+    setFormError("");
+  };
+
+  const handleAdd = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!CoID) {
+      setFormError("Company ID (fcoid) is missing.");
+      return;
+    }
+    if (!formNo.trim() || !formName.trim()) {
+      setFormError("Airline No and Airline Name are required.");
+      return;
+    }
+    if (formNo.trim().length > 3 || formCode.trim().length > 3 || formName.trim().length > 50) {
+      setFormError("Airline No and Airline Code allow 3 characters; Airline Name allows 50 characters.");
+      return;
+    }
+
+    setAdding(true);
+    setFormError("");
+    try {
+      await createAirline(CoID, {
+        fairlineno: formNo.trim().toUpperCase(),
+        fairlinename: formName.trim(),
+        fairlineid: formCode.trim().toUpperCase() || null,
+        fvatoncommission: formVat,
+        fsuserid: fsuserid || null,
+      });
+      setShowAddModal(false);
+      resetAddForm();
+      await loadAirlines();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Unable to add airline.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleClose = () => onClose?.();
 
   return (
     <div className="flex min-h-full w-full items-start justify-center bg-white px-4 py-4">
       <div className="min-h-fit w-200 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <Header Name="Airline"/>
-    <div className="flex items-center gap-5 ">
- <input
-   aria-label="Search airlines"
-   placeholder="Search by Airline No, Airline Name or Airline Code"
-   className="input-style border border-gray-500! w-[500px] mt-3 ml-3 rounded-sm h-[30px]"
- />
+          <Header Name="Airline" />
 
-        <button className="flex items-center gap-1 rounded-sm  px-3 py-1 mt-3  text-sm text-green-500 bg-[#E6F0FA] border border-gray-600 hover:bg-[#dbeafa] cursor-pointer" >
-
-          <MdAdd className="text-white bg-green-600 rounded-full " /> Add
-
-        </button>
-
-
-       </div>
-          <section className="px-3.5 pb-3 pt-3">
-            {/* {showSearch && (
-              <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-[30px] w-[110px] items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
-                  Search :
-                </div>
-                <input
-                  id="txtSearch"
-                  type="text"
-                  autoFocus
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Airline no, name or code"
-                  className="h-[30px] w-[280px] rounded-[4px] border border-[#cfd7df] bg-white px-2 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9]"
-                />
-              </div>
-            )} */}
-
-            {/* Grid: header stays on top, rows scroll */}
-            <div
-              className={`max-h-[min(540px,calc(100vh-240px))] overflow-auto border border-[#B7ECD0] bg-white ${niceScrollbar}`}
+          <div className="flex flex-wrap items-center gap-3 px-3 pt-3">
+            <input
+              ref={searchInputRef}
+              aria-label="Search airlines"
+              placeholder="Search by Airline No, Airline Name or Airline Code"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="input-style h-7.5 w-125 max-w-full rounded-sm border border-gray-500!"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                resetAddForm();
+                setShowAddModal(true);
+              }}
+              className="mt-0 flex h-7.5 items-center gap-1 rounded-sm border border-gray-600 bg-[#E6F0FA] px-3 text-sm text-green-600 hover:bg-[#dbeafa]"
             >
+              <MdAdd className="rounded-full bg-green-600 text-lg text-white" />
+              Add
+            </button>
+          </div>
+
+          <section className="px-3.5 pb-3 pt-3">
+            <div className={`max-h-[min(540px,calc(100vh-240px))] overflow-auto border border-[#B7ECD0] bg-white ${niceScrollbar}`}>
               <table className="w-full table-fixed border-collapse text-[12px] text-[#24364d]">
                 <colgroup>
                   <col className="w-5.5" />
@@ -212,6 +340,7 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
                   <col />
                   <col className="w-25" />
                   <col className="w-37.5" />
+                  <col className="w-16" />
                 </colgroup>
                 <thead className="sticky top-0 z-10">
                   <tr>
@@ -219,15 +348,15 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
                     <th id="txtAirlineNo" className={`${thClass} text-left`}>Airline No</th>
                     <th id="txtAirlineName" className={`${thClass} text-left`}>Airline Name</th>
                     <th id="txtAirlineCode" className={`${thClass} text-left`}>Airline Code</th>
-                    <th id="txtVatOnCommission" className={`${thClass} text-center`}>
-                      VAT On Commission
-                    </th>
+                    <th id="txtVatOnCommission" className={`${thClass} text-center`}>VAT On Commission</th>
+                    <th className={`${thClass} text-center`}>Delete</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleRows.map((row) => {
                     const selected = row.key === selectedKey;
                     const isNewRow = row.key === firstEmptyKey;
+                    const canDelete = !isEmptyRow(row);
                     return (
                       <tr
                         key={row.key}
@@ -237,32 +366,23 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
                         <td className="h-7.5 border border-[#B7ECD0] bg-[#fafbfc] text-center text-[10px] text-[#405066]">
                           {selected ? "▶" : isNewRow ? "*" : ""}
                         </td>
-                        <td
-                          className={`border border-[#B7ECD0] p-0 ${selected ? "bg-[#F2FAF5]" : ""}`}
-                        >
+                        <td className={`border border-[#B7ECD0] p-0 ${selected ? "bg-[#F2FAF5]" : ""}`}>
                           <input
                             aria-label="Airline No"
                             maxLength={3}
                             value={row.no}
                             onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) =>
-                              updateCell(
-                                row.key,
-                                "no",
-                                event.target.value.toUpperCase(),
-                              )
-                            }
+                            onChange={(event) => updateCell(row.key, "no", event.target.value.toUpperCase())}
                             className={cellInputClass}
                           />
                         </td>
                         <td className="border border-[#B7ECD0] p-0">
                           <input
                             aria-label="Airline Name"
+                            maxLength={50}
                             value={row.name}
                             onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) =>
-                              updateCell(row.key, "name", event.target.value)
-                            }
+                            onChange={(event) => updateCell(row.key, "name", event.target.value)}
                             className={cellInputClass}
                           />
                         </td>
@@ -272,13 +392,7 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
                             maxLength={3}
                             value={row.code}
                             onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) =>
-                              updateCell(
-                                row.key,
-                                "code",
-                                event.target.value.toUpperCase(),
-                              )
-                            }
+                            onChange={(event) => updateCell(row.key, "code", event.target.value.toUpperCase())}
                             className={cellInputClass}
                           />
                         </td>
@@ -288,15 +402,25 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
                             type="checkbox"
                             checked={row.vatOnCommission}
                             onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) =>
-                              updateCell(
-                                row.key,
-                                "vatOnCommission",
-                                event.target.checked,
-                              )
-                            }
+                            onChange={(event) => updateCell(row.key, "vatOnCommission", event.target.checked)}
                             className="h-4 w-4 align-middle accent-[#64d96e]"
                           />
+                        </td>
+                        <td className="border border-[#B7ECD0] text-center">
+                          {canDelete && (
+                            <button
+                              type="button"
+                              title={`Delete ${row.no}`}
+                              aria-label={`Delete airline ${row.no}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setDeleteTarget(row);
+                              }}
+                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-[#c0392b] hover:bg-red-50"
+                            >
+                              <FiTrash2 size={18} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -304,10 +428,7 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
 
                   {visibleRows.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={5}
-                        className="h-15 border border-[#B7ECD0] text-center text-[12px] text-[#7a8794]"
-                      >
+                      <td colSpan={6} className="h-15 border border-[#B7ECD0] text-center text-[12px] text-[#7a8794]">
                         No airlines found
                       </td>
                     </tr>
@@ -316,42 +437,133 @@ const AirlinePage: React.FC<AirlinePageProps> = ({ onClose }) => {
               </table>
             </div>
 
-            {error && (
-              <p role="alert" className="mt-2 text-[12px] text-[#c0392b]">
-                {error}
-              </p>
-            )}
+            {loading && <p className="mt-2 text-[12px] text-[#667085]">Loading airlines...</p>}
+            {error && <p role="alert" className="mt-2 text-[12px] text-[#c0392b]">{error}</p>}
 
-            {/* Actions */}
             <div className="mt-5 flex justify-center gap-3">
-              <button
-                id="btnSave"
-                type="button"
-                onClick={handleSave}
-                className="btn-style"
-              >
-                <u>S</u>ave
+              <button id="btnSave" type="button" onClick={() => void handleSave()} disabled={saving || loading} className="btn-style disabled:cursor-not-allowed disabled:opacity-60">
+                {saving ? "Saving..." : <><u>S</u>ave</>}
               </button>
-              <button
-                id="btnSearch"
-                type="button"
-                onClick={handleSearch}
-                className="btn-style"
-              >
+              <button id="btnSearch" type="button" onClick={() => searchInputRef.current?.focus()} className="btn-style">
                 <u>S</u>earch
               </button>
-              <button
-                id="btnClose"
-                type="button"
-                onClick={handleClose}
-                className="btn-style"
-              >
+              <button id="btnClose" type="button" onClick={handleClose} className="btn-style">
                 <u>C</u>lose
               </button>
             </div>
           </section>
         </main>
       </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !adding) setShowAddModal(false);
+        }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="add-airline-title" className="w-full max-w-110 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl">
+            <div className="flex h-9.5 items-center justify-between bg-[#9FDFBC] px-3">
+              <h2 id="add-airline-title" className="text-[14px] font-semibold text-[#24364d]">Add Airline</h2>
+              <button type="button" aria-label="Close add airline form" disabled={adding} onClick={() => setShowAddModal(false)} className="rounded p-1 text-[#24364d] hover:bg-white/40">
+                <MdClose size={19} />
+              </button>
+            </div>
+
+            <form onSubmit={(event) => void handleAdd(event)} className="space-y-3 p-4">
+              <div className="grid grid-cols-[115px_minmax(0,1fr)] items-center gap-3">
+                <label htmlFor="add-airline-no" className="text-[12px] text-[#405066]">Airline No <span className="text-red-600">*</span></label>
+                <input id="add-airline-no" autoFocus maxLength={3} required value={formNo} onChange={(event) => setFormNo(event.target.value.toUpperCase())} className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+
+                <label htmlFor="add-airline-name" className="text-[12px] text-[#405066]">Airline Name <span className="text-red-600">*</span></label>
+                <input id="add-airline-name" maxLength={50} required value={formName} onChange={(event) => setFormName(event.target.value)} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+
+                <label htmlFor="add-airline-code" className="text-[12px] text-[#405066]">Airline Code</label>
+                <input id="add-airline-code" maxLength={3} value={formCode} onChange={(event) => setFormCode(event.target.value.toUpperCase())} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+
+                <span className="text-[12px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
+                <label className="flex items-center gap-2 text-[12px] text-[#24364d]">
+                  <input type="checkbox" checked={formVat} onChange={(event) => setFormVat(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
+                  Enable VAT on commission
+                </label>
+              </div>
+
+              {formError && <p role="alert" className="text-[12px] text-red-600">{formError}</p>}
+
+              <div className="flex justify-end gap-2 border-t border-[#E5E7EB] pt-3">
+                <button type="button" disabled={adding} onClick={() => setShowAddModal(false)} className="btn-style">Cancel</button>
+                <button type="submit" disabled={adding} className="btn-style disabled:opacity-60">{adding ? "Adding..." : "Add Airline"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deleting) {
+              setDeleteTarget(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-airline-title"
+            aria-describedby="delete-airline-description"
+            className="w-full max-w-100 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl"
+          >
+            <div className="flex h-9.5 items-center justify-between bg-[#9FDFBC] px-3">
+              <h2
+                id="delete-airline-title"
+                className="text-[14px] font-semibold text-[#24364d]"
+              >
+                Delete Airline
+              </h2>
+              <button
+                type="button"
+                aria-label="Close delete confirmation"
+                disabled={deleting}
+                onClick={() => setDeleteTarget(null)}
+                className="rounded p-1 text-[#24364d] hover:bg-white/40 disabled:opacity-50"
+              >
+                <MdClose size={19} />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-4">
+              <p
+                id="delete-airline-description"
+                className="text-[13px] text-[#405066]"
+              >
+                Do you want to delete airline{" "}
+                <span className="font-semibold text-[#24364d]">
+                  {deleteTarget.no} - {deleteTarget.name}
+                </span>
+                ?
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => setDeleteTarget(null)}
+                  className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                  className="inline-flex items-center gap-1 rounded-sm border border-[#b42318] bg-[#c0392b] px-3 py-1 text-[12px] text-white hover:bg-[#a93226] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <FiTrash2 size={16} />
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
