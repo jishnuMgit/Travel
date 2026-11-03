@@ -180,7 +180,7 @@ const LoginPage = () => {
       setCompaniesError("");
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/companies`, {
+        const response = await fetch(`${API_BASE_URL}/companies`, {
           credentials: "include",
           signal: controller.signal,
         });
@@ -236,7 +236,7 @@ const LoginPage = () => {
 
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/years?companyId=${encodeURIComponent(companyId)}`,
+          `${API_BASE_URL}/years?companyId=${encodeURIComponent(companyId)}`,
           {
             credentials: "include",
             signal: controller.signal,
@@ -279,7 +279,7 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

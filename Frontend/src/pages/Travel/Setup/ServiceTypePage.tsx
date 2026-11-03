@@ -43,7 +43,7 @@ type ServiceTypeApi = {
   fpositionno: number | null;
 };
 
-const API_URL = `${API_BASE_URL}/api/service-types`;
+const API_URL = `${API_BASE_URL}/service-types`;
 
 const createEmptyRow = (id: number): ServiceTypeRow => ({
   id,
@@ -66,7 +66,7 @@ const ServiceGroupMenuList = (
   <components.MenuList {...props}>
     <div className="sticky top-0 z-10 flex items-center border-b border-[#B7ECD0] bg-[#EEFBF4] px-3 py-2 text-xs font-semibold text-slate-700">
       <span className="min-w-0 flex-1 pr-3">Name</span>
-      <span className="w-[80px] shrink-0 border-l border-[#B7ECD0] pl-3 text-center">
+      <span className="w-20 shrink-0 border-l border-[#B7ECD0] pl-3 text-center">
         ID
       </span>
     </div>
@@ -716,7 +716,7 @@ const ServiceTypePage: React.FC = () => {
       </main>
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[1000000] flex items-center justify-center bg-slate-950/40 p-4"
+          className="fixed inset-0 z-1000000 flex items-center justify-center bg-slate-950/40 p-4"
           onKeyDown={(event) => {
             if (event.key === "Escape" && !deleting) {
               setDeleteTarget(null);
