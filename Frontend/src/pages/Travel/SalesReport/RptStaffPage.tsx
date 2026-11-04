@@ -26,9 +26,9 @@ type RadioProps = {
 };
 const DATE_FORMAT = "DD/MM/YYYY";
 const branchOptions: TableSelectOption[] = [
-  { value: "JEDDAH", label: "JEDDAH", id: "JEDDAH" },
-  { value: "RIYADH", label: "RIYADH", id: "RIYADH" },
-  { value: "DAMMAM", label: "DAMMAM", id: "DAMMAM" },
+  { value: "JEDDAH", label: "JEDDAH", id: "JH" },
+  { value: "RIYADH", label: "RIYADH", id: "RH" },
+  { value: "DAMMAM", label: "DAMMAM", id: "DM" },
 ];
 
 const branchColumns = [
