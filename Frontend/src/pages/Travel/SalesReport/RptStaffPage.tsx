@@ -475,7 +475,7 @@ const StaffSalesPage: React.FC = () => {
 
                 <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
-                    name="result"
+                    name="rdgSR"
                     value="Sales"
                     label="Sales"
                     checked={resultType === "Sales"}
@@ -483,7 +483,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="result"
+                    name="rdgSR"
                     value="Refund"
                     label="Refund"
                     checked={resultType === "Refund"}
@@ -491,7 +491,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="result"
+                    name="rdgSR"
                     value="Net"
                     label="Net"
                     checked={resultType === "Net"}
@@ -503,7 +503,7 @@ const StaffSalesPage: React.FC = () => {
               {/* ROW 2: Staff */}
               <RadioPanel className="min-h-17.5">
                 <CustomRadio
-                  name="staff"
+                  name="rdgStaff"
                   value="One Staff"
                   label="One Staff"
                   checked={staffMode === "One Staff"}
@@ -511,7 +511,7 @@ const StaffSalesPage: React.FC = () => {
                 />
 
                 <CustomRadio
-                  name="staff"
+                  name="rdgStaff"
                   value="All Staff"
                   label="All Staff"
                   checked={staffMode === "All Staff"}
@@ -523,7 +523,7 @@ const StaffSalesPage: React.FC = () => {
                 {staffMode === "One Staff" && (
                   <div className="grid min-w-0 grid-cols-[120px_minmax(0,1fr)] gap-1.25">
                     <Select
-                      inputId="staffId"
+                      inputId="lkpStaffId"
                       options={staffIdOptions}
                       value={staffId}
                       onChange={(option) => {
@@ -538,7 +538,7 @@ const StaffSalesPage: React.FC = () => {
                     />
                    <div className="w-112.5">
                      <Select
-                      inputId="staffName"
+                      inputId="lkpStaffName"
                       options={staffNameOptions}
                       value={staffName}
                       onChange={(option) => {
@@ -561,7 +561,7 @@ const StaffSalesPage: React.FC = () => {
               {/* ROW 3: Customer */}
               <RadioPanel className="min-h-17.5">
                 <CustomRadio
-                  name="customer"
+                  name="rdgCustomer"
                   value="One Customer"
                   label="One Customer"
                   checked={customerMode === "One Customer"}
@@ -569,7 +569,7 @@ const StaffSalesPage: React.FC = () => {
                 />
 
                 <CustomRadio
-                  name="customer"
+                  name="rdgCustomer"
                   value="All Customer"
                   label="All Customer"
                   checked={customerMode === "All Customer"}
@@ -581,7 +581,7 @@ const StaffSalesPage: React.FC = () => {
               
                 <>
                   <Select
-                    inputId="customerId"
+                    inputId="lkpCustomerId"
                     options={customerIdOptions}
                     value={customerId}
                     onChange={(option) => {
@@ -598,7 +598,7 @@ const StaffSalesPage: React.FC = () => {
 
                   <div className="w-112.5">
                     <Select
-                      inputId="customerName"
+                      inputId="lkpCustomerName"
                       options={customerNameOptions}
                       value={customerName}
                       onChange={(option) => {
@@ -620,7 +620,7 @@ const StaffSalesPage: React.FC = () => {
               <div className="flex justify-end">
                 <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
-                    name="category"
+                    name="rdgSubModule"
                     value="Travel"
                     label="Travel"
                     checked={salesCategory === "Travel"}
@@ -628,7 +628,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="category"
+                    name="rdgSubModule"
                     value="Tourism"
                     label="Tourism"
                     checked={salesCategory === "Tourism"}
@@ -636,7 +636,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="category"
+                    name="rdgSubModule"
                     value="All"
                     label="All"
                     checked={salesCategory === "All"}
@@ -650,12 +650,12 @@ const StaffSalesPage: React.FC = () => {
 
               <div className="flex flex-wrap items-center gap-1.5 -mt-15">
                 <AppDatePicker
-                                  id="fromDate"
+                                  id="dtpFromDate"
                                   value={fromDate}
                                   onChange={setFromDate} label={""}                />
 
                 <AppDatePicker
-                                  id="toDate"
+                                  id="dtpToDate"
                                   value={toDate}
                                   onChange={setToDate} label={""}                />
               </div>
@@ -663,7 +663,7 @@ const StaffSalesPage: React.FC = () => {
               <div className="flex items-center gap-2 ">
                 <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
-                    name="travel"
+                    name="rdgDI"
                     value="Domestic"
                     label="Domestic"
                     checked={travelType === "Domestic"}
@@ -671,7 +671,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="travel"
+                    name="rdgDI"
                     value="International"
                     label="International"
                     checked={travelType === "International"}
@@ -679,7 +679,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="travel"
+                    name="rdgDI"
                     value="All"
                     label="All"
                     checked={travelType === "All"}
@@ -689,7 +689,7 @@ const StaffSalesPage: React.FC = () => {
 
                 <RadioPanel className="w-27.5 min-h-21.25">
                   <CustomRadio
-                    name="invoice"
+                    name="rdgInvoiced"
                     value="Not-Invoiced"
                     label="Not-Invoiced"
                     checked={invoiceStatus === "Not-Invoiced"}
@@ -697,7 +697,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="invoice"
+                    name="rdgInvoiced"
                     value="Invoiced"
                     label="Invoiced"
                     checked={invoiceStatus === "Invoiced"}
@@ -705,7 +705,7 @@ const StaffSalesPage: React.FC = () => {
                   />
 
                   <CustomRadio
-                    name="invoice"
+                    name="rdgInvoiced"
                     value="All"
                     label="All"
                     checked={invoiceStatus === "All"}
@@ -717,7 +717,7 @@ const StaffSalesPage: React.FC = () => {
               {/* ROW 5: Detail and Summary */}
               <RadioPanel className="min-h-17.5 -mt-12">
                 <CustomRadio
-                  name="detail"
+                  name="rdgDetSum"
                   value="Detail"
                   label="Detail"
                   checked={detailMode === "Detail"}
@@ -725,7 +725,7 @@ const StaffSalesPage: React.FC = () => {
                 />
 
                 <CustomRadio
-                  name="detail"
+                  name="rdgDetSum"
                   value="Summary"
                   label="Summary"
                   checked={detailMode === "Summary"}

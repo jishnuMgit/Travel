@@ -260,9 +260,9 @@ const RptAirlinePage: React.FC = () => {
   );
 
   const [rdgDetSum, setrdgDetSum] = useState("Summary");
-  const [rdgresultType, setrdgresultType] = useState("Sales");
-  const [rdginvoiceStatus, setrdginvoiceStatus] = useState("Invoiced");
-  const [rdgtravelType, setrdgtravelType] = useState("All");
+  const [rdgSR, setrdgSR] = useState("Sales");
+  const [rdginvoiced, setrdginvoiced] = useState("Invoiced");
+  const [rdgDI, setrdgDI] = useState("All");
   const [orderBy, setOrderBy] = useState("Airline No.");
 
   const handlePrint = () => {
@@ -277,9 +277,9 @@ const RptAirlinePage: React.FC = () => {
       fromDate,
       toDate,
       rdgDetSum,
-      rdgresultType,
-      rdginvoiceStatus,
-      rdgtravelType,
+      rdgSR,
+      rdginvoiced,
+      rdgDI,
       orderBy,
     });
 
@@ -424,9 +424,9 @@ const RptAirlinePage: React.FC = () => {
               <div className="flex min-w-0 flex-col items-stretch gap-2">
                 {/* Sales / Refund / Net */}
                 <RadioGroup
-                  name="rdgresultType"
-                  value={rdgresultType}
-                  onChange={setrdgresultType}
+                  name="rdgSR"
+                  value={rdgSR}
+                  onChange={setrdgSR}
                   className="min-h-20.75"
                   options={[
                     { value: "Sales", label: "Sales" },
@@ -437,9 +437,9 @@ const RptAirlinePage: React.FC = () => {
 
                 {/* Invoice Status */}
                 <RadioGroup
-                  name="rdginvoiceStatus"
-                  value={rdginvoiceStatus}
-                  onChange={setrdginvoiceStatus}
+                  name="rdginvoiced"
+                  value={rdginvoiced}
+                  onChange={setrdginvoiced}
                   className="min-h-20.75"
                   options={[
                     { value: "Not-Invoiced", label: "Not-Invoiced" },
@@ -450,9 +450,9 @@ const RptAirlinePage: React.FC = () => {
 
                 {/* Domestic / International */}
                 <RadioGroup
-                  name="rdgtravelType"
-                  value={rdgtravelType}
-                  onChange={setrdgtravelType}
+                  name="rdgDI"
+                  value={rdgDI}
+                  onChange={setrdgDI}
                   className="min-h-20.75"
                   options={[
                     { value: "Domestic", label: "Domestic" },

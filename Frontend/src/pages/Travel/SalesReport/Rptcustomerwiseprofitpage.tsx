@@ -446,13 +446,13 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="grid w-70 shrink-0 grid-cols-2 content-between gap-3 max-[700px]:w-full">
     <PanelGroup
-      name="rdgSaleMode"
+      name="rdgSR"
       options={["Sales", "Refund", "Net"]}
       value={form.saleMode}
       onChange={(v) => set("saleMode", v)}
     />
     <PanelGroup
-      name="rdgInvoice"
+      name="rdgInvoiced"
       options={["Not-Invoiced", "Invoiced", "All"]}
       value={form.invoiceMode}
       onChange={(v) => set("invoiceMode", v)}

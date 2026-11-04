@@ -318,7 +318,7 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
       </fieldset>
     </div>
     <RadioGroup
-      name="categoryMode"
+      name="rdgDI "
       options={["Domestic", "International", "Both"]}
       value={form.regionMode}
       onChange={(value) => set("regionMode", value)}

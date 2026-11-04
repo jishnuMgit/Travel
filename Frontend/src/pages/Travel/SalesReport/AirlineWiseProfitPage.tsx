@@ -18,7 +18,7 @@ type FormState = {
   fromDate: string;
   toDate: string;
   rdgDetSum: string;
-  rdgsale: string;
+  rdgSR: string;
   rdginvoiceMode: string;
   rdgregion: string;
   rdgorderBy: string;
@@ -49,7 +49,7 @@ const initialForm = (): FormState => ({
   fromDate: dayjs().startOf("month").format(DATE_FORMAT),
   toDate: dayjs().format(DATE_FORMAT),
   rdgDetSum: "Summary",
-  rdgsale: "Net",
+  rdgSR: "Net",
   rdginvoiceMode: "All",
   rdgregion: "All",
   rdgorderBy: "Airline No.",
@@ -279,10 +279,10 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="grid min-w-0 grid-cols-2 items-start gap-3">
     <RadioGroup
-      name="rdgsale"
+      name="rdgSR"
       options={["Sales", "Refund", "Net"]}
-      value={form.rdgsale}
-      onChange={(value) => set("rdgsale", value)}
+      value={form.rdgSR}
+      onChange={(value) => set("rdgSR", value)}
     />
     <RadioGroup
       name="rdginvoiceMode"

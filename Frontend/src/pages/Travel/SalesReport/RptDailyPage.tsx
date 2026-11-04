@@ -235,7 +235,7 @@ const RptDailyPage: React.FC = () => {
               </div>
               <div className="flex items-start justify-end gap-2">
                 <RadioGroup
-                  name="rdgResultType"
+                  name="rdgSR"
                   value={resultType}
                   onChange={setResultType}
                   className="w-25"
@@ -246,7 +246,7 @@ const RptDailyPage: React.FC = () => {
                   ]}
                 />
                 <RadioGroup
-                  name="rdgTravelType"
+                  name="rdgDI"
                   value={travelType}
                   onChange={setTravelType}
                   className="w-27.5"
@@ -306,7 +306,7 @@ const RptDailyPage: React.FC = () => {
               </div>
               <div className="flex justify-end">
                 <RadioGroup
-                  name="rdgSalesCategory"
+                  name="rdgSubModule"
                   value={salesCategory}
                   onChange={setSalesCategory}
                   className="w-27.5"

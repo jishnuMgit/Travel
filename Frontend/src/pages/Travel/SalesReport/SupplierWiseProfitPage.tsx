@@ -382,20 +382,20 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => {
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="grid w-71 shrink-0 grid-cols-2 content-between gap-3 max-[1064px]:w-full">
     <RadioGroup
-      name="rdgSaleMode"
+      name="rdgSR"
       options={["Sales", "Refund", "Net"]}
       value={form.saleMode}
       onChange={(value) => set("saleMode", value)}
     />
     <RadioGroup
-      name="rdgInvoice"
+      name="rdgInvoiced"
       options={["Not-Invoiced", "Invoiced", "All"]}
       value={form.invoiceMode}
       onChange={(value) => set("invoiceMode", value)}
       className="px-2.5!"
     />
     <RadioGroup
-      name="rdgRegion"
+      name="rdgDI"
       options={["Domestic", "International", "All"]}
       value={form.regionMode}
       onChange={(value) => set("regionMode", value)}
@@ -445,7 +445,7 @@ const SupplierWiseProfitPage = () => {
                 <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
                   <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
                     <RadioGroup
-                      name="rdgReportType"
+                      name="rdgDetSum"
                       options={["Detail", "Summary"]}
                       value={form.reportType}
                       onChange={(value) => set("reportType", value)}

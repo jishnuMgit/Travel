@@ -74,13 +74,13 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
             style={{ gridTemplateColumns: gridColumns }}
           >
             <span
-              className="min-w-0 truncate border-r border-[#E5E7EB] px-[10px] py-[7px]"
+              className="min-w-0 truncate border-r border-[#E5E7EB] px-2.5 py-1.75"
               style={{ gridColumn: 1 }}
             >
               {reverse ? props.data.secondLabel : props.data.firstLabel}
             </span>
             <span
-              className="min-w-0 truncate px-[10px] py-[7px]"
+              className="min-w-0 truncate px-2.5 py-1.75"
               style={{ gridColumn: 3 }}
             >
               {reverse ? props.data.firstLabel : props.data.secondLabel}
@@ -98,13 +98,13 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
             }}
           >
             <span
-              className="min-w-0 truncate border-r border-[#CBD5E1] px-[10px] py-[7px]"
+              className="min-w-0 truncate border-r border-[#CBD5E1] px-2.5 py-1.75"
               style={{ gridColumn: 1 }}
             >
               {firstColumnLabel}
             </span>
             <span
-              className="min-w-0 truncate px-[10px] py-[7px]"
+              className="min-w-0 truncate px-2.5 py-1.75"
               style={{ gridColumn: 3 }}
             >
               {secondColumnLabel}
