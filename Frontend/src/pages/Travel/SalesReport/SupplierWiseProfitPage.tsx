@@ -37,7 +37,7 @@ const airlineNameOptions: Option[] = [
 ];
 
 type FormState = {
-  branchMode: string;
+  rdgbranch: string;
   branch: string | null;
   supplierMode: string;
   supplier: string | null;
@@ -61,7 +61,7 @@ type SetField = <K extends keyof FormState>(
 type PartProps = { form: FormState; set: SetField };
 
 const initialForm = (): FormState => ({
-  branchMode: "One Branch",
+  rdgbranch: "One Branch",
   branch: "JEDDAH",
   supplierMode: "One Supplier",
   supplier: null,
@@ -166,7 +166,7 @@ const PairCombo: React.FC<{
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className="w-[120px] shrink-0"
+      className="w-30 shrink-0"
     />
     <Combo
       id={nameId}
@@ -174,7 +174,7 @@ const PairCombo: React.FC<{
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className="w-[450px] shrink-0"
+      className="w-112.5 shrink-0"
     />
   </div>
 );
@@ -203,7 +203,7 @@ const RadioGroup: React.FC<{
             className="sr-only"
           />
           <span
-            className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border bg-white ${
+            className={`flex h-4.75 w-4.75 shrink-0 items-center justify-center rounded-full border bg-white ${
               checked ? "border-[#64d96e]" : "border-[#cbd3dc]"
             }`}
           >
@@ -302,11 +302,11 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => {
         <RadioGroup
           name="rdgBranch"
           options={["One Branch", "All Branch"]}
-          value={form.branchMode}
-          onChange={(value) => set("branchMode", value)}
+          value={form.rdgbranch}
+          onChange={(value) => set("rdgbranch", value)}
         />
-        {form.branchMode === "One Branch" && (
-          <div className="w-[250px] max-w-full pt-3">
+        {form.rdgbranch === "One Branch" && (
+          <div className="w-62.5 max-w-full pt-3">
             <Combo
               id="lkpBranch"
               options={branchOptions}
@@ -357,7 +357,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => {
         )}
       </div>
       <div className={`${row} items-center`}>
-        <div className="flex h-[30px] items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
+        <div className="flex h-7.5 items-center justify-end border border-[#e0e5ea] bg-[#fafbfc] pr-3 text-[12px] text-[#405066]">
           Period :
         </div>
         <div className="flex items-start gap-2">
@@ -380,7 +380,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => {
 };
 
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="grid w-[284px] shrink-0 grid-cols-2 content-between gap-3 max-[1064px]:w-full">
+  <div className="grid w-71 shrink-0 grid-cols-2 content-between gap-3 max-[1064px]:w-full">
     <RadioGroup
       name="rdgSaleMode"
       options={["Sales", "Refund", "Net"]}
@@ -392,14 +392,14 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
       options={["Not-Invoiced", "Invoiced", "All"]}
       value={form.invoiceMode}
       onChange={(value) => set("invoiceMode", value)}
-      className="!px-2.5"
+      className="px-2.5!"
     />
     <RadioGroup
       name="rdgRegion"
       options={["Domestic", "International", "All"]}
       value={form.regionMode}
       onChange={(value) => set("regionMode", value)}
-      className="!px-2.5 mt-2.5 h-[110px] "
+      className="px-2.5! mt-2.5 h-27.5 "
     />
     <fieldset className="min-w-0 border border-[#d5dce2] px-2.5 pb-2.5 pt-1">
       <legend className="mx-auto whitespace-nowrap px-1.5 text-[12px] text-[#405066]">
@@ -410,7 +410,7 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
         options={["Supplier ID", "Billing Amt", "Profit Amt.", "Profit %"]}
         value={form.orderBy}
         onChange={(value) => set("orderBy", value)}
-        className="!border-0 !bg-transparent !px-1 !py-2"
+        className="border-0! bg-transparent! px-1! py-2!"
       />
     </fieldset>
   </div>
@@ -425,7 +425,7 @@ const SupplierWiseProfitPage = () => {
   const handlePrint = () => {
     console.log({
       ...form,
-      branch: form.branchMode === "One Branch" ? form.branch : null,
+      branch: form.rdgbranch === "One Branch" ? form.branch : null,
       supplier: form.supplierMode === "One Supplier" ? form.supplier : null,
       airline: form.airlineMode === "One Airline" ? form.airline : null,
     });
@@ -449,7 +449,7 @@ const SupplierWiseProfitPage = () => {
                       options={["Detail", "Summary"]}
                       value={form.reportType}
                       onChange={(value) => set("reportType", value)}
-                      className="w-[168px]"
+                      className="w-42"
                     />
                     <div className="flex gap-2">
                       <button
@@ -472,7 +472,7 @@ const SupplierWiseProfitPage = () => {
                   </div>
                   <label
                     htmlFor="chkIncludeIncentive"
-                    className="flex h-[30px] absolute right-40 bottom-6 cursor-pointer items-center gap-2 self-start border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
+                    className="flex h-7.5 absolute right-40 bottom-6 cursor-pointer items-center gap-2 self-start border border-[#e0e5ea] bg-white px-2.5 text-[12px] text-[#405066] select-none"
                   >
                     <input
                       id="chkIncludeIncentive"

@@ -224,7 +224,7 @@ const RptDailyPage: React.FC = () => {
                 {branchMode === "One Branch" && (
                   <div className="w-full max-w-55">
                     <Select
-                      inputId="dailySalesBranch"
+                      inputId="lkpBranchID"
                       options={branchOptions}
                       value={branch}
                       onChange={setBranch}
@@ -235,7 +235,7 @@ const RptDailyPage: React.FC = () => {
               </div>
               <div className="flex items-start justify-end gap-2">
                 <RadioGroup
-                  name="dailyResultType"
+                  name="rdgResultType"
                   value={resultType}
                   onChange={setResultType}
                   className="w-25"
@@ -246,7 +246,7 @@ const RptDailyPage: React.FC = () => {
                   ]}
                 />
                 <RadioGroup
-                  name="dailyTravelType"
+                  name="rdgTravelType"
                   value={travelType}
                   onChange={setTravelType}
                   className="w-27.5"
@@ -274,7 +274,7 @@ const RptDailyPage: React.FC = () => {
                 {staffMode === "One Staff" && (
                   <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.25">
                     <Select
-                      inputId="dailySalesStaffId"
+                      inputId="lkpStaffID"
                       options={staffIdOptions}
                       value={staff}
                       onChange={(option) => {
@@ -288,7 +288,7 @@ const RptDailyPage: React.FC = () => {
                       {...fieldSelectProps}
                     />
                     <Select
-                      inputId="dailySalesStaffName"
+                      inputId="lkpStaffName"
                       options={staffNameOptions}
                       value={staffName}
                       onChange={(option) => {
@@ -306,7 +306,7 @@ const RptDailyPage: React.FC = () => {
               </div>
               <div className="flex justify-end">
                 <RadioGroup
-                  name="dailySalesCategory"
+                  name="rdgSalesCategory"
                   value={salesCategory}
                   onChange={setSalesCategory}
                   className="w-27.5"
@@ -325,7 +325,7 @@ const RptDailyPage: React.FC = () => {
                 <div className="flex gap-1.25">
                   <div className="w-25">
                     <AppDatePicker
-                      id="dailySalesFromDate"
+                      id="dtpFromDate"
                       label="Period start date"
                       value={fromDate}
                       onChange={setFromDate}
@@ -333,7 +333,7 @@ const RptDailyPage: React.FC = () => {
                   </div>
                   <div className="w-25">
                     <AppDatePicker
-                      id="dailySalesToDate"
+                      id="dtpToDate"
                       label="Period end date"
                       value={toDate}
                       onChange={setToDate}
@@ -343,7 +343,7 @@ const RptDailyPage: React.FC = () => {
               </div>
               <div className="flex justify-end">
                 <RadioGroup
-                  name="dailyInvoiceStatus"
+                  name="rdgInvoice"
                   value={invoiceStatus}
                   onChange={setInvoiceStatus}
                   className="w-28.75"
@@ -359,7 +359,7 @@ const RptDailyPage: React.FC = () => {
             <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
-                  name="dailyDetailMode"
+                  name="rdgDetSum"
                   value={detailMode}
                   onChange={setDetailMode}
                   className="h-17.5"

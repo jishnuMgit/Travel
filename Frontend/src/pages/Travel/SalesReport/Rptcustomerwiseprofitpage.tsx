@@ -501,7 +501,7 @@ const BottomRow: React.FC<
   <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
     <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
       <PanelGroup
-        name="rdgReportType"
+        name="rdgDetSum"
         options={["Detail", "Summary"]}
         value={form.reportType}
         onChange={(v) => set("reportType", v)}

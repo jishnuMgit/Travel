@@ -111,10 +111,10 @@ const CoID = (
   const [deleting, setDeleting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const [formNo, setFormNo] = useState("");
-  const [formName, setFormName] = useState("");
-  const [formCode, setFormCode] = useState("");
-  const [formVat, setFormVat] = useState(false);
+  const [txtAirlineNo, txtsetAirlineNo] = useState("");
+  const [txtAirlineName, txtsetAirlineName] = useState("");
+  const [txtAirlineCode, txtsetAirlineCode] = useState("");
+  const [txtVatOnCommission, txtsetVatOnCommission] = useState(false);
   const [formError, setFormError] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -259,10 +259,10 @@ const CoID = (
   };
 
   const resetAddForm = () => {
-    setFormNo("");
-    setFormName("");
-    setFormCode("");
-    setFormVat(false);
+    txtsetAirlineNo("");
+    txtsetAirlineName("");
+    txtsetAirlineCode("");
+    txtsetVatOnCommission(false);
     setFormError("");
   };
 
@@ -272,11 +272,11 @@ const CoID = (
       setFormError("Company ID (fcoid) is missing.");
       return;
     }
-    if (!formNo.trim() || !formName.trim()) {
+    if (!txtAirlineNo.trim() || !txtAirlineName.trim()) {
       setFormError("Airline No and Airline Name are required.");
       return;
     }
-    if (formNo.trim().length > 3 || formCode.trim().length > 3 || formName.trim().length > 50) {
+    if (txtAirlineNo.trim().length > 3 || txtAirlineCode.trim().length > 3 || txtAirlineName.trim().length > 50) {
       setFormError("Airline No and Airline Code allow 3 characters; Airline Name allows 50 characters.");
       return;
     }
@@ -285,10 +285,10 @@ const CoID = (
     setFormError("");
     try {
       await createAirline(CoID, {
-        fairlineno: formNo.trim().toUpperCase(),
-        fairlinename: formName.trim(),
-        fairlineid: formCode.trim().toUpperCase() || null,
-        fvatoncommission: formVat,
+        fairlineno: txtAirlineNo.trim().toUpperCase(),
+        fairlinename: txtAirlineName.trim(),
+        fairlineid: txtAirlineCode.trim().toUpperCase() || null,
+        fvatoncommission: txtVatOnCommission,
         fsuserid: fsuserid || null,
       });
       setShowAddModal(false);
@@ -460,7 +460,7 @@ const CoID = (
           if (event.target === event.currentTarget && !adding) setShowAddModal(false);
         }}>
           <div role="dialog" aria-modal="true" aria-labelledby="add-airline-title" className="w-full max-w-110 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl">
-            <div className="flex h-9.5 items-center justify-between bg-[#9FDFBC] px-3">
+            <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
               <h2 id="add-airline-title" className="text-[14px] font-semibold text-[#24364d]">Add Airline</h2>
               <button type="button" aria-label="Close add airline form" disabled={adding} onClick={() => setShowAddModal(false)} className="rounded p-1 text-[#24364d] hover:bg-white/40">
                 <MdClose size={19} />
@@ -470,24 +470,24 @@ const CoID = (
             <form onSubmit={(event) => void handleAdd(event)} className="space-y-3 p-4">
               <div className="grid grid-cols-[115px_minmax(0,1fr)] items-center gap-3">
                 <label htmlFor="add-airline-no" className="text-[12px] text-[#405066]">Airline No <span className="text-red-600">*</span></label>
-                <input id="add-airline-no" autoFocus maxLength={3} required value={formNo} onChange={(event) => setFormNo(event.target.value.toUpperCase())} className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+                <input id="add-airline-no" autoFocus maxLength={3} required value={txtAirlineNo} onChange={(event) => txtsetAirlineNo(event.target.value.toUpperCase())} className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
 
                 <label htmlFor="add-airline-name" className="text-[12px] text-[#405066]">Airline Name <span className="text-red-600">*</span></label>
-                <input id="add-airline-name" maxLength={50} required value={formName} onChange={(event) => setFormName(event.target.value)} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+                <input id="add-airline-name" maxLength={50} required value={txtAirlineName} onChange={(event) => txtsetAirlineName(event.target.value)} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
 
                 <label htmlFor="add-airline-code" className="text-[12px] text-[#405066]">Airline Code</label>
-                <input id="add-airline-code" maxLength={3} value={formCode} onChange={(event) => setFormCode(event.target.value.toUpperCase())} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+                <input id="add-airline-code" maxLength={3} value={txtAirlineCode} onChange={(event) => txtsetAirlineCode(event.target.value.toUpperCase())} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
 
                 <span className="text-[12px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
                 <label className="flex items-center gap-2 text-[12px] text-[#24364d]">
-                  <input type="checkbox" checked={formVat} onChange={(event) => setFormVat(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
+                  <input type="checkbox" checked={txtVatOnCommission} onChange={(event) => txtsetVatOnCommission(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
                   Enable VAT on commission
                 </label>
               </div>
 
               {formError && <p role="alert" className="text-[12px] text-red-600">{formError}</p>}
 
-              <div className="flex justify-end gap-2 border-t border-[#E5E7EB] pt-3">
+              <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
                 <button type="button" disabled={adding} onClick={() => setShowAddModal(false)} className="btn-style">Cancel</button>
                 <button type="submit" disabled={adding} className="btn-style disabled:opacity-60">{adding ? "Adding..." : "Add Airline"}</button>
               </div>
@@ -512,7 +512,7 @@ const CoID = (
             aria-describedby="delete-airline-description"
             className="w-full max-w-100 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl"
           >
-            <div className="flex h-9.5 items-center justify-between bg-[#9FDFBC] px-3">
+            <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
               <h2
                 id="delete-airline-title"
                 className="text-[14px] font-semibold text-[#24364d]"
@@ -541,7 +541,7 @@ const CoID = (
                 </span>
                 ?
               </p>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-center gap-2">
                 <button
                   type="button"
                   disabled={deleting}

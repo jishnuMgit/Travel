@@ -49,12 +49,12 @@ const RadioGroup: React.FC<{
   className?: string;
 }> = ({ name, options, value, onChange, className = "" }) => (
   <div
-    className={`flex flex-col justify-center gap-[5px] rounded-[3px] border border-[#d9e1e9] bg-white px-[7px] py-[6px] ${className}`}
+    className={`flex flex-col justify-center gap-1.25 rounded-[3px] border border-[#d9e1e9] bg-white px-1.75 py-1.5 ${className}`}
   >
     {options.map((option) => (
       <label
         key={option.value}
-        className="flex cursor-pointer select-none items-center gap-[5px] whitespace-nowrap"
+        className="flex cursor-pointer select-none items-center gap-1.25 whitespace-nowrap"
       >
         <input
           type="radio"
@@ -66,18 +66,18 @@ const RadioGroup: React.FC<{
         />
 
         <span
-          className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border ${
+          className={`flex h-4.75 w-4.75 shrink-0 items-center justify-center rounded-full border ${
             value === option.value
               ? "border-[#4ade80]"
               : "border-[#cbd5e1]"
           } bg-white`}
         >
           {value === option.value && (
-            <span className="h-[9px] w-[9px] rounded-full bg-[#4ade80]" />
+            <span className="h-2.25 w-2.25 rounded-full bg-[#4ade80]" />
           )}
         </span>
 
-        <span className="text-[12px] leading-[17px] text-[#30465d]">
+        <span className="text-[12px] leading-4.25 text-[#30465d]">
           {option.label}
         </span>
       </label>
@@ -188,7 +188,7 @@ const AppDatePicker: React.FC<{
 const FieldLabel: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
-  <div className="flex h-[28px] items-center justify-end rounded-[2px] border border-[#d9e1e9] bg-[#fafbfc] px-[8px] text-[12px] text-[#40566d]">
+  <div className="flex h-7 items-center justify-end rounded-xs border border-[#d9e1e9] bg-[#fafbfc] px-2 text-[12px] text-[#40566d]">
     {children}
   </div>
 );
@@ -198,19 +198,19 @@ const AirlineOrderGroup: React.FC<{
   value: string;
   onChange: (value: string) => void;
 }> = ({ value, onChange }) => (
-  <fieldset className="m-0 min-w-0 absolute bottom-7 right-40 rounded-[3px] border border-[#d9e1e9] bg-white px-[7px] pb-[6px] pt-[2px]">
-    <legend className="px-[4px] text-[12px] text-[#40566d]">
+  <fieldset className="m-0 min-w-0 absolute bottom-7 right-40 rounded-[3px] border border-[#d9e1e9] bg-white px-1.75 pb-1.5 pt-0.5">
+    <legend className="px-1 text-[12px] text-[#40566d]">
       Order By
     </legend>
 
-    <div className="flex flex-col gap-[5px]">
+    <div className="flex flex-col gap-1.25">
       {[
         { value: "Airline No.", label: "Airline No." },
         { value: "Billing Amt.", label: "Billing Amt." },
       ].map((option) => (
         <label
           key={option.value}
-          className="flex cursor-pointer select-none items-center gap-[5px] whitespace-nowrap"
+          className="flex cursor-pointer select-none items-center gap-1.25 whitespace-nowrap"
         >
           <input
             type="radio"
@@ -221,7 +221,7 @@ const AirlineOrderGroup: React.FC<{
             className="accent-emerald-500"
           />
 
-          <span className="text-[12px] leading-[17px] text-[#30465d]">
+          <span className="text-[12px] leading-4.25 text-[#30465d]">
             {option.label}
           </span>
         </label>
@@ -238,19 +238,19 @@ const ActionButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className="btn-style min-w-[80px]"
+    className="btn-style min-w-20"
   >
     {children}
   </button>
 );
 
 const RptAirlinePage: React.FC = () => {
-  const [branchMode, setBranchMode] = useState("One Branch");
+  const [rdgbranch, setrdgbranch] = useState("One Branch");
   const [branch, setBranch] = useState<Option | null>(
     branchOptions[0],
   );
 
-  const [airlineMode, setAirlineMode] = useState("One Airline");
+  const [rdgairline, setrdgairline] = useState("One Airline");
   const [airlineId, setAirlineId] = useState<Option | null>(null);
   const [airlineName, setAirlineName] = useState<Option | null>(null);
 
@@ -259,27 +259,27 @@ const RptAirlinePage: React.FC = () => {
     dayjs().format(DATE_FORMAT),
   );
 
-  const [detailMode, setDetailMode] = useState("Summary");
-  const [resultType, setResultType] = useState("Sales");
-  const [invoiceStatus, setInvoiceStatus] = useState("Invoiced");
-  const [travelType, setTravelType] = useState("All");
+  const [rdgDetSum, setrdgDetSum] = useState("Summary");
+  const [rdgresultType, setrdgresultType] = useState("Sales");
+  const [rdginvoiceStatus, setrdginvoiceStatus] = useState("Invoiced");
+  const [rdgtravelType, setrdgtravelType] = useState("All");
   const [orderBy, setOrderBy] = useState("Airline No.");
 
   const handlePrint = () => {
     console.log("Airline Sales Report:", {
-      branchMode,
-      branch: branchMode === "One Branch" ? branch : null,
-      airlineMode,
+      rdgbranch,
+      branch: rdgbranch === "One Branch" ? branch : null,
+      rdgairline,
       airlineId:
-        airlineMode === "One Airline" ? airlineId : null,
+        rdgairline === "One Airline" ? airlineId : null,
       airlineName:
-        airlineMode === "One Airline" ? airlineName : null,
+        rdgairline === "One Airline" ? airlineName : null,
       fromDate,
       toDate,
-      detailMode,
-      resultType,
-      invoiceStatus,
-      travelType,
+      rdgDetSum,
+      rdgresultType,
+      rdginvoiceStatus,
+      rdgtravelType,
       orderBy,
     });
 
@@ -292,59 +292,59 @@ const RptAirlinePage: React.FC = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div className="min-h-screen w-full bg-white p-[6px] ">
-        <main className="mx-auto h-fit w-full max-w-[880px] relative overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
+      <div className="min-h-screen w-full bg-white p-1.5 ">
+        <main className="mx-auto h-fit w-full max-w-220 relative overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
           <Header Name="Airline Sales" />
 
-          <section className="px-[17px] pb-[14px] pt-[10px]">
+          <section className="px-4.25 pb-3.5 pt-2.5">
             {/* Two main sections: left controls and right filters */}
-            <div className="grid grid-cols-[minmax(0,1fr)_125px] items-start gap-x-[14px]">
+            <div className="grid grid-cols-[minmax(0,1fr)_125px] items-start gap-x-3.5">
               {/* LEFT SECTION */}
-              <div className="flex min-w-0 flex-col gap-[10px]">
+              <div className="flex min-w-0 flex-col gap-2.5">
                 {/* Branch */}
-                <div className="grid min-h-[70px] grid-cols-[125px_minmax(0,1fr)] items-center gap-x-[12px]">
+                <div className="grid min-h-17.5 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                   <RadioGroup
-                    name="branchMode"
-                    value={branchMode}
-                    onChange={setBranchMode}
-                    className="min-h-[70px]"
+                    name="rdgbranch"
+                    value={rdgbranch}
+                    onChange={setrdgbranch}
+                    className="min-h-17.5"
                     options={[
                       { value: "One Branch", label: "One Branch" },
                       { value: "All Branch", label: "All Branch" },
                     ]}
                   />
 
-                  <div className="w-[220px] max-w-full">
+                  <div className="w-55 max-w-full">
                     <Select
-                      inputId="airlineReportBranch"
+                      inputId="lpkBranch"
                       options={branchOptions}
                       value={branch}
                       onChange={setBranch}
-                      isDisabled={branchMode !== "One Branch"}
+                      isDisabled={rdgbranch !== "One Branch"}
                       {...fieldSelectProps}
                     />
                   </div>
                 </div>
 
                 {/* Airline */}
-                <div className="grid min-h-[70px] grid-cols-[125px_minmax(0,1fr)] items-center gap-x-[12px]">
+                <div className="grid min-h-17.5 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                   <RadioGroup
-                    name="airlineMode"
-                    value={airlineMode}
-                    onChange={setAirlineMode}
-                    className="min-h-[70px]"
+                    name="rdgairline"
+                    value={rdgairline}
+                    onChange={setrdgairline}
+                    className="min-h-17.5"
                     options={[
                       { value: "One Airline", label: "One Airline" },
                       { value: "All Airline", label: "All Airline" },
                     ]}
                   />
 
-                  <div className="grid min-w-0 grid-cols-[120px_minmax(0,1fr)] gap-[5px]">
+                  <div className="grid min-w-0 grid-cols-[120px_minmax(0,1fr)] gap-1.25">
                     <Select
-                      inputId="airlineReportId"
+                      inputId="lkpairlineId"
                       options={airlineIdOptions}
                       value={airlineId}
-                      isDisabled={airlineMode !== "One Airline"}
+                      isDisabled={rdgairline !== "One Airline"}
                       onChange={(option) => {
                         setAirlineId(option);
                         setAirlineName(
@@ -357,10 +357,10 @@ const RptAirlinePage: React.FC = () => {
                     />
 
                     <Select
-                      inputId="airlineReportName"
+                      inputId="lkpairlineName"
                       options={airlineNameOptions}
                       value={airlineName}
-                      isDisabled={airlineMode !== "One Airline"}
+                      isDisabled={rdgairline !== "One Airline"}
                       onChange={(option) => {
                         setAirlineName(option);
                         setAirlineId(
@@ -375,19 +375,19 @@ const RptAirlinePage: React.FC = () => {
                 </div>
 
                 {/* Period */}
-                <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-x-[12px] ">
+                <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3 ">
                   <FieldLabel>Period :</FieldLabel>
 
-                  <div className="flex min-w-0 grid-cols-2 gap-[10px]">
+                  <div className="flex min-w-0 grid-cols-2 gap-2.5">
                     <AppDatePicker
-                      id="airlineReportFromDate"
+                      id="dtpFromDate"
                       label="Period start date"
                       value={fromDate}
                       onChange={setFromDate}
                     />
 
                     <AppDatePicker
-                      id="airlineReportToDate"
+                      id="dtpToDate"
                       label="Period end date"
                       value={toDate}
                       onChange={setToDate}
@@ -396,19 +396,19 @@ const RptAirlinePage: React.FC = () => {
                 </div>
 
                 {/* Detail and buttons */}
-                <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-x-[12px]">
+                <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                   <RadioGroup
-                    name="detailMode"
-                    value={detailMode}
-                    onChange={setDetailMode}
-                    className="min-h-[70px]"
+                    name="rdgDetSum"
+                    value={rdgDetSum}
+                    onChange={setrdgDetSum}
+                    className="min-h-17.5"
                     options={[
                       { value: "Detail", label: "Detail" },
                       { value: "Summary", label: "Summary" },
                     ]}
                   />
 
-                  <div className="flex flex-wrap items-center justify-center gap-[8px] mt-10">
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
                     <ActionButton onClick={handlePrint}>
                       <u>P</u>rint
                     </ActionButton>
@@ -421,13 +421,13 @@ const RptAirlinePage: React.FC = () => {
               </div>
 
               {/* RIGHT SECTION */}
-              <div className="flex min-w-0 flex-col items-stretch gap-[8px]">
+              <div className="flex min-w-0 flex-col items-stretch gap-2">
                 {/* Sales / Refund / Net */}
                 <RadioGroup
-                  name="resultType"
-                  value={resultType}
-                  onChange={setResultType}
-                  className="min-h-[83px]"
+                  name="rdgresultType"
+                  value={rdgresultType}
+                  onChange={setrdgresultType}
+                  className="min-h-20.75"
                   options={[
                     { value: "Sales", label: "Sales" },
                     { value: "Refund", label: "Refund" },
@@ -437,10 +437,10 @@ const RptAirlinePage: React.FC = () => {
 
                 {/* Invoice Status */}
                 <RadioGroup
-                  name="invoiceStatus"
-                  value={invoiceStatus}
-                  onChange={setInvoiceStatus}
-                  className="min-h-[83px]"
+                  name="rdginvoiceStatus"
+                  value={rdginvoiceStatus}
+                  onChange={setrdginvoiceStatus}
+                  className="min-h-20.75"
                   options={[
                     { value: "Not-Invoiced", label: "Not-Invoiced" },
                     { value: "Invoiced", label: "Invoiced" },
@@ -450,10 +450,10 @@ const RptAirlinePage: React.FC = () => {
 
                 {/* Domestic / International */}
                 <RadioGroup
-                  name="travelType"
-                  value={travelType}
-                  onChange={setTravelType}
-                  className="min-h-[83px]"
+                  name="rdgtravelType"
+                  value={rdgtravelType}
+                  onChange={setrdgtravelType}
+                  className="min-h-20.75"
                   options={[
                     { value: "Domestic", label: "Domestic" },
                     { value: "International", label: "International" },

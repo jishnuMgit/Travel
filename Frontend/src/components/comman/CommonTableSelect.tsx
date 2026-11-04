@@ -84,7 +84,7 @@ const CommonTableSelect = ({
     MenuList: (props: MenuListProps<TableSelectOption, false>) => (
       <components.MenuList {...props}>
         <div
-          className="grid items-center px-[10px] py-[7px] bg-[#F3F5F7] border-b border-[#D5DDE5] font-semibold text-[#334155]"
+          className="grid items-center px-2.5 py-1.75 bg-[#F3F5F7] border-b border-[#D5DDE5] font-semibold text-[#334155]"
           style={{ gridTemplateColumns: gridTemplate,fontSize: headerFontSize }}
         >
           {columns.map((col) => (

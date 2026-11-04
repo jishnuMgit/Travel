@@ -194,18 +194,10 @@ export const SaveData = async (req: Request, res: Response) => {
       });
     }
 
-    if (txtPositionNo) {
-      const position = Number(txtPositionNo);
-
-      if (
-        !Number.isInteger(position) ||
-        position < -32768 ||
-        position > 32767
-      ) {
-        return res.status(400).json({
-          message: `Position No. for "${txtServiceTypeID}" must be a whole number between -32768 and 32767.`,
-        });
-      }
+    if (!txtPositionNo) {
+      return res.status(400).json({
+        message: `Position number is required for Service Type ID "${txtServiceTypeID}".`,
+      });
     }
 
     if (seenIds.has(txtServiceTypeID)) {
