@@ -446,13 +446,13 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="grid w-70 shrink-0 grid-cols-2 content-between gap-3 max-[700px]:w-full">
     <PanelGroup
-      name="rdgSaleMode"
+      name="rdgSR"
       options={["Sales", "Refund", "Net"]}
       value={form.saleMode}
       onChange={(v) => set("saleMode", v)}
     />
     <PanelGroup
-      name="rdgInvoice"
+      name="rdgInvoiced"
       options={["Not-Invoiced", "Invoiced", "All"]}
       value={form.invoiceMode}
       onChange={(v) => set("invoiceMode", v)}
@@ -501,7 +501,7 @@ const BottomRow: React.FC<
   <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
     <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
       <PanelGroup
-        name="rdgReportType"
+        name="rdgDetSum"
         options={["Detail", "Summary"]}
         value={form.reportType}
         onChange={(v) => set("reportType", v)}

@@ -11,17 +11,17 @@ dayjs.extend(customParseFormat);
 
 type Option = { value: string; label: string };
 type FormState = {
-  branchMode: string;
+  rdgbranch: string;
   branch: string | null;
-  airlineMode: string;
+  rdgairline: string;
   airline: string | null;
   fromDate: string;
   toDate: string;
-  reportType: string;
-  saleMode: string;
-  invoiceMode: string;
-  regionMode: string;
-  orderBy: string;
+  rdgDetSum: string;
+  rdgSR: string;
+  rdginvoiceMode: string;
+  rdgregion: string;
+  rdgorderBy: string;
   includeIncentive: boolean;
 };
 
@@ -42,17 +42,17 @@ const airlineNameOptions: Option[] = [
 ];
 
 const initialForm = (): FormState => ({
-  branchMode: "One Branch",
+  rdgbranch: "One Branch",
   branch: "JEDDAH",
-  airlineMode: "One Airline",
+  rdgairline: "One Airline",
   airline: null,
   fromDate: dayjs().startOf("month").format(DATE_FORMAT),
   toDate: dayjs().format(DATE_FORMAT),
-  reportType: "Summary",
-  saleMode: "Net",
-  invoiceMode: "All",
-  regionMode: "All",
-  orderBy: "Airline No.",
+  rdgDetSum: "Summary",
+  rdgSR: "Net",
+  rdginvoiceMode: "All",
+  rdgregion: "All",
+  rdgorderBy: "Airline No.",
   includeIncentive: false,
 });
 
@@ -214,12 +214,12 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="flex min-w-0 flex-col gap-3">
     <div className="grid grid-cols-[125px_minmax(0,250px)] items-center gap-4 max-[560px]:grid-cols-1">
       <RadioGroup
-        name="branchMode"
-        options={["One Branch", "All Branch"]}
-        value={form.branchMode}
-        onChange={(value) => set("branchMode", value)}
+        name="rdgbranch"
+        options={["One Branch", "All Branches"]}
+        value={form.rdgbranch}
+        onChange={(value) => set("rdgbranch", value)}
       />
-      {form.branchMode === "One Branch" && (
+      {form.rdgbranch === "One Branch" && (
        <div className="w-62.5 max-w-full -mt-7">
          <Combo
           id="lkpBranch"
@@ -232,12 +232,12 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
     </div>
     <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-4 max-[560px]:grid-cols-1">
       <RadioGroup
-        name="airlineMode"
+        name="rdgairline"
         options={["One Airline", "All Airline"]}
-        value={form.airlineMode}
-        onChange={(value) => set("airlineMode", value)}
+        value={form.rdgairline}
+        onChange={(value) => set("rdgairline", value)}
       />
-      {form.airlineMode === "One Airline" && (
+      {form.rdgairline === "One Airline" && (
         <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.5 mt-3">
           <Combo
             id="lkpAirlineID"
@@ -279,16 +279,16 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="grid min-w-0 grid-cols-2 items-start gap-3">
     <RadioGroup
-      name="saleMode"
+      name="rdgSR"
       options={["Sales", "Refund", "Net"]}
-      value={form.saleMode}
-      onChange={(value) => set("saleMode", value)}
+      value={form.rdgSR}
+      onChange={(value) => set("rdgSR", value)}
     />
     <RadioGroup
-      name="invoiceMode"
+      name="rdginvoiceMode"
       options={["Not-Invoiced", "Invoiced", "All"]}
-      value={form.invoiceMode}
-      onChange={(value) => set("invoiceMode", value)}
+      value={form.rdginvoiceMode}
+      onChange={(value) => set("rdginvoiceMode", value)}
       className="px-2"
     />
 
@@ -297,10 +297,10 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
 
     </div>
     <RadioGroup
-      name="regionMode"
+      name="rdgregion"
       options={["Domestic", "International", "All"]}
-      value={form.regionMode}
-      onChange={(value) => set("regionMode", value)}
+      value={form.rdgregion}
+      onChange={(value) => set("rdgregion", value)}
       className="col-start-1 px-2 -mt-35"
     />
     <fieldset className="col-start-2 row-start-2 mt-7 min-w-0 border border-[#d5dce2] px-2 pb-2 pt-0.5 ">
@@ -308,10 +308,10 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
         Order By
       </legend>
       <RadioGroup
-        name="orderBy"
+        name="rdgorderBy"
         options={["Airline No.", "Billing Amt.", "Profit Amt.", "Profit %"]}
-        value={form.orderBy}
-        onChange={(value) => set("orderBy", value)}
+        value={form.rdgorderBy}
+        onChange={(value) => set("rdgorderBy", value)}
         className="gap-2! border-0! bg-transparent! px-1! py-1.5!"
       />
     </fieldset>
@@ -339,8 +339,8 @@ const AirlineWiseProfitPage = () => {
   const handlePrint = () => {
     console.log({
       ...form,
-      branch: form.branchMode === "One Branch" ? form.branch : null,
-      airline: form.airlineMode === "One Airline" ? form.airline : null,
+      branch: form.rdgbranch === "One Branch" ? form.branch : null,
+      airline: form.rdgairline === "One Airline" ? form.airline : null,
     });
   };
 
@@ -355,10 +355,10 @@ const AirlineWiseProfitPage = () => {
                 <LeftFilters form={form} set={set} />
                 <div className="flex flex-wrap items-end gap-3">
                   <RadioGroup
-                    name="reportType"
+                    name="rdgDetSum"
                     options={["Detail", "Summary"]}
-                    value={form.reportType}
-                    onChange={(value) => set("reportType", value)}
+                    value={form.rdgDetSum}
+                    onChange={(value) => set("rdgDetSum", value)}
                     className="w-31.25"
                   />
                   <div className="flex gap-2 ml-10">

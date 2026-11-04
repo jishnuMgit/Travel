@@ -64,8 +64,8 @@ const staffNameOptions: Option[] = [
 ];
 
 const divisionOptions: TableSelectOption[] = [
-  { value: "TRAVEL", label: "Travel", id: "TRAVEL" },
-  { value: "TOURISM", label: "Tourism", id: "TOURISM" },
+  { value: "TRAVEL", label: "Travel", id: "TR" },
+  { value: "TOURISM", label: "Tourism", id: "TO" },
 ];
 
 const divisionColumns = [
@@ -119,7 +119,7 @@ const CustomRadio: React.FC<RadioProps> = ({
   disabled = false,
 }) => (
   <label
-    className={`flex items-center gap-[5px] whitespace-nowrap select-none ${
+    className={`flex items-center gap-1.25 whitespace-nowrap select-none ${
       disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
     }`}
   >
@@ -134,16 +134,16 @@ const CustomRadio: React.FC<RadioProps> = ({
     />
 
     <span
-      className={`flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full border ${
+      className={`flex h-4.75 w-4.75 shrink-0 items-center justify-center rounded-full border ${
         checked ? "border-[#4ade80]" : "border-[#c3cbd3]"
       } bg-white`}
     >
       {checked && (
-        <span className="h-[9px] w-[9px] rounded-full bg-[#4ade80]" />
+        <span className="h-2.25 w-2.25 rounded-full bg-[#4ade80]" />
       )}
     </span>
 
-    <span className="text-[12px] leading-[17px] text-[#172b43]">
+    <span className="text-[12px] leading-4.25 text-[#172b43]">
       {label}
     </span>
   </label>
@@ -154,7 +154,7 @@ const RadioPanel: React.FC<{
   className?: string;
 }> = ({ children, className = "" }) => (
   <div
-    className={`flex flex-col justify-center gap-[6px] border border-gray-300 rounded-sm bg-white px-[7px] py-[7px] ${className}`}
+    className={`flex flex-col justify-center gap-1.5 border border-gray-300 rounded-sm bg-white px-1.75 py-1.75 ${className}`}
   >
     {children}
   </div>
@@ -257,7 +257,7 @@ const ActionButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={` min-w-[80px] btn-style ${className}`}
+    className={` min-w-20 btn-style ${className}`}
   >
     {children}
   </button>
@@ -273,7 +273,7 @@ const RptCustomerSalesPage: React.FC = () => {
   const [customerId, setCustomerId] = useState<Option | null>(null);
   const [customerName, setCustomerName] = useState<Option | null>(null);
 
-  const [divisionMode, setDivisionMode] = useState("All Division");
+  const [divisionMode, setDivisionMode] = useState("All Divisions");
   const [division, setDivision] = useState<TableSelectOption | null>(null);
 
   const [airlineMode, setAirlineMode] = useState("One Airline");
@@ -293,7 +293,7 @@ const RptCustomerSalesPage: React.FC = () => {
   const [travelType, setTravelType] = useState("All");
   const [resultType, setResultType] = useState("Net");
   const [salesCategory, setSalesCategory] = useState("All");
-
+console.log(setPaymentType)
   const handlePrint = () => {
     console.log("Customer Sales Report", {
       branchMode,
@@ -337,29 +337,29 @@ const RptCustomerSalesPage: React.FC = () => {
         {/* Window title */}
         <Header Name="Customer Sales" />
 
-        <section className="px-[17px] pb-[38px] pt-[17px]">
-          <div className="grid grid-cols-[125px_minmax(0,1fr)] gap-x-[17px] gap-y-[10px]">
+        <section className="px-4.25 pb-9.5 pt-4.25 relative">
+          <div className="grid grid-cols-[125px_minmax(0,1fr)] gap-x-4.25 gap-y-2.5">
             {/* Branch */}
-            <RadioPanel className="h-[70px]">
+            <RadioPanel className="h-17.5">
               <CustomRadio
-                name="branch"
+                name="rgdBranch"
                 value="One Branch"
                 label="One Branch"
                 checked={branchMode === "One Branch"}
-                onChange={() => setBranchMode("One Branch")}
-              />
+                onChange={() => setBranchMode("One Branch")}                             
+              />                                                                                           
               <CustomRadio
-                name="branch"
-                value="All Branch"
-                label="All Branch"
-                checked={branchMode === "All Branch"}
-                onChange={() => setBranchMode("All Branch")}
+                name="rgdBranch"
+                value="All Branches"
+                label="All Branches"
+                checked={branchMode === "All Branches"}
+                onChange={() => setBranchMode("All Branches")}
               />
             </RadioPanel>
 
-            <div className="pt-[9px]">
+            <div className="pt-2.25">
              {branchMode === "One Branch" && (
-  <div className="w-[250px] max-w-full">
+  <div className="w-62.5 max-w-full">
     <CommonTableSelect
       inputId="branch"
       options={branchOptions}
@@ -375,24 +375,24 @@ const RptCustomerSalesPage: React.FC = () => {
             </div>
 
             {/* Customer */}
-            <RadioPanel className="h-[70px]">
+            <RadioPanel className="h-17.5">
               <CustomRadio
-                name="customer"
+                name="rgdCustomer"
                 value="One Customer"
                 label="One Customer"
                 checked={customerMode === "One Customer"}
                 onChange={() => setCustomerMode("One Customer")}
               />
               <CustomRadio
-                name="customer"
-                value="All Customer"
-                label="All Customer"
-                checked={customerMode === "All Customer"}
-                onChange={() => setCustomerMode("All Customer")}
+                name="rgdCustomer"
+                value="All Customers"
+                label="All Customers"
+                checked={customerMode === "All Customers"}
+                onChange={() => setCustomerMode("All Customers")}
               />
             </RadioPanel>
 
-            <div className="flex items-start gap-1 pt-[9px]">
+            <div className="flex items-start gap-1 pt-2.25">
               {customerMode === "One Customer" && (
                 <CustomLinkedPairSelect
                   firstInputId="customerId"
@@ -423,9 +423,9 @@ const RptCustomerSalesPage: React.FC = () => {
             </div>
 
             {/* Division */}
-            <RadioPanel className="h-[70px]">
+            <RadioPanel className="h-17.5">
               <CustomRadio
-                name="division"
+                name="rgdDivision"
                 value="One Division"
                 label="One Division"
                 checked={divisionMode === "One Division"}
@@ -433,18 +433,18 @@ const RptCustomerSalesPage: React.FC = () => {
                 onChange={() => setDivisionMode("One Division")}
               />
               <CustomRadio
-                name="division"
-                value="All Division"
-                label="All Division"
-                checked={divisionMode === "All Division"}
+                name="rgdDivision"
+                value="All Divisions"
+                label="All Divisions"
+                checked={divisionMode === "All Divisions"}
                 
-                onChange={() => setDivisionMode("All Division")}
+                onChange={() => setDivisionMode("All Divisions")}
               />
             </RadioPanel>
 
             <div className="flex min-w-0 items-center justify-between gap-2">
               {divisionMode === "One Division" ? (
-                <div className="w-[250px] max-w-full">
+                <div className="w-62.5 max-w-full">
                   <CommonTableSelect
                     inputId="division"
                     options={divisionOptions}
@@ -452,30 +452,30 @@ const RptCustomerSalesPage: React.FC = () => {
                     onChange={setDivision}
                     columns={divisionColumns}
                     width="250px"
-                    menuWidth="305px"
-                    placeholder="Select Division"
+                    menuWidth="310px"
+                    placeholder=""
                   />
                 </div>
               ) : (
                 <div />
               )}
-              <RadioPanel className="w-[115px] shrink-0">
+              <RadioPanel className="w-28.75 shrink-0 absolute right-4 top-30">
                 <CustomRadio
-                  name="invoice"
+                  name="rdginvoiced"
                   value="Not-Invoiced"
                   label="Not-Invoiced"
                   checked={invoiceStatus === "Not-Invoiced"}
                   onChange={() => setInvoiceStatus("Not-Invoiced")}
                 />
                 <CustomRadio
-                  name="invoice"
+                  name="rdginvoiced"
                   value="Invoiced"
                   label="Invoiced"
                   checked={invoiceStatus === "Invoiced"}
                   onChange={() => setInvoiceStatus("Invoiced")}
                 />
                 <CustomRadio
-                  name="invoice"
+                  name="rdginvoiced"
                   value="All"
                   label="All"
                   checked={invoiceStatus === "All"}
@@ -485,24 +485,24 @@ const RptCustomerSalesPage: React.FC = () => {
             </div>
 
             {/* Airline */}
-            <RadioPanel className="h-[70px]">
+            <RadioPanel className="h-17.5">
               <CustomRadio
-                name="airline"
+                name="rdgairline"
                 value="One Airline"
                 label="One Airline"
                 checked={airlineMode === "One Airline"}
                 onChange={() => setAirlineMode("One Airline")}
               />
               <CustomRadio
-                name="airline"
-                value="All Airline"
-                label="All Airline"
-                checked={airlineMode === "All Airline"}
-                onChange={() => setAirlineMode("All Airline")}
+                name="rdgairline"
+                value="All Airlines"
+                label="All Airlines"
+                checked={airlineMode === "All Airlines"}
+                onChange={() => setAirlineMode("All Airlines")}
               />
             </RadioPanel>
 
-            <div className="flex items-start gap-1 pt-[9px]">
+            <div className="flex items-start gap-1 pt-2.25">
               {airlineMode === "One Airline" && (
                 <CustomLinkedPairSelect
                   firstInputId="airlineId"
@@ -531,48 +531,24 @@ const RptCustomerSalesPage: React.FC = () => {
                 />
               )}
 
-              <div className="ml-auto">
-                <RadioPanel className="w-[115px] min-h-[80px]">
-                  <CustomRadio
-                    name="payment"
-                    value="Cash"
-                    label="Cash"
-                    checked={paymentType === "Cash"}
-                    onChange={() => setPaymentType("Cash")}
-                  />
-                  <CustomRadio
-                    name="payment"
-                    value="Credit"
-                    label="Credit"
-                    checked={paymentType === "Credit"}
-                    onChange={() => setPaymentType("Credit")}
-                  />
-                  <CustomRadio
-                    name="payment"
-                    value="All"
-                    label="All"
-                    checked={paymentType === "All"}
-                    onChange={() => setPaymentType("All")}
-                  />
-                </RadioPanel>
-              </div>
+             
             </div>
 
             {/* Staff */}
-            <RadioPanel className="h-[70px]">
+            <RadioPanel className="h-17.5">
               <CustomRadio
-                name="staff"
+                name="rgdStaff"
                 value="One Staff"
                 label="One Staff"
                 checked={staffMode === "One Staff"}
                 onChange={() => setStaffMode("One Staff")}
               />
               <CustomRadio
-                name="staff"
-                value="All Staff"
-                label="All Staff"
-                checked={staffMode === "All Staff"}
-                onChange={() => setStaffMode("All Staff")}
+                name="rgdStaff"
+                value="All staffs"
+                label="All staffs"
+                checked={staffMode === "All staffs"}
+                onChange={() => setStaffMode("All staffs")}
               />
             </RadioPanel>
 
@@ -606,23 +582,23 @@ const RptCustomerSalesPage: React.FC = () => {
               ) : (
                 <div />
               )}
-              <RadioPanel className="w-[125px] shrink-0">
+              <RadioPanel className="w-31.25 shrink-0 absolute right-4 top-4">
                 <CustomRadio
-                  name="travel"
+                  name="rdgDI"
                   value="Domestic"
                   label="Domestic"
                   checked={travelType === "Domestic"}
                   onChange={() => setTravelType("Domestic")}
                 />
                 <CustomRadio
-                  name="travel"
+                  name="rdgDI"
                   value="International"
                   label="International"
                   checked={travelType === "International"}
                   onChange={() => setTravelType("International")}
                 />
                 <CustomRadio
-                  name="travel"
+                  name="rdgDI"
                   value="All"
                   label="All"
                   checked={travelType === "All"}
@@ -632,21 +608,21 @@ const RptCustomerSalesPage: React.FC = () => {
             </div>
 
             {/* Period */}
-            <div className="flex h-[30px] items-center justify-end border border-gray-300  bg-[#FAFBFC] px-[7px]">
+            <div className="flex h-7.5 items-center justify-end border border-gray-300  bg-[#FAFBFC] px-1.75">
               <span className="text-[12px] text-[#172b43]">Period :</span>
             </div>
-            <div className="flex items-center gap-[5px]">
-              <div className="w-[146px]">
+            <div className="flex items-center gap-1.25">
+              <div className="w-36.5">
                 <AppDatePicker
-                  id="fromDate"
+                  id="dtpfromDate"
                   label="Period start date"
                   value={fromDate}
                   onChange={setFromDate}
                 />
               </div>
-              <div className="w-[146px]">
+              <div className="w-36.5">
                 <AppDatePicker
-                  id="toDate"
+                  id="dtptoDate"
                   label="Period end date"
                   value={toDate}
                   onChange={setToDate}
@@ -655,23 +631,23 @@ const RptCustomerSalesPage: React.FC = () => {
             </div>
 
             {/* Details */}
-            <RadioPanel className="h-[90px]">
+            <RadioPanel className="h-22.5" >
               <CustomRadio
-                name="detail"
+                name="rgdDetSum"
                 value="Detail 1"
                 label="Detail 1"
                 checked={detailMode === "Detail 1"}
                 onChange={() => setDetailMode("Detail 1")}
               />
               <CustomRadio
-                name="detail"
+                name="rgdDetSum"
                 value="Detail 2"
                 label="Detail 2"
                 checked={detailMode === "Detail 2"}
                 onChange={() => setDetailMode("Detail 2")}
               />
               <CustomRadio
-                name="detail"
+                name="rgdDetSum"
                 value="Summary"
                 label="Summary"
                 checked={detailMode === "Summary"}
@@ -681,35 +657,35 @@ const RptCustomerSalesPage: React.FC = () => {
 
             <div className="flex items-end justify-between gap-2">
               <div className="flex flex-wrap gap-1">
-                <ActionButton onClick={handlePrint} className="w-[80px]">
+                <ActionButton onClick={handlePrint} className="w-20">
                   <u>P</u>rint
                 </ActionButton>
-                <ActionButton onClick={handleExport} className="w-[114px]">
+                <ActionButton onClick={handleExport} className="w-28.5">
                <u>E</u>xcel
                 </ActionButton>
-                <ActionButton onClick={handleClose} className="w-[80px]">
+                <ActionButton onClick={handleClose} className="w-20">
                   Close
                 </ActionButton>
               </div>
 
-              <div className="flex shrink-0 gap-1">
-                <RadioPanel className="w-[105px] min-h-[90px]">
+              <div className="flex shrink-0 gap-1 ">
+                <RadioPanel className="w-28.25 min-h-22.5 absolute  right-4 top-81">
                   <CustomRadio
-                    name="result"
+                    name="rdgSR"
                     value="Sales"
                     label="Sales"
                     checked={resultType === "Sales"}
                     onChange={() => setResultType("Sales")}
                   />
                   <CustomRadio
-                    name="result"
+                    name="rdgSR"
                     value="Refund"
                     label="Refund"
                     checked={resultType === "Refund"}
                     onChange={() => setResultType("Refund")}
                   />
                   <CustomRadio
-                    name="result"
+                    name="rdgSR"
                     value="Net"
                     label="Net"
                     checked={resultType === "Net"}
@@ -717,23 +693,23 @@ const RptCustomerSalesPage: React.FC = () => {
                   />
                 </RadioPanel>
 
-                <RadioPanel className="w-[115px] min-h-[90px]">
+                <RadioPanel className="w-28.75 min-h-22.5 absolute right-4 top-55">
                   <CustomRadio
-                    name="category"
+                    name="rdgSubModule"
                     value="Travel"
                     label="Travel"
                     checked={salesCategory === "Travel"}
                     onChange={() => setSalesCategory("Travel")}
                   />
                   <CustomRadio
-                    name="category"
+                    name="rdgSubModule"
                     value="Tourism"
                     label="Tourism"
                     checked={salesCategory === "Tourism"}
                     onChange={() => setSalesCategory("Tourism")}
                   />
                   <CustomRadio
-                    name="category"
+                    name="rdgSubModule"
                     value="All"
                     label="All"
                     checked={salesCategory === "All"}
