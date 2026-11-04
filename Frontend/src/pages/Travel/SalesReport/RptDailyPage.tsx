@@ -1,23 +1,34 @@
 import React, { useState } from "react";
-import Select from "react-select";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../../components/comman/Header";
-import {
-  fieldSelectProps,
-  type Option,
-} from "../../../components/comman/Combo";
+import CommonTableSelect, {
+  type TableSelectOption,
+} from "../../../components/comman/CommonTableSelect";
+import CustomLinkedPairSelect, {
+  type PairSelectOption,
+} from "../../../components/comman/CustomLinkedPairSelect";
+
+type Option = {
+  value: string;
+  label: string;
+};
 
 dayjs.extend(customParseFormat);
 
 const DATE_FORMAT = "DD/MM/YYYY";
-const branchOptions: Option[] = [
-  { value: "JEDDAH", label: "JEDDAH" },
-  { value: "RIYADH", label: "RIYADH" },
-  { value: "DAMMAM", label: "DAMMAM" },
+const branchOptions: TableSelectOption[] = [
+  { value: "JEDDAH", label: "JEDDAH", id: "JH" },
+  { value: "RIYADH", label: "RIYADH", id: "RH" },
+  { value: "DAMMAM", label: "DAMMAM", id: "DM" },
+];
+
+const branchColumns = [
+  { key: "label", label: "Branch", width: "1fr" },
+  { key: "id", label: "ID", width: "90px", align: "right" as const },
 ];
 const staffIdOptions: Option[] = [
   { value: "S001", label: "S001" },
@@ -27,6 +38,14 @@ const staffNameOptions: Option[] = [
   { value: "S001", label: "Staff One" },
   { value: "S002", label: "Staff Two" },
 ];
+
+const staffPairOptions: PairSelectOption[] = staffIdOptions.map((staffId) => ({
+  value: staffId.value,
+  firstLabel: staffId.label,
+  secondLabel:
+    staffNameOptions.find((staffName) => staffName.value === staffId.value)
+      ?.label ?? "",
+}));
 
 type RadioOption = {
   value: string;
@@ -170,7 +189,7 @@ const ActionButton: React.FC<{
 
 const RptDailyPage: React.FC = () => {
   const [branchMode, setBranchMode] = useState("One Branch");
-  const [branch, setBranch] = useState<Option | null>(branchOptions[0]);
+  const [branch, setBranch] = useState<TableSelectOption | null>(branchOptions[0]);
   const [staffMode, setStaffMode] = useState("One Staff");
   const [staff, setStaff] = useState<Option | null>(null);
   const [staffName, setStaffName] = useState<Option | null>(null);
@@ -223,12 +242,15 @@ const RptDailyPage: React.FC = () => {
                 />
                 {branchMode === "One Branch" && (
                   <div className="w-full max-w-55">
-                    <Select
+                    <CommonTableSelect
                       inputId="lkpBranchID"
                       options={branchOptions}
                       value={branch}
                       onChange={setBranch}
-                      {...fieldSelectProps}
+                      columns={branchColumns}
+                      width="220px"
+                      menuWidth="290px"
+                      placeholder="Select Branch"
                     />
                   </div>
                 )}
@@ -272,34 +294,31 @@ const RptDailyPage: React.FC = () => {
                   ]}
                 />
                 {staffMode === "One Staff" && (
-                  <div className="grid min-w-0 grid-cols-[120px_450px] gap-1.25">
-                    <Select
-                      inputId="lkpStaffID"
-                      options={staffIdOptions}
-                      value={staff}
+                  <div className="min-w-0">
+                    <CustomLinkedPairSelect
+                      firstInputId="lkpStaffID"
+                      secondInputId="lkpStaffName"
+                      options={staffPairOptions}
+                      firstValue={staff?.value ?? null}
+                      secondValue={staffName?.value ?? null}
+                      firstHeader="Staff ID"
+                      secondHeader="Staff Name"
+                      firstWidth={120}
+                      secondWidth={450}
+                      gap={4}
+                      headerFontSize="12px"
                       onChange={(option) => {
-                        setStaff(option);
-                        setStaffName(
-                          staffNameOptions.find(
-                            (item) => item.value === option?.value,
-                          ) ?? null,
-                        );
-                      }}
-                      {...fieldSelectProps}
-                    />
-                    <Select
-                      inputId="lkpStaffName"
-                      options={staffNameOptions}
-                      value={staffName}
-                      onChange={(option) => {
-                        setStaffName(option);
                         setStaff(
-                          staffIdOptions.find(
-                            (item) => item.value === option?.value,
-                          ) ?? null,
+                          option
+                            ? { value: option.value, label: option.firstLabel }
+                            : null,
+                        );
+                        setStaffName(
+                          option
+                            ? { value: option.value, label: option.secondLabel }
+                            : null,
                         );
                       }}
-                      {...fieldSelectProps}
                     />
                   </div>
                 )}
@@ -318,8 +337,7 @@ const RptDailyPage: React.FC = () => {
                 />
               </div>
             </div>
-
-            <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+             <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <FieldLabel>Period :</FieldLabel>
                 <div className="flex gap-1.25">
@@ -328,8 +346,7 @@ const RptDailyPage: React.FC = () => {
                       id="dtpFromDate"
                       label="Period start date"
                       value={fromDate}
-                      onChange={setFromDate}
-                    />
+                      onChange={setFromDate} />
                   </div>
                   <div className="w-25">
                     <AppDatePicker
@@ -355,7 +372,6 @@ const RptDailyPage: React.FC = () => {
                 />
               </div>
             </div>
-
             <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
@@ -369,19 +385,14 @@ const RptDailyPage: React.FC = () => {
                   ]}
                 />
                 <div className="flex min-w-0 items-center gap-2">
-                  <ActionButton onClick={handlePrint}>
-                    <u>P</u>rint
-                  </ActionButton>
-                  <ActionButton onClick={handleClose}>Close</ActionButton>
+                  <ActionButton onClick={handlePrint}> <u>P</u>rint </ActionButton>
+                  <ActionButton onClick={handleClose}> <u>C</u>lose </ActionButton>
                   <label className="flex cursor-pointer items-center gap-1 whitespace-nowrap text-[12px] text-[#30465d]">
                     <input
                       type="checkbox"
                       checked={onlyAmexTickets}
-                      onChange={(event) =>
-                        setOnlyAmexTickets(event.target.checked)
-                      }
-                      className="accent-emerald-500"
-                    />
+                      onChange={(event) => setOnlyAmexTickets(event.target.checked)  }
+                      className="accent-emerald-500"  />
                     Only Amex Tickets
                   </label>
                 </div>

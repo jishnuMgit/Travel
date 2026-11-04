@@ -19,6 +19,7 @@ import B2CInvoicePage from "../pages/Tables/B2cinvoicepage";
 import ServiceChargePolicy from "../pages/Travel/Setup/ServiceChargePolicy";
 import ServiceTypePage from "../pages/Travel/Setup/ServiceTypePage";
 import LoginPage from "../pages/Auth/LoginPage";
+import CustomerDivisionPage from "../pages/Travel/Setup/Customerdivisionpage";
 
 const AppRoutes = () => (
   <Routes>
@@ -65,6 +66,7 @@ const AppRoutes = () => (
       element={<ServiceChargePolicy />}
     />
     <Route path="/Setup/ServiceType" element={<ServiceTypePage />} />
+    <Route path="/Setup/Customerdivision" element={<CustomerDivisionPage />} />
   </Routes>
 );
 
