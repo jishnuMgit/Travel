@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import Header from "../../../components/comman/Header";
-import { MdAdd,  MdClose } from "react-icons/md";
+import { MdAdd, MdClose } from "react-icons/md";
 import {
   createAirline,
   deleteAirline,
@@ -9,7 +9,9 @@ import {
   updateAirline,
 } from "../../../utils/airlineApi";
 import type { AirlinePayload, AirlineRecord } from "../../../utils/airlineApi";
-import { FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { HiOutlinePencilAlt } from "react-icons/hi";
+
 
 type AirlineRow = {
   key: number;
@@ -89,8 +91,6 @@ const niceScrollbar = [
   "[&::-webkit-scrollbar-corner]:bg-[#f2f8f4]",
 ].join(" ");
 
-const cellInputClass =
-  "h-[30px] w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]";
 const thClass =
   "h-[30px] border border-[#B7ECD0] bg-[#E7F7ED] px-2 font-normal text-[#405066]";
 
@@ -105,9 +105,9 @@ const CoID = (
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<AirlineRow | null>(null);
+  const [editingTarget, setEditingTarget] = useState<AirlineRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ row: AirlineRow; lineNumber: number } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -149,16 +149,6 @@ const CoID = (
 
   const firstEmptyKey = rows.find((row) => isEmptyRow(row))?.key ?? null;
 
-  const updateCell = <K extends "no" | "name" | "code" | "vatOnCommission">(
-    key: number,
-    field: K,
-    value: AirlineRow[K],
-  ) => {
-    setError("");
-    setRows((previous) =>
-      padRows(previous.map((row) => (row.key === key ? { ...row, [field]: value } : row))),
-    );
-  };
 
   const visibleRows = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -171,75 +161,10 @@ const CoID = (
     );
   }, [rows, query]);
 
-  const validateRows = (filled: AirlineRow[]) => {
-    if (filled.some((row) => !row.no.trim() || !row.name.trim())) {
-      return "Every airline needs an airline no and an airline name.";
-    }
-    if (filled.some((row) => row.no.trim().length > 3 || row.code.trim().length > 3 || row.name.trim().length > 50)) {
-      return "Airline No and Airline Code allow 3 characters; Airline Name allows 50 characters.";
-    }
-    const numbers = filled.map((row) => row.no.trim().toLowerCase());
-    if (new Set(numbers).size !== numbers.length) {
-      return "Airline numbers must be unique.";
-    }
-    return "";
-  };
-
-  const toPayload = (row: AirlineRow): AirlinePayload => ({
-    fairlineno: row.no.trim(),
-    fairlinename: row.name.trim(),
-    fairlineid: row.code.trim() || null,
-    fvatoncommission: row.vatOnCommission,
-    fsuserid: fsuserid || null,
-    fmuserid: fsuserid || null,
-  });
-
-  // Save applies inline grid edits: new rows are POSTed and existing rows are PUT.
-  const handleSave = async () => {
-    if (!CoID) {
-      setError("Company ID (fcoid) is missing.");
-      return;
-    }
-
-    const filled = rows.filter((row) => !isEmptyRow(row));
-    const validationError = validateRows(filled);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setSaving(true);
-    setError("");
-    try {
-      for (const row of filled) {
-        const payload = toPayload(row);
-        if (row.originalNo) {
-          const original = row.originalValues;
-          const unchanged =
-            original !== null &&
-            row.no.trim() === original.no &&
-            row.name.trim() === original.name &&
-            row.code.trim() === original.code &&
-            row.vatOnCommission === original.vatOnCommission;
-          if (!unchanged) {
-            await updateAirline(CoID, row.originalNo, payload);
-          }
-        } else {
-          await createAirline(CoID, payload);
-        }
-      }
-      await loadAirlines();
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save airlines.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDelete = async () => {
-    if (!deleteTarget || isEmptyRow(deleteTarget)) return;
-    const row = deleteTarget;
+    if (!deleteTarget || isEmptyRow(deleteTarget.row)) return;
+    const row = deleteTarget.row;
     setError("");
     setDeleting(true);
     try {
@@ -266,36 +191,88 @@ const CoID = (
     setFormError("");
   };
 
-  const handleAdd = async (event: FormEvent<HTMLFormElement>) => {
+  const openAddModal = () => {
+    setEditingTarget(null);
+    resetAddForm();
+    setShowAddModal(true);
+  };
+
+  const openModifyModal = (row: AirlineRow) => {
+    if (isEmptyRow(row)) return;
+    setEditingTarget(row);
+    txtsetAirlineNo(row.no);
+    txtsetAirlineName(row.name);
+    txtsetAirlineCode(row.code);
+    txtsetVatOnCommission(row.vatOnCommission);
+    setFormError("");
+    setShowAddModal(true);
+  };
+
+  const handleModalSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!CoID) {
       setFormError("Company ID (fcoid) is missing.");
       return;
     }
-    if (!txtAirlineNo.trim() || !txtAirlineName.trim()) {
+
+    const airlineNo = txtAirlineNo.trim().toUpperCase();
+    const airlineName = txtAirlineName.trim();
+    const airlineCode = txtAirlineCode.trim().toUpperCase();
+
+    if (!airlineNo || !airlineName) {
       setFormError("Airline No and Airline Name are required.");
       return;
     }
-    if (txtAirlineNo.trim().length > 3 || txtAirlineCode.trim().length > 3 || txtAirlineName.trim().length > 50) {
+
+    if (airlineNo.length > 3 || airlineCode.length > 3 || airlineName.length > 50) {
       setFormError("Airline No and Airline Code allow 3 characters; Airline Name allows 50 characters.");
+      return;
+    }
+
+    const duplicate = rows.some((row) =>
+      !isEmptyRow(row) &&
+      row.key !== editingTarget?.key &&
+      row.no.trim().toUpperCase() === airlineNo
+    );
+
+    if (duplicate) {
+      setFormError("Airline number already exists.");
       return;
     }
 
     setAdding(true);
     setFormError("");
+
+    const payload: AirlinePayload = {
+      fairlineno: airlineNo,
+      fairlinename: airlineName,
+      fairlineid: airlineCode || null,
+      fvatoncommission: txtVatOnCommission,
+      fsuserid: fsuserid || null,
+      fmuserid: fsuserid || null,
+    };
+
     try {
-      await createAirline(CoID, {
-        fairlineno: txtAirlineNo.trim().toUpperCase(),
-        fairlinename: txtAirlineName.trim(),
-        fairlineid: txtAirlineCode.trim().toUpperCase() || null,
-        fvatoncommission: txtVatOnCommission,
-        fsuserid: fsuserid || null,
-      });
+      if (editingTarget) {
+        const originalNo = editingTarget.originalNo ?? editingTarget.no;
+        await updateAirline(CoID, originalNo, payload);
+      } else {
+        await createAirline(CoID, payload);
+      }
+
       setShowAddModal(false);
+      setEditingTarget(null);
       resetAddForm();
       await loadAirlines();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Unable to add airline.");
+      setFormError(
+        err instanceof Error
+          ? err.message
+          : editingTarget
+            ? "Unable to modify airline."
+            : "Unable to add airline."
+      );
     } finally {
       setAdding(false);
     }
@@ -316,14 +293,11 @@ const CoID = (
               placeholder="Search by Airline No, Airline Name or Airline Code"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="input-style h-7.5 w-125 max-w-full rounded-sm border border-gray-500!"
+              className="input-style h-7.5 w-121 max-w-full rounded-sm border border-gray-500!"
             />
             <button
               type="button"
-              onClick={() => {
-                resetAddForm();
-                setShowAddModal(true);
-              }}
+              onClick={openAddModal}
               className="mt-0 flex h-7.5 items-center gap-1 rounded-sm border border-gray-600 bg-[#E6F0FA] px-3 text-sm text-green-600 hover:bg-[#dbeafa]"
             >
               <MdAdd className="rounded-full bg-green-600 text-lg text-white" />
@@ -333,13 +307,14 @@ const CoID = (
 
           <section className="px-3.5 pb-3 pt-3">
             <div className={`max-h-[min(540px,calc(100vh-240px))] overflow-auto border border-[#B7ECD0] bg-white ${niceScrollbar}`}>
-              <table className="w-full table-fixed border-collapse text-[12px] text-[#24364d]">
+              <table className="w-full table-fixed border-collapse text-[13px] text-[#24364d]">
                 <colgroup>
                   <col className="w-5.5" />
                   <col className="w-22.5" />
                   <col />
                   <col className="w-25" />
                   <col className="w-37.5" />
+                  <col className="w-16" />
                   <col className="w-16" />
                 </colgroup>
                 <thead className="sticky top-0 z-10">
@@ -349,6 +324,7 @@ const CoID = (
                     <th id="txtAirlineName" className={`${thClass} text-left`}>Airline Name</th>
                     <th id="txtAirlineCode" className={`${thClass} text-left`}>Airline Code</th>
                     <th id="txtVatOnCommission" className={`${thClass} text-center`}>VAT On Commission</th>
+                    <th className={`${thClass} text-center`}>Modify</th>
                     <th className={`${thClass} text-center`}>Delete</th>
                   </tr>
                 </thead>
@@ -366,45 +342,40 @@ const CoID = (
                         <td className="h-7.5 border border-[#B7ECD0] bg-[#fafbfc] text-center text-[10px] text-[#405066]">
                           {selected ? "▶" : isNewRow ? "*" : ""}
                         </td>
-                        <td className={`border border-[#B7ECD0] p-0 ${selected ? "bg-[#F2FAF5]" : ""}`}>
-                          <input
-                            aria-label="Airline No"
-                            maxLength={3}
-                            value={row.no}
-                            onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) => updateCell(row.key, "no", event.target.value.toUpperCase())}
-                            className={cellInputClass}
-                          />
+                        <td className={`border border-[#B7ECD0] px-2 py-1 ${selected ? "bg-[#F2FAF5]" : ""}`}>
+                          <span>{row.no}</span>
                         </td>
-                        <td className="border border-[#B7ECD0] p-0">
-                          <input
-                            aria-label="Airline Name"
-                            maxLength={50}
-                            value={row.name}
-                            onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) => updateCell(row.key, "name", event.target.value)}
-                            className={cellInputClass}
-                          />
+                        <td className="border border-[#B7ECD0] px-2 py-1">
+                          <span>{row.name}</span>
                         </td>
-                        <td className="border border-[#B7ECD0] p-0">
-                          <input
-                            aria-label="Airline Code"
-                            maxLength={3}
-                            value={row.code}
-                            onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) => updateCell(row.key, "code", event.target.value.toUpperCase())}
-                            className={cellInputClass}
-                          />
+                        <td className="border border-[#B7ECD0] px-2 py-1">
+                          <span>{row.code}</span>
                         </td>
                         <td className="border border-[#B7ECD0] text-center">
                           <input
-                            aria-label="VAT On Commission"
+                            aria-label={`VAT on commission for ${row.no}`}
                             type="checkbox"
                             checked={row.vatOnCommission}
-                            onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) => updateCell(row.key, "vatOnCommission", event.target.checked)}
+                            readOnly
+                            tabIndex={-1}
                             className="h-4 w-4 align-middle accent-[#64d96e]"
                           />
+                        </td>
+                        <td className="border border-[#B7ECD0] text-center">
+                          {canDelete && (
+                            <button
+                              type="button"
+                              title={`Modify ${row.no}`}
+                              aria-label={`Modify airline ${row.no}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openModifyModal(row);
+                              }}
+                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-[#287a4b] hover:bg-green-50"
+                            >
+                              <HiOutlinePencilAlt className="text-blue-500" size={17} />
+                            </button>
+                          )}
                         </td>
                         <td className="border border-[#B7ECD0] text-center">
                           {canDelete && (
@@ -414,7 +385,9 @@ const CoID = (
                               aria-label={`Delete airline ${row.no}`}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                setDeleteTarget(row);
+                                const actualLineNumber =
+                                  rows.findIndex((item) => item.key === row.key) + 1;
+                                setDeleteTarget({ row, lineNumber: actualLineNumber });
                               }}
                               className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-[#c0392b] hover:bg-red-50"
                             >
@@ -428,7 +401,7 @@ const CoID = (
 
                   {visibleRows.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="h-15 border border-[#B7ECD0] text-center text-[12px] text-[#7a8794]">
+                      <td colSpan={7} className="h-15 border border-[#B7ECD0] text-center text-[13px] text-[#7a8794]">
                         No airlines found
                       </td>
                     </tr>
@@ -437,16 +410,11 @@ const CoID = (
               </table>
             </div>
 
-            {loading && <p className="mt-2 text-[12px] text-[#667085]">Loading airlines...</p>}
-            {error && <p role="alert" className="mt-2 text-[12px] text-[#c0392b]">{error}</p>}
+            {loading && <p className="mt-2 text-[13px] text-[#667085]">Loading airlines...</p>}
+            {error && <p role="alert" className="mt-2 text-[13px] text-[#c0392b]">{error}</p>}
 
             <div className="mt-5 flex justify-center gap-3">
-              <button id="btnSave" type="button" onClick={() => void handleSave()} disabled={saving || loading} className="btn-style disabled:cursor-not-allowed disabled:opacity-60">
-                {saving ? "Saving..." : <><u>S</u>ave</>}
-              </button>
-              <button id="btnSearch" type="button" onClick={() => searchInputRef.current?.focus()} className="btn-style">
-                <u>S</u>earch
-              </button>
+
               <button id="btnClose" type="button" onClick={handleClose} className="btn-style">
                 <u>C</u>lose
               </button>
@@ -459,37 +427,38 @@ const CoID = (
         <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => {
           if (event.target === event.currentTarget && !adding) setShowAddModal(false);
         }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="add-airline-title" className="w-full max-w-110 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="airline-modal-title" className="w-full max-w-110 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl">
             <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
-              <h2 id="add-airline-title" className="text-[14px] font-semibold text-[#24364d]">Add Airline</h2>
-              <button type="button" aria-label="Close add airline form" disabled={adding} onClick={() => setShowAddModal(false)} className="rounded p-1 text-[#24364d] hover:bg-white/40">
+              <h2 id="airline-modal-title" className="text-[14px] font-semibold text-[#24364d]">{editingTarget ? "Modify Airline" : "Add Airline"}</h2>
+              <button type="button" aria-label="Close airline form" disabled={adding} onClick={() => setShowAddModal(false)} className="rounded p-1 text-[#24364d] hover:bg-white/40">
                 <MdClose size={19} />
               </button>
             </div>
 
-            <form onSubmit={(event) => void handleAdd(event)} className="space-y-3 p-4">
+            <form onSubmit={(event) => void handleModalSubmit(event)} className="space-y-3 p-4">
               <div className="grid grid-cols-[115px_minmax(0,1fr)] items-center gap-3">
-                <label htmlFor="add-airline-no" className="text-[12px] text-[#405066]">Airline No <span className="text-red-600">*</span></label>
-                <input id="add-airline-no" autoFocus maxLength={3} required value={txtAirlineNo} onChange={(event) => txtsetAirlineNo(event.target.value.toUpperCase())} className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+                <label htmlFor="add-airline-no" className="text-[13px] text-[#405066]">Airline No <span className="text-red-600">*</span></label>
+                <input id="add-airline-no" autoFocus maxLength={3} required value={txtAirlineNo} onChange={(event) => txtsetAirlineNo(event.target.value.toUpperCase())}  className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995] w-[30%]" />
 
-                <label htmlFor="add-airline-name" className="text-[12px] text-[#405066]">Airline Name <span className="text-red-600">*</span></label>
-                <input id="add-airline-name" maxLength={50} required value={txtAirlineName} onChange={(event) => txtsetAirlineName(event.target.value)} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+                <label htmlFor="add-airline-name" className="text-[13px] text-[#405066]">Airline Name <span className="text-red-600">*</span></label>
+                <input id="add-airline-name" maxLength={50} required value={txtAirlineName} onChange={(event) => txtsetAirlineName(event.target.value)} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995]" />
 
-                <label htmlFor="add-airline-code" className="text-[12px] text-[#405066]">Airline Code</label>
-                <input id="add-airline-code" maxLength={3} value={txtAirlineCode} onChange={(event) => txtsetAirlineCode(event.target.value.toUpperCase())} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[12px] outline-none focus:border-[#64c995]" />
+                <label htmlFor="add-airline-code" className="text-[13px] text-[#405066]">Airline Code</label>
+                <input id="add-airline-code" maxLength={3} value={txtAirlineCode} onChange={(event) => txtsetAirlineCode(event.target.value.toUpperCase())} className="h-7.5  rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995] w-[30%]" />
 
-                <span className="text-[12px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
-                <label className="flex items-center gap-2 text-[12px] text-[#24364d]">
+                <span className="text-[13px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
+                <label className="flex items-center gap-2 text-[13px] text-[#24364d]">
                   <input type="checkbox" checked={txtVatOnCommission} onChange={(event) => txtsetVatOnCommission(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
                   Enable VAT on commission
                 </label>
               </div>
 
-              {formError && <p role="alert" className="text-[12px] text-red-600">{formError}</p>}
+              {formError && <p role="alert" className="text-[13px] text-red-600">{formError}</p>}
 
               <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
-                <button type="button" disabled={adding} onClick={() => setShowAddModal(false)} className="btn-style">Cancel</button>
-                <button type="submit" disabled={adding} className="btn-style disabled:opacity-60">{adding ? "Adding..." : "Add Airline"}</button>
+                                <button type="submit" disabled={adding} className="btn-style disabled:opacity-60">{adding ? (editingTarget ? "Modifying..." : "Saving...") : (editingTarget ? "Modify" : "Save")}</button>
+                <button type="button" disabled={adding} onClick={resetAddForm} className="btn-style">Clear</button>
+
               </div>
             </form>
           </div>
@@ -535,9 +504,9 @@ const CoID = (
                 id="delete-airline-description"
                 className="text-[13px] text-[#405066]"
               >
-                Do you want to delete airline{" "}
+                Do you want to delete Airline No{" "}
                 <span className="font-semibold text-[#24364d]">
-                  {deleteTarget.no} - {deleteTarget.name}
+                  { deleteTarget.row.no}
                 </span>
                 ?
               </p>
@@ -554,7 +523,7 @@ const CoID = (
                   type="button"
                   disabled={deleting}
                   onClick={() => void handleDelete()}
-                  className="inline-flex items-center gap-1 rounded-sm border border-[#b42318] bg-[#c0392b] px-3 py-1 text-[12px] text-white hover:bg-[#a93226] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-1 rounded-sm border border-[#b42318] bg-[#c0392b] px-3 py-1 text-[13px] text-white hover:bg-[#a93226] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <FiTrash2 size={16} />
                   {deleting ? "Deleting..." : "Delete"}

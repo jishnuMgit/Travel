@@ -48,6 +48,7 @@ export const menuRouteMap: Record<string, string> = {
   travelBspBillImportExport: "/Report/BspBillImportExport",
   travelServiceChargePolicy: "/Setup/ServiceChargePolicy",
   travelServiceType: "/Setup/ServiceType",
+  Customerdivision:"/Setup/Customerdivision",
   /* =========================================================
      PURCHASE
   ========================================================= */
@@ -380,6 +381,13 @@ export const TRAVEL_NODE: MenuNode = {
           fmenubuttons: "0",
           children: [],
         },
+         {
+          fmenuid: "menCustomerdivision",
+          fmenuname: "Customerdivision",
+          fmenucaption: "Customer division",
+          fmenubuttons: "0",
+          children: [],
+        },
       ],
     },
   ],
@@ -431,7 +439,7 @@ export const ADMINISTRATION_NODE: MenuNode = {
       fmenucaption: "Document",
       fmenubuttons: "0",
       children: [],
-    },
+    }
   ],
 };
 

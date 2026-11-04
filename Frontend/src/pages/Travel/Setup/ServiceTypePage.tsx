@@ -1,23 +1,21 @@
-
-import { useEffect, useRef, useState } from "react";
-import Select, { components } from "react-select";
-import type {
-  MenuListProps,
-  GroupBase,
-} from "react-select";
-import type { KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiTrash2 } from "react-icons/fi";
+import { MdAdd, MdClose } from "react-icons/md";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import Select, { components } from "react-select";
+import type { GroupBase, MenuListProps } from "react-select";
 import type { Option } from "../../../components/comman/Combo";
 import Header from "../../../components/comman/Header";
 import selectComponents from "../../../components/comman/selectComponents";
 import { API_BASE_URL } from "../../../config/api";
+import { HiOutlinePencilAlt } from "react-icons/hi";
 
 type ServiceTypeRow = {
   id: number;
-  lkpServiceGroupName: Option | null;
+  lkpServiceGroupName: ServiceGroup | null;
   txtServiceTypeID: string;
-  persistedTxtServiceTypeID: string | null;
+  persistedTxtServiceTypeID: string;
   txtServiceTypeName: string;
   txtPositionNo: string;
 };
@@ -43,28 +41,23 @@ type ServiceTypeApi = {
   fpositionno: number | null;
 };
 
+type ServiceTypePayloadRow = {
+  txtServiceTypeID: string;
+  lkpServiceGroupName: string;
+  txtServiceTypeName: string;
+  txtPositionNo: string;
+};
+
 const API_URL = `${API_BASE_URL}/service-types`;
 
-const createEmptyRow = (id: number): ServiceTypeRow => ({
-  id,
-  lkpServiceGroupName: null,
-  txtServiceTypeID: "",
-  persistedTxtServiceTypeID: null,
-  txtServiceTypeName: "",
-  txtPositionNo: "",
-});
-
 const headCellClass =
-  "whitespace-nowrap border border-[#B7ECD0] bg-[#EEFBF4] px-3 py-2 text-left text-xs font-semibold text-slate-700";
-
-const inputClass =
-  "h-9 w-full border-0 bg-transparent px-3 text-sm text-slate-700 outline-none focus:bg-slate-50 focus:ring-1 focus:ring-inset focus:ring-slate-300";
+  "h-[30px] border border-[#B7ECD0] bg-[#E7F7ED] px-2 text-left font-normal text-[#405066]";
 
 const ServiceGroupMenuList = (
   props: MenuListProps<ServiceGroup, false, GroupBase<ServiceGroup>>
 ) => (
   <components.MenuList {...props}>
-    <div className="sticky top-0 z-10 flex items-center border-b border-[#B7ECD0] bg-[#EEFBF4] px-3 py-2 text-xs font-semibold text-slate-700">
+    <div className="sticky top-0 z-10 flex items-center border-b border-[#B7ECD0] bg-[#E7F7ED] px-3 py-2 text-xs font-semibold text-[#405066]">
       <span className="min-w-0 flex-1 pr-3">Name</span>
       <span className="w-20 shrink-0 border-l border-[#B7ECD0] pl-3 text-center">
         ID
@@ -76,207 +69,242 @@ const ServiceGroupMenuList = (
 
 const ServiceTypePage: React.FC = () => {
   const navigate = useNavigate();
-
-  const [rows, setRows] = useState<ServiceTypeRow[]>(
-    Array.from({ length: 10 }, (_, index) => createEmptyRow(index + 1))
-  );
-
-  const [serviceGroupOptions, setServiceGroupOptions] = useState<
-    ServiceGroup[]
-  >([]);
-
+  const [rows, setRows] = useState<ServiceTypeRow[]>([]);
+  const [serviceGroupOptions, setServiceGroupOptions] = useState<ServiceGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingTarget, setEditingTarget] = useState<ServiceTypeRow | null>(null);
+  const [formError, setFormError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ServiceTypeRow | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const noButtonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Tracks which dropdown is open so Enter can select an option normally.
-  const [openDropdownRowId, setOpenDropdownRowId] = useState<number | null>(
-    null
-  );
+  const [formGroup, setFormGroup] = useState<ServiceGroup | null>(null);
+  const [formServiceTypeID, setFormServiceTypeID] = useState("");
+  const [formServiceTypeName, setFormServiceTypeName] = useState("");
+  const [formPositionNo, setFormPositionNo] = useState("");
 
-  useEffect(() => {
-    if (deleteTarget) {
-      noButtonRef.current?.focus();
-    }
-  }, [deleteTarget]);
-
-  const ensureEmptyRow = (
-    currentRows: ServiceTypeRow[]
-  ): ServiceTypeRow[] => {
-    const result = [...currentRows];
-
-    while (result.length < 10) {
-      result.push(createEmptyRow(result.length + 1));
-    }
-
-    const lastRow = result[result.length - 1];
-
-    const lastRowIsEmpty =
-      !lastRow.lkpServiceGroupName &&
-      !lastRow.txtServiceTypeID.trim() &&
-      !lastRow.txtServiceTypeName.trim() &&
-      !lastRow.txtPositionNo.trim();
-
-    if (!lastRowIsEmpty) {
-      result.push(createEmptyRow(result.length + 1));
-    }
-
-    return result;
-  };
-
-  // Focus a field using its stable DOM ID.
-  const focusField = (rowId: number, field: string) => {
-    requestAnimationFrame(() => {
-      const element = document.getElementById(
-        `service-type-${field}-${rowId}`
-      );
-
-      element?.focus();
-    });
-  };
-
-  // Move to the next field when Enter is pressed.
-  const handleEnter = (
-    event: KeyboardEvent<HTMLInputElement>,
-    rowId: number,
-    field: "txtServiceTypeID" | "txtServiceTypeName" | "txtPositionNo"
-  ) => {
-    if (event.key !== "Enter" || event.shiftKey) return;
-
-    event.preventDefault();
-
-    if (field === "txtServiceTypeID") {
-      focusField(rowId, "txtServiceTypeName");
+  const loadData = async () => {
+    const PstrCoID = localStorage.getItem("PstrCoID");
+    if (!PstrCoID) {
+      setError("Company ID (PstrCoID) was not found in localStorage.");
+      setLoading(false);
       return;
     }
 
-    if (field === "txtServiceTypeName") {
-      focusField(rowId, "txtPositionNo");
-      return;
-    }
+    try {
+      setLoading(true);
+      setError("");
+      const [groupResponse, serviceTypeResponse] = await Promise.all([
+        fetch(`${API_URL}/groups?PstrCoID=${encodeURIComponent(PstrCoID)}`),
+        fetch(`${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}`),
+      ]);
 
-    // Position No. -> next row's Service Group Name.
-    const currentIndex = rows.findIndex((row) => row.id === rowId);
-    const nextRow = rows[currentIndex + 1];
+      const groupData = await groupResponse.json();
+      const serviceTypeData = await serviceTypeResponse.json();
 
-    if (nextRow) {
-      focusField(nextRow.id, "lkpServiceGroupName");
-      return;
-    }
-
-    // Safety fallback: create a new row if one does not exist yet.
-    setRows((currentRows) => ensureEmptyRow(currentRows));
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const nextRows = rows.length + 1;
-        const nextRowId = nextRows;
-        document
-          .getElementById(`service-type-lkpServiceGroupName-${nextRowId}`)
-          ?.focus();
-      });
-    });
-  };
-
-  useEffect(() => {
-    const getData = async () => {
-      const PstrCoID = localStorage.getItem("PstrCoID");
-
-      if (!PstrCoID) {
-        setError("Company ID (PstrCoID) was not found in localStorage.");
-        setLoading(false);
-        return;
+      if (!groupResponse.ok) {
+        throw new Error(groupData.message || "Failed to load service groups.");
+      }
+      if (!serviceTypeResponse.ok) {
+        throw new Error(serviceTypeData.message || "Failed to load service types.");
       }
 
-      try {
-        setLoading(true);
-        setError("");
+      const options: ServiceGroup[] = (groupData as ServiceGroupApi[]).map((item) => ({
+        value: item.fservicetypegroupid,
+        label: item.fservicetypegroupname ?? "",
+      }));
+      setServiceGroupOptions(options);
 
-        const [groupResponse, serviceTypeResponse] = await Promise.all([
-          fetch(
-            `${API_URL}/groups?PstrCoID=${encodeURIComponent(PstrCoID)}`
-          ),
-          fetch(`${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}`),
-        ]);
-
-        const groupData = await groupResponse.json();
-        const serviceTypeData = await serviceTypeResponse.json();
-
-        if (!groupResponse.ok) {
-          throw new Error(
-            groupData.message || "Failed to load service groups."
-          );
-        }
-
-        if (!serviceTypeResponse.ok) {
-          throw new Error(
-            serviceTypeData.message || "Failed to load service types."
-          );
-        }
-
-        const options: ServiceGroup[] = (
-          groupData as ServiceGroupApi[]
-        ).map((item) => ({
-          value: item.fservicetypegroupid,
-          label: item.fservicetypegroupname ?? "",
-        }));
-
-        setServiceGroupOptions(options);
-
-        const loadedRows: ServiceTypeRow[] = (
-          serviceTypeData as ServiceTypeApi[]
-        ).map((item, index) => ({
+      const loadedRows: ServiceTypeRow[] = (serviceTypeData as ServiceTypeApi[]).map(
+        (item, index) => ({
           id: index + 1,
           lkpServiceGroupName:
-            options.find(
-              (option) => option.value === item.fservicetypegroupid
-            ) ?? null,
+            options.find((option) => option.value === item.fservicetypegroupid) ?? {
+              value: item.fservicetypegroupid,
+              label: item.fservicetypegroupname ?? "",
+            },
           txtServiceTypeID: item.fservicetypeid ?? "",
           persistedTxtServiceTypeID: item.fservicetypeid ?? "",
           txtServiceTypeName: item.fservicetypename ?? "",
-          txtPositionNo:
-            item.fpositionno == null ? "" : String(item.fpositionno),
-        }));
+          txtPositionNo: item.fpositionno == null ? "" : String(item.fpositionno),
+        })
+      );
+      setRows(loadedRows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setRows(ensureEmptyRow(loadedRows));
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load data."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void getData();
+  useEffect(() => {
+    void loadData();
+    // Load records when the page is mounted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const updateRow = <K extends keyof ServiceTypeRow>(
-    rowId: number,
-    field: K,
-    value: ServiceTypeRow[K]
-  ) => {
-    setRows((currentRows) => {
-      const updatedRows = currentRows.map((row) =>
-        row.id === rowId ? { ...row, [field]: value } : row
-      );
+  useEffect(() => {
+    if (deleteTarget) noButtonRef.current?.focus();
+  }, [deleteTarget]);
 
-      return ensureEmptyRow(updatedRows);
-    });
+  const visibleRows = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    if (!search) return rows;
+    return rows.filter((row) =>
+      [
+        row.lkpServiceGroupName?.label ?? "",
+        row.lkpServiceGroupName?.value ?? "",
+        row.txtServiceTypeID,
+        row.txtServiceTypeName,
+        row.txtPositionNo,
+      ].some((value) => value.toLowerCase().includes(search))
+    );
+  }, [rows, query]);
+
+  const resetForm = () => {
+    setFormGroup(null);
+    setFormServiceTypeID("");
+    setFormServiceTypeName("");
+    setFormPositionNo("");
+    setFormError("");
+  };
+
+  const openAddModal = () => {
+    setEditingTarget(null);
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openModifyModal = (row: ServiceTypeRow) => {
+    setEditingTarget(row);
+    setFormGroup(row.lkpServiceGroupName);
+    setFormServiceTypeID(row.txtServiceTypeID);
+    setFormServiceTypeName(row.txtServiceTypeName);
+    setFormPositionNo(row.txtPositionNo);
+    setFormError("");
+    setShowModal(true);
+  };
+
+  const handleModalSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const PstrUserID = localStorage.getItem("PstrUserID");
+    const PstrCoID = localStorage.getItem("PstrCoID");
+
+    if (!PstrUserID || !PstrCoID) {
+      setFormError("User ID or Company ID was not found in localStorage.");
+      return;
+    }
+
+    const serviceTypeID = formServiceTypeID.trim();
+    const serviceTypeName = formServiceTypeName.trim();
+    const positionNo = formPositionNo.trim();
+
+    if (!formGroup) {
+      setFormError("Please select a Service Group Name.");
+      return;
+    }
+    if (!serviceTypeID) {
+      setFormError("Please enter Service Type ID.");
+      return;
+    }
+    if (serviceTypeID.length > 4) {
+      setFormError("Service Type ID cannot exceed 4 characters.");
+      return;
+    }
+    if (!serviceTypeName) {
+      setFormError("Please enter Service Type Name.");
+      return;
+    }
+    if (serviceTypeName.length > 50) {
+      setFormError("Service Type Name cannot exceed 50 characters.");
+      return;
+    }
+    if (
+      positionNo &&
+      (!/^-?\d+$/.test(positionNo) ||
+        Number(positionNo) < -32768 ||
+        Number(positionNo) > 32767)
+    ) {
+      setFormError("Position No. must be a whole number between -32768 and 32767.");
+      return;
+    }
+
+    const duplicate = rows.some(
+      (row) =>
+        row.persistedTxtServiceTypeID !== editingTarget?.persistedTxtServiceTypeID &&
+        row.txtServiceTypeID.trim().toLowerCase() === serviceTypeID.toLowerCase()
+    );
+    if (duplicate) {
+      setFormError(`Service Type ID "${serviceTypeID}" already exists.`);
+      return;
+    }
+
+    const nextRows: ServiceTypePayloadRow[] = rows.map((row) => ({
+      txtServiceTypeID:
+        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
+          ? serviceTypeID
+          : row.txtServiceTypeID.trim(),
+      lkpServiceGroupName:
+        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
+          ? formGroup.value
+          : row.lkpServiceGroupName?.value ?? "",
+      txtServiceTypeName:
+        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
+          ? serviceTypeName
+          : row.txtServiceTypeName.trim(),
+      txtPositionNo:
+        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
+          ? positionNo
+          : row.txtPositionNo.trim(),
+    }));
+
+    if (!editingTarget) {
+      nextRows.push({
+        txtServiceTypeID: serviceTypeID,
+        lkpServiceGroupName: formGroup.value,
+        txtServiceTypeName: serviceTypeName,
+        txtPositionNo: positionNo,
+      });
+    }
+
+    try {
+      setSaving(true);
+      setFormError("");
+      const response = await fetch(`${API_URL}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ PstrUserID, PstrCoID, rows: nextRows }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.message ||
+            (editingTarget ? "Failed to modify service type." : "Failed to add service type.")
+        );
+      }
+
+      setShowModal(false);
+      setEditingTarget(null);
+      resetForm();
+      await loadData();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save service type.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-
     const PstrCoID = localStorage.getItem("PstrCoID");
-    const persistedTxtServiceTypeID =
-      deleteTarget.persistedTxtServiceTypeID;
-
-    if (persistedTxtServiceTypeID && !PstrCoID) {
+    if (!PstrCoID) {
       setDeleteError("Company ID (PstrCoID) was not found in localStorage.");
       return;
     }
@@ -284,497 +312,382 @@ const ServiceTypePage: React.FC = () => {
     try {
       setDeleting(true);
       setDeleteError("");
-
-      if (persistedTxtServiceTypeID && PstrCoID) {
-        const response = await fetch(
-          `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}&txtServiceTypeID=${encodeURIComponent(persistedTxtServiceTypeID)}`,
-          { method: "DELETE" }
-        );
-        const result = (await response.json()) as { message?: string };
-
-        if (!response.ok) {
-          throw new Error(result.message || "Failed to delete service type.");
-        }
+      const response = await fetch(
+        `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}&txtServiceTypeID=${encodeURIComponent(deleteTarget.persistedTxtServiceTypeID)}`,
+        { method: "DELETE" }
+      );
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to delete service type.");
       }
-
-      setRows((currentRows) =>
-        ensureEmptyRow(
-          currentRows
-            .filter((row) => row.id !== deleteTarget.id)
-            .map((row, index) => ({ ...row, id: index + 1 }))
-        )
-      );
       setDeleteTarget(null);
+      await loadData();
     } catch (err) {
-      setDeleteError(
-        err instanceof Error ? err.message : "Failed to delete service type."
-      );
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete service type.");
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleSave = async () => {
-    const PstrUserID = localStorage.getItem("PstrUserID");
-    const PstrCoID = localStorage.getItem("PstrCoID");
-
-    if (!PstrUserID || !PstrCoID) {
-      alert("User ID or Company ID was not found in localStorage.");
-      return;
-    }
-
-    const validRows = rows.filter(
-      (row) =>
-        row.txtServiceTypeID.trim() ||
-        row.lkpServiceGroupName ||
-        row.txtServiceTypeName.trim() ||
-        row.txtPositionNo.trim()
-    );
-
-    if (validRows.length === 0) {
-      alert("Please enter at least one service type.");
-      return;
-    }
-
-    const seenIds = new Set<string>();
-
-    for (const row of validRows) {
-      const txtServiceTypeID = row.txtServiceTypeID.trim();
-      const txtServiceTypeName = row.txtServiceTypeName.trim();
-      const txtPositionNo = row.txtPositionNo.trim();
-
-      if (!row.lkpServiceGroupName) {
-        alert(`Please select Service Group Name in line ${row.id}.`);
-        return;
-      }
-
-      if (!txtServiceTypeID) {
-        alert(`Please enter Service Type ID in line ${row.id}.`);
-        return;
-      }
-
-      if (txtServiceTypeID.length > 4) {
-        alert(`Service Type ID in line ${row.id} cannot exceed 4 characters.`);
-        return;
-      }
-
-      if (!txtServiceTypeName) {
-        alert(`Please enter Service Type Name in line ${row.id}.`);
-        return;
-      }
-
-      if (txtServiceTypeName.length > 50) {
-        alert(`Service Type Name in line ${row.id} cannot exceed 50 characters.`);
-        return;
-      }
-
-      if (
-        txtPositionNo &&
-        (!/^-?\d+$/.test(txtPositionNo) ||
-          Number(txtPositionNo) < -32768 ||
-          Number(txtPositionNo) > 32767)
-      ) {
-        alert(
-          `Position No. in line ${row.id} must be a whole number between -32768 and 32767.`
-        );
-        return;
-      }
-
-      if (seenIds.has(txtServiceTypeID)) {
-        alert(`Duplicate Service Type ID: ${txtServiceTypeID}`);
-        return;
-      }
-
-      seenIds.add(txtServiceTypeID);
-    }
-
-    try {
-      setSaving(true);
-      setError("");
-
-      const response = await fetch(`${API_URL}/save`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-           PstrUserID,
-           PstrCoID,
-          rows: validRows.map((row) => ({
-            txtServiceTypeID: row.txtServiceTypeID.trim(),
-            lkpServiceGroupName: row.lkpServiceGroupName!.value,
-            txtServiceTypeName: row.txtServiceTypeName.trim(),
-            txtPositionNo: row.txtPositionNo.trim(),
-          })),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to save service types.");
-      }
-
-      alert(result.message || "Service types saved successfully.");
-
-      const refreshedResponse = await fetch(
-        `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}`
-      );
-
-      if (!refreshedResponse.ok) {
-        throw new Error("Records were saved, but refreshing the list failed.");
-      }
-
-      const refreshedData: ServiceTypeApi[] = await refreshedResponse.json();
-
-      const refreshedRows: ServiceTypeRow[] = refreshedData.map(
-        (item, index) => ({
-          id: index + 1,
-          lkpServiceGroupName:
-            serviceGroupOptions.find(
-              (option) => option.value === item.fservicetypegroupid
-            ) ?? null,
-          txtServiceTypeID: item.fservicetypeid ?? "",
-          persistedTxtServiceTypeID: item.fservicetypeid ?? "",
-          txtServiceTypeName: item.fservicetypename ?? "",
-          txtPositionNo:
-            item.fpositionno == null ? "" : String(item.fpositionno),
-        })
-      );
-
-      setRows(ensureEmptyRow(refreshedRows));
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to save service types.";
-
-      setError(message);
-      alert(message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen w-full bg-white p-3 sm:p-5">
-      <main className="mx-auto w-full max-w-300 overflow-hidden border border-slate-400 bg-white shadow-sm">
-        <Header Name="Service Type " />
+    <div className="flex min-h-full w-full items-start justify-center bg-white px-4 py-4">
+      <div className="min-h-fit w-230 max-w-full bg-white p-0">
+        <main className="w-full overflow-hidden border border-gray-400 bg-white">
+          <Header Name="Service Type" />
 
-        <div className="overflow-x-auto p-4 sm:p-5">
-          {error && (
-            <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-sm text-red-700">
-              {error}
+          <div className="flex flex-wrap items-center gap-3 px-3 pt-3">
+            <input
+              ref={searchInputRef}
+              aria-label="Search service types"
+              placeholder="Search by Service Group, Service Type ID or Name"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="input-style h-7.5 w-164.5 max-w-full rounded-sm border border-gray-500!"
+            />
+            <button
+              type="button"
+              onClick={openAddModal}
+              className="mt-0 flex h-7.5 items-center gap-1 rounded-sm border border-gray-600 bg-[#E6F0FA] px-3 text-sm text-green-600 hover:bg-[#dbeafa]"
+            >
+              <MdAdd className="rounded-full bg-green-600 text-lg text-white" />
+              Add
+            </button>
+          </div>
+
+          <section className="px-3.5 pb-3 pt-3">
+            {error && (
+              <p role="alert" className="mb-2 text-[13px] text-[#c0392b]">
+                {error}
+              </p>
+            )}
+            <div className="max-h-[min(540px,calc(100vh-240px))] overflow-auto border border-[#B7ECD0] bg-white">
+              {loading ? (
+                <p className="py-8 text-center text-[13px] text-[#405066]">
+                  Loading service types...
+                </p>
+              ) : (
+                <table className="w-full min-w-[780px] table-fixed border-collapse text-[13px] text-[#24364d]">
+                  <colgroup>
+                    <col className="w-12" />
+                    <col className="w-44" />
+                    <col className="w-32" />
+                    <col />
+                    <col className="w-24" />
+                    <col className="w-16" />
+                    <col className="w-16" />
+                  </colgroup>
+                  <thead className="sticky top-0 z-10">
+                    <tr>
+                      <th className={headCellClass}>Line</th>
+                      <th className={headCellClass}>Service Group Name</th>
+                      <th className={headCellClass}>Service Type ID</th>
+                      <th className={headCellClass}>Service Type Name</th>
+                      <th className={headCellClass}>Position No.</th>
+                      <th className={`${headCellClass} text-center`}>Modify</th>
+                      <th className={`${headCellClass} text-center`}>Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="border border-[#B7ECD0] px-3 py-8 text-center text-slate-500">
+                          {rows.length === 0
+                            ? "No service types found. Click Add to create one."
+                            : "No matching service types found."}
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleRows.map((row) => {
+                        const lineNumber = rows.findIndex((item) => item.id === row.id) + 1;
+                        return (
+                          <tr key={row.id} className="odd:bg-white even:bg-slate-50/60">
+                            <td className="border border-[#B7ECD0] px-3 py-1.5 text-center">
+                              {lineNumber}
+                            </td>
+                            <td className="border border-[#B7ECD0] px-3 py-1.5">
+                              {row.lkpServiceGroupName?.label || "—"}
+                            </td>
+                            <td className="border border-[#B7ECD0] px-3 py-1.5">
+                              {row.txtServiceTypeID}
+                            </td>
+                            <td className="border border-[#B7ECD0] px-3 py-1.5">
+                              {row.txtServiceTypeName}
+                            </td>
+                            <td className="border border-[#B7ECD0] px-3 py-1.5 text-right">
+                              {row.txtPositionNo || "—"}
+                            </td>
+                            <td className="border border-[#B7ECD0] px-2 py-1 text-center">
+                              <button
+                                type="button"
+                                aria-label={`Modify service type on line ${lineNumber}`}
+                                title="Modify service type"
+                                disabled={saving || deleting}
+                                onClick={() => openModifyModal(row)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded text-[#287a50] hover:bg-[#e8f7ee] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <HiOutlinePencilAlt className="text-blue-500" size={17} />
+                              </button>
+                            </td>
+                            <td className="border border-[#B7ECD0] px-2 py-1 text-center">
+                              <button
+                                type="button"
+                                aria-label={`Delete service type on line ${lineNumber}`}
+                                title="Delete service type"
+                                disabled={saving || deleting}
+                                onClick={() => {
+                                  setDeleteError("");
+                                  setDeleteTarget(row);
+                                }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <FiTrash2 aria-hidden="true" size={17} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
-          )}
+          </section>
 
-          {loading ? (
-            <div className="py-6 text-center text-sm text-slate-600">
-              Loading service types...
+          <footer className="flex justify-center gap-3   px-4 py-3">
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              disabled={saving || deleting}
+              className="btn-style disabled:opacity-50"
+            >
+              Close
+            </button>
+          </footer>
+        </main>
+      </div>
+
+      {showModal && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving) {
+              setShowModal(false);
+              setEditingTarget(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="service-type-modal-title"
+            className="w-full max-w-[440px] overflow-visible rounded-md border border-[#91a7bb] bg-white shadow-xl"
+          >
+            <div className="flex h-[38px] items-center justify-between rounded-t-md bg-[#9fdfbc] px-3">
+              <h2 id="service-type-modal-title" className="text-[14px] font-semibold text-[#24364d]">
+                {editingTarget ? "Modify Service Type" : "Add Service Type"}
+              </h2>
+              <button
+                type="button"
+                aria-label="Close service type form"
+                disabled={saving}
+                onClick={() => {
+                  setShowModal(false);
+                  setEditingTarget(null);
+                }}
+                className="rounded p-1 text-[#24364d] hover:bg-white/40 disabled:opacity-50"
+              >
+                <MdClose size={19} />
+              </button>
             </div>
-          ) : (
-            <table className="w-full min-w-190 border-collapse">
-              <thead>
-                <tr>
-                  <th scope="col" className={`${headCellClass} w-20`}>
-                    Line
-                  </th>
-                  <th
-                    id="lkpServiceGroupName"
-                    scope="col"
-                    className={headCellClass}
-                  >
-                    Service Group Name
-                  </th>
-                  <th
-                    id="txtServiceTypeID"
-                    scope="col"
-                    className={headCellClass}
-                  >
-                    Service Type ID
-                  </th>
-                  <th
-                    id="txtServiceTypeName"
-                    scope="col"
-                    className={headCellClass}
-                  >
-                    Service Type Name
-                  </th>
-                  <th
-                    id="txtPositionNo"
-                    scope="col"
-                    className={`${headCellClass} w-32`}
-                  >
-                    Position No.
-                  </th>
-                  <th scope="col" className={`${headCellClass} w-20 text-center`}>
-                    Delete
-                  </th>
-                </tr>
-              </thead>
 
-              <tbody>
-                {rows.map((row, index) => (
-                  <tr
-                    key={row.id}
-                    className="odd:bg-white even:bg-slate-50/60"
-                  >
-                    <td className="border border-[#B7ECD0] px-3 py-1.5 text-center text-sm text-slate-600">
-                      {index + 1}
-                    </td>
+            <form onSubmit={(event) => void handleModalSubmit(event)} className="space-y-3 p-4">
+              <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-3">
+                <label htmlFor="service-type-group" className="text-[13px] text-[#405066]">
+                  Service Group <span className="text-red-600">*</span>
+                </label>
+                <Select<ServiceGroup, false>
+                  inputId="service-type-group"
+                  instanceId="service-type-group"
+                  aria-label="Service Group"
+                  components={{ ...selectComponents, MenuList: ServiceGroupMenuList }}
+                  options={serviceGroupOptions}
+                  value={formGroup}
+                  onChange={(option) => setFormGroup(option)}
+                  getOptionLabel={(option) => option.label}
+                  formatOptionLabel={(option, { context }) =>
+                    context === "value" ? (
+                      <span className="block truncate">{option.label}</span>
+                    ) : (
+                      <div className="flex w-full min-w-0 items-center text-[13px]">
+                        <span className="min-w-0 flex-1 truncate pr-3">{option.label}</span>
+                        <span className="w-20 shrink-0 border-l border-[#B7ECD0] pl-3 text-center font-semibold text-slate-600">
+                          {option.value}
+                        </span>
+                      </div>
+                    )
+                  }
+                  isSearchable
+                  placeholder="Search service group..."
+                  menuPosition="fixed"
+                  menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
+                  className="text-[13px]"
+                  classNames={{
+                    control: () => "!min-h-[30px] !rounded-sm !border-[#B7C7D7] !shadow-none",
+                    valueContainer: () => "!min-w-0 !px-2 !py-0",
+                    input: () => "!m-0 !p-0 !text-[13px]",
+                    singleValue: () => "!text-[13px] !text-[#24364d]",
+                    placeholder: () => "!text-[13px] !text-slate-400",
+                    menu: () => "!z-[10001] !mt-1 !rounded-sm !border !border-[#B7ECD0] !shadow-lg",
+                    menuList: () => "!p-0",
+                    option: ({ isFocused, isSelected }) =>
+                      `!rounded-none !px-3 !py-2 ${
+                        isSelected
+                          ? "!bg-[#d9f1e3] !text-[#24364d]"
+                          : isFocused
+                            ? "!bg-[#eff8f2] !text-[#24364d]"
+                            : "!bg-white !text-[#24364d]"
+                      }`,
+                  }}
+                  styles={{
+                    menuPortal: (base) => ({ ...base, zIndex: 10001 }),
+                    option: (base) => ({ ...base, padding: 0 }),
+                  }}
+                />
 
-                    <td className="border border-[#B7ECD0] p-0">
-                      <Select<ServiceGroup, false>
-                        inputId={`service-type-lkpServiceGroupName-${row.id}`}
-                        instanceId={`service-type-lkpServiceGroupName-${row.id}`}
-                        aria-label={`Service group for line ${index + 1}`}
-                        components={{
-                          ...selectComponents,
-                          MenuList: ServiceGroupMenuList,
-                        }}
-                        options={serviceGroupOptions}
-                        value={row.lkpServiceGroupName as ServiceGroup | null}
-                        onChange={(option) =>
-                          updateRow(row.id, "lkpServiceGroupName", option)
-                        }
-                        onMenuOpen={() => setOpenDropdownRowId(row.id)}
-                        onMenuClose={() => setOpenDropdownRowId(null)}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" || event.shiftKey) return;
+                <label htmlFor="service-type-id" className="text-[13px] text-[#405066]">
+                  Service Type ID <span className="text-red-600">*</span>
+                </label>
+                <input
+                  id="service-type-id"
+                  autoFocus
+                  required
+                  maxLength={4}
+                  value={formServiceTypeID}
+                  onChange={(event) => setFormServiceTypeID(event.target.value)}
+                  className="h-[30px] w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                />
 
-                          // Let react-select handle Enter while its menu is open.
-                          if (openDropdownRowId === row.id) return;
+                <label htmlFor="service-type-name" className="text-[13px] text-[#405066]">
+                  Service Type Name <span className="text-red-600">*</span>
+                </label>
+                <input
+                  id="service-type-name"
+                  required
+                  maxLength={50}
+                  value={formServiceTypeName}
+                  onChange={(event) => setFormServiceTypeName(event.target.value)}
+                  className="h-[30px] w-full rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                />
 
-                          event.preventDefault();
-                          focusField(row.id, "txtServiceTypeID");
-                        }}
-                        getOptionLabel={(option) => option.label}
-                        formatOptionLabel={(option, { context }) => {
-                          if (context === "value") {
-                            return (
-                              <span className="block truncate">
-                                {option.label}
-                              </span>
-                            );
-                          }
+                <label htmlFor="service-type-position" className="text-[13px] text-[#405066]">
+                  Position No.
+                </label>
+                <input
+                  id="service-type-position"
+                  type="number"
+                  step="1"
+                  value={formPositionNo}
+                  onChange={(event) => setFormPositionNo(event.target.value)}
+                  className="h-[30px] w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                />
+              </div>
 
-                          return (
-                            <div className="flex w-full min-w-0 items-center text-sm">
-                              <span className="min-w-0 flex-1 truncate pr-3">
-                                {option.label}
-                              </span>
-                              <span className="w-20 shrink-0 border-l border-[#B7ECD0] pl-3 text-center font-semibold text-slate-600">
-                                {option.value}
-                              </span>
-                            </div>
-                          );
-                        }}
-                        isSearchable
-                        isClearable
-                        placeholder=""
-                        classNames={{
-                          control: () =>
-                            "!min-h-[36px] !rounded-none !border-0 !bg-transparent !shadow-none",
-                          valueContainer: () => "!min-w-0 !px-3 !py-0",
-                          input: () => "!m-0 !p-0 !text-sm",
-                          singleValue: () =>
-                            "!max-w-full !text-sm !text-slate-700",
-                          menu: () =>
-                            "!z-[999999] !mt-1 !rounded-md !border !border-[#B7ECD0] !shadow-lg",
-                          menuList: () => "!p-0",
-                          option: ({ isFocused, isSelected }) =>
-                            `!rounded-none !py-2 !px-3 ${
-                              isSelected
-                                ? "!bg-slate-200 !text-slate-800"
-                                : isFocused
-                                  ? "!bg-slate-100 !text-slate-800"
-                                  : "!bg-white !text-slate-700"
-                            }`,
-                        }}
-                        menuPosition="fixed"
-                        menuPortalTarget={
-                          typeof document !== "undefined"
-                            ? document.body
-                            : undefined
-                        }
-                        styles={{
-                          menu: (base) => ({
-                            ...base,
-                            width: "132%",
-                            minWidth: "200px",
-                          }),
-                          menuPortal: (base) => ({
-                            ...base,
-                            zIndex: 999999,
-                          }),
-                          control: (base) => ({
-                            ...base,
-                            cursor: "pointer",
-                          }),
-                          option: (base, state) => ({
-                            ...base,
-                            padding: 0,
-                            backgroundColor: state.isSelected
-                              ? "#e2e8f0"
-                              : state.isFocused
-                                ? "#f1f5f9"
-                                : "#ffffff",
-                            color: "#334155",
-                          }),
-                        }}
-                      />
-                    </td>
+              {formError && (
+                <p role="alert" className="text-[13px] text-red-600">
+                  {formError}
+                </p>
+              )}
 
-                    <td className="border border-[#B7ECD0] p-0">
-                      <input
-                        id={`service-type-txtServiceTypeID-${row.id}`}
-                        aria-label={`Service type ID for line ${index + 1}`}
-                        maxLength={4}
-                        value={row.txtServiceTypeID}
-                        onChange={(event) =>
-                          updateRow(row.id, "txtServiceTypeID", event.target.value)
-                        }
-                        onKeyDown={(event) =>
-                          handleEnter(event, row.id, "txtServiceTypeID")
-                        }
-                        className={inputClass}
-                      />
-                    </td>
-
-                    <td className="border border-[#B7ECD0] p-0">
-                      <input
-                        id={`service-type-txtServiceTypeName-${row.id}`}
-                        aria-label={`Service type name for line ${index + 1}`}
-                        maxLength={50}
-                        value={row.txtServiceTypeName}
-                        onChange={(event) =>
-                          updateRow(row.id, "txtServiceTypeName", event.target.value)
-                        }
-                        onKeyDown={(event) =>
-                          handleEnter(event, row.id, "txtServiceTypeName")
-                        }
-                        className={inputClass}
-                      />
-                    </td>
-
-                    <td className="border border-[#B7ECD0] p-0">
-                      <input
-                        id={`service-type-txtPositionNo-${row.id}`}
-                        type="number"
-                        step="1"
-                        aria-label={`Position for line ${index + 1}`}
-                        value={row.txtPositionNo}
-                        onChange={(event) =>
-                          updateRow(row.id, "txtPositionNo", event.target.value)
-                        }
-                        onKeyDown={(event) =>
-                          handleEnter(event, row.id, "txtPositionNo")
-                        }
-                        className={`${inputClass} text-right`}
-                      />
-                    </td>
-
-                    <td className="border border-[#B7ECD0] px-2 py-1 text-center">
-                      <button
-                        type="button"
-                        aria-label={`Delete service type on line ${index + 1}`}
-                        title="Delete service type"
-                        disabled={saving || deleting}
-                        onClick={() => {
-                          setDeleteError("");
-                          setDeleteTarget(row);
-                        }}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded text-red-600 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <FiTrash2 aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
+                <button type="submit" disabled={saving} className="btn-style disabled:opacity-60">
+                  {saving
+                    ? editingTarget
+                      ? "Modifying..."
+                      : "Saving..."
+                    : editingTarget
+                      ? "Modify"
+                      : "Save"}
+                </button>
+                <button type="button" disabled={saving} onClick={resetForm} className="btn-style disabled:opacity-60">
+                  Clear
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
+      )}
 
-        <footer className="flex justify-center gap-3 border-t border-[#B7ECD0] bg-slate-50 px-4 py-3 sm:px-5">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={loading || saving}
-            className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            disabled={saving}
-            className="btn-style disabled:opacity-50"
-          >
-            Close
-          </button>
-        </footer>
-      </main>
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-1000000 flex items-center justify-center bg-slate-950/40 p-4"
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && !deleting) {
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deleting) {
               setDeleteTarget(null);
               setDeleteError("");
             }
           }}
         >
-          <section
+          <div
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-service-type-title"
             aria-describedby="delete-service-type-description"
-            className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+            className="w-full max-w-[400px] overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl"
           >
-            <h2
-              id="delete-service-type-title"
-              className="text-lg font-semibold text-slate-800"
-            >
-              Delete service type?
-            </h2>
-            <p
-              id="delete-service-type-description"
-              className="mt-2 text-sm text-slate-600"
-            >
-              Do you want to delete service type{" "}
-              <span className="font-medium text-slate-800">
-                {deleteTarget.txtServiceTypeID || "on this row"}
-              </span>
-              ?
-            </p>
-            {deleteError && (
-              <p className="mt-3 text-sm text-red-700" role="alert">
-                {deleteError}
-              </p>
-            )}
-            <div className="mt-5 flex justify-end gap-3">
+            <div className="flex h-[38px] items-center justify-between bg-[#9fdfbc] px-3">
+              <h2 id="delete-service-type-title" className="text-[14px] font-semibold text-[#24364d]">
+                Delete Service Type
+              </h2>
               <button
-                ref={noButtonRef}
                 type="button"
+                aria-label="Close delete confirmation"
+                disabled={deleting}
                 onClick={() => {
                   setDeleteTarget(null);
                   setDeleteError("");
                 }}
-                disabled={deleting}
-                className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 disabled:opacity-50"
+                className="rounded p-1 text-[#24364d] hover:bg-white/40 disabled:opacity-50"
               >
-                No
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete()}
-                disabled={deleting}
-                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deleting ? "Deleting..." : "Yes"}
+                <MdClose size={19} />
               </button>
             </div>
-          </section>
+            <div className="p-4">
+              <p id="delete-service-type-description" className="text-[13px] text-[#405066]">
+                Do you want to delete Line{" "}
+                <span className="font-semibold text-[#24364d]">
+                  {rows.findIndex((row) => row.id === deleteTarget.id) + 1}
+                </span>
+                ?
+              </p>
+              {deleteError && (
+                <p role="alert" className="mt-3 text-[13px] text-red-600">
+                  {deleteError}
+                </p>
+              )}
+              <div className="mt-5 flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
+                <button
+                  ref={noButtonRef}
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => {
+                    setDeleteTarget(null);
+                    setDeleteError("");
+                  }}
+                  className="btn-style disabled:opacity-60"
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                  className="btn-style disabled:opacity-60"
+                >
+                  {deleting ? "Deleting..." : "Yes"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
