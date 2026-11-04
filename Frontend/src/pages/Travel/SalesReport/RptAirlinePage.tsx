@@ -1,6 +1,5 @@
 
 import React, { useState } from "react";
-import Select from "react-select";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -8,32 +7,51 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
 import Header from "../../../components/comman/Header";
-import {
-  fieldSelectProps,
-  type Option,
-} from "../../../components/comman/Combo";
+import CommonTableSelect, {
+  type TableSelectOption,
+} from "../../../components/comman/CommonTableSelect";
+import CustomLinkedPairSelect, {
+  type PairSelectOption,
+} from "../../../components/comman/CustomLinkedPairSelect";
 
 dayjs.extend(customParseFormat);
 
 const DATE_FORMAT = "DD/MM/YYYY";
 
-const branchOptions: Option[] = [
-  { value: "JEDDAH", label: "JEDDAH" },
-  { value: "RIYADH", label: "RIYADH" },
-  { value: "DAMMAM", label: "DAMMAM" },
+type Option = {
+  value: string;
+  label: string;
+};
+
+const branchOptions: TableSelectOption[] = [
+  { value: "JEDDAH", label: "JEDDAH", id: "JH" },
+  { value: "RIYADH", label: "RIYADH", id: "RH" },
+  { value: "DAMMAM", label: "DAMMAM", id: "DM" },
 ];
 
-const airlineIdOptions: Option[] = [
+const branchColumns = [
+  { key: "label", label: "Branch", width: "1fr" },
+  { key: "id", label: "ID", width: "70px", align: "right" as const },
+];
+
+const airlineIdOptions = [
   { value: "SV", label: "SV" },
   { value: "EK", label: "EK" },
   { value: "QR", label: "QR" },
 ];
 
-const airlineNameOptions: Option[] = [
+const airlineNameOptions = [
   { value: "SV", label: "SAUDIA" },
   { value: "EK", label: "EMIRATES" },
   { value: "QR", label: "QATAR AIRWAYS" },
 ];
+
+const airlinePairOptions: PairSelectOption[] = airlineIdOptions.map((id) => ({
+  value: id.value,
+  firstLabel: id.label,
+  secondLabel:
+    airlineNameOptions.find((item) => item.value === id.value)?.label ?? "",
+}));
 
 type RadioOption = {
   value: string;
@@ -129,9 +147,7 @@ const AppDatePicker: React.FC<{
     sx={{
       width: 140,
       minWidth: 0,
-      "& .MuiPickersTextField-root": {
-        width: "100%",
-      },
+      "& .MuiPickersTextField-root": { width: "100%",  },
       "& .MuiPickersInputBase-root": {
         width: "100%",
         height: "28px",
@@ -149,15 +165,8 @@ const AppDatePicker: React.FC<{
         minWidth: 0,
         overflow: "hidden",
       },
-      "& .MuiPickersInputBase-sectionContent": {
-        fontSize: "12px",
-        color: "#344054",
-      },
-      "& .MuiInputAdornment-root": {
-        margin: 0,
-        padding: 0,
-        flexShrink: 0,
-      },
+      "& .MuiPickersInputBase-sectionContent": { fontSize: "12px", color: "#344054",  },
+      "& .MuiInputAdornment-root": { margin: 0, padding: 0, flexShrink: 0,  },
       "& .MuiIconButton-root": {
         width: "22px",
         height: "26px",
@@ -165,34 +174,19 @@ const AppDatePicker: React.FC<{
         margin: 0,
         flexShrink: 0,
       },
-      "& .MuiSvgIcon-root": {
-        fontSize: "15px",
-      },
-      "& .MuiPickersOutlinedInput-notchedOutline": {
-        borderColor: "#B7C7D7",
-      },
-      "& .MuiPickersInputBase-root:hover .MuiPickersOutlinedInput-notchedOutline":
-        {
-          borderColor: "#91b8e0",
-        },
-      "& .MuiPickersInputBase-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
-        {
-          borderColor: "#A0DFBD",
-          borderWidth: "1px",
-        },
+      "& .MuiSvgIcon-root": { fontSize: "15px",  },
+      "& .MuiPickersOutlinedInput-notchedOutline": { borderColor: "#B7C7D7", },
+      "& .MuiPickersInputBase-root:hover .MuiPickersOutlinedInput-notchedOutline": { borderColor: "#91b8e0", },
+      "& .MuiPickersInputBase-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline": { borderColor: "#A0DFBD", borderWidth: "1px",},
     }}
   />
 );
-
 /* Period label */
-const FieldLabel: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => (
+const FieldLabel: React.FC<{ children: React.ReactNode }> = ({children,}) => (
   <div className="flex h-7 items-center justify-end rounded-xs border border-[#d9e1e9] bg-[#fafbfc] px-2 text-[12px] text-[#40566d]">
     {children}
   </div>
 );
-
 /* Order By radio group */
 const AirlineOrderGroup: React.FC<{
   value: string;
@@ -202,7 +196,6 @@ const AirlineOrderGroup: React.FC<{
     <legend className="px-1 text-[12px] text-[#40566d]">
       Order By
     </legend>
-
     <div className="flex flex-col gap-1.25">
       {[
         { value: "Airline No.", label: "Airline No." },
@@ -210,17 +203,14 @@ const AirlineOrderGroup: React.FC<{
       ].map((option) => (
         <label
           key={option.value}
-          className="flex cursor-pointer select-none items-center gap-1.25 whitespace-nowrap"
-        >
+          className="flex cursor-pointer select-none items-center gap-1.25 whitespace-nowrap" >
           <input
             type="radio"
             name="airlineOrder"
             value={option.value}
             checked={value === option.value}
             onChange={() => onChange(option.value)}
-            className="accent-emerald-500"
-          />
-
+            className="accent-emerald-500"  />
           <span className="text-[12px] leading-4.25 text-[#30465d]">
             {option.label}
           </span>
@@ -229,8 +219,6 @@ const AirlineOrderGroup: React.FC<{
     </div>
   </fieldset>
 );
-
-/* Print and Close buttons */
 const ActionButton: React.FC<{
   children: React.ReactNode;
   onClick: () => void;
@@ -238,33 +226,23 @@ const ActionButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className="btn-style min-w-20"
-  >
+    className="btn-style min-w-20" >
     {children}
   </button>
 );
-
 const RptAirlinePage: React.FC = () => {
   const [rdgbranch, setrdgbranch] = useState("One Branch");
-  const [branch, setBranch] = useState<Option | null>(
-    branchOptions[0],
-  );
-
+  const [branch, setBranch] = useState<TableSelectOption | null>(branchOptions[0]);
   const [rdgairline, setrdgairline] = useState("One Airline");
   const [airlineId, setAirlineId] = useState<Option | null>(null);
   const [airlineName, setAirlineName] = useState<Option | null>(null);
-
   const [fromDate, setFromDate] = useState("01/10/2026");
-  const [toDate, setToDate] = useState(
-    dayjs().format(DATE_FORMAT),
-  );
-
+  const [toDate, setToDate] = useState(dayjs().format(DATE_FORMAT),);
   const [rdgDetSum, setrdgDetSum] = useState("Summary");
   const [rdgSR, setrdgSR] = useState("Sales");
   const [rdginvoiced, setrdginvoiced] = useState("Invoiced");
   const [rdgDI, setrdgDI] = useState("All");
   const [orderBy, setOrderBy] = useState("Airline No.");
-
   const handlePrint = () => {
     console.log("Airline Sales Report:", {
       rdgbranch,
@@ -282,26 +260,18 @@ const RptAirlinePage: React.FC = () => {
       rdgDI,
       orderBy,
     });
-
-    // Connect your existing report/print API here.
   };
-
   const handleClose = () => {
     window.history.back();
   };
-
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <div className="min-h-screen w-full bg-white p-1.5 ">
         <main className="mx-auto h-fit w-full max-w-220 relative overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
           <Header Name="Airline Sales" />
-
           <section className="px-4.25 pb-3.5 pt-2.5">
-            {/* Two main sections: left controls and right filters */}
             <div className="grid grid-cols-[minmax(0,1fr)_125px] items-start gap-x-3.5">
-              {/* LEFT SECTION */}
               <div className="flex min-w-0 flex-col gap-2.5">
-                {/* Branch */}
                 <div className="grid min-h-17.5 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                   <RadioGroup
                     name="rdgbranch"
@@ -311,23 +281,23 @@ const RptAirlinePage: React.FC = () => {
                     options={[
                       { value: "One Branch", label: "One Branch" },
                       { value: "All Branch", label: "All Branch" },
-                    ]}
-                  />
-
-                  <div className="w-55 max-w-full">
-                    <Select
-                      inputId="lpkBranch"
-                      options={branchOptions}
-                      value={branch}
-                      onChange={setBranch}
-                      isDisabled={rdgbranch !== "One Branch"}
-                      {...fieldSelectProps}
-                    />
+                    ]} />
+                  <div className="w-62.5 max-w-full">
+                    {rdgbranch === "One Branch" && (
+                      <CommonTableSelect
+                        inputId="lpkBranch"
+                        options={branchOptions}
+                        value={branch}
+                        onChange={setBranch}
+                        columns={branchColumns}
+                        width="250px"
+                        menuWidth="305px"
+                        placeholder="Select Branch"
+                      />
+                    )}
                   </div>
                 </div>
-
-                {/* Airline */}
-                <div className="grid min-h-17.5 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
+               <div className="grid min-h-17.5 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                   <RadioGroup
                     name="rdgairline"
                     value={rdgairline}
@@ -336,66 +306,52 @@ const RptAirlinePage: React.FC = () => {
                     options={[
                       { value: "One Airline", label: "One Airline" },
                       { value: "All Airline", label: "All Airline" },
-                    ]}
-                  />
-
-                  <div className="grid min-w-0 grid-cols-[120px_minmax(0,1fr)] gap-1.25">
-                    <Select
-                      inputId="lkpairlineId"
-                      options={airlineIdOptions}
-                      value={airlineId}
-                      isDisabled={rdgairline !== "One Airline"}
-                      onChange={(option) => {
-                        setAirlineId(option);
-                        setAirlineName(
-                          airlineNameOptions.find(
-                            (item) => item.value === option?.value,
-                          ) ?? null,
-                        );
-                      }}
-                      {...fieldSelectProps}
-                    />
-
-                    <Select
-                      inputId="lkpairlineName"
-                      options={airlineNameOptions}
-                      value={airlineName}
-                      isDisabled={rdgairline !== "One Airline"}
-                      onChange={(option) => {
-                        setAirlineName(option);
-                        setAirlineId(
-                          airlineIdOptions.find(
-                            (item) => item.value === option?.value,
-                          ) ?? null,
-                        );
-                      }}
-                      {...fieldSelectProps}
-                    />
+                    ]} />
+                  <div className="min-w-0">
+                    {rdgairline === "One Airline" && (
+                      <CustomLinkedPairSelect
+                        firstInputId="lkpairlineId"
+                        secondInputId="lkpairlineName"
+                        options={airlinePairOptions}
+                        firstValue={airlineId?.value ?? null}
+                        secondValue={airlineName?.value ?? null}
+                        firstHeader="Airline ID"
+                        secondHeader="Airline Name"
+                        firstWidth={120}
+                        secondWidth={450}
+                        gap={4}
+                        headerFontSize="12px"
+                        onChange={(option) => {
+                          setAirlineId(
+                            option
+                              ? { value: option.value, label: option.firstLabel }
+                              : null,
+                          );
+                          setAirlineName(
+                            option
+                              ? { value: option.value, label: option.secondLabel }
+                              : null,
+                          );
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
-
-                {/* Period */}
                 <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3 ">
                   <FieldLabel>Period :</FieldLabel>
-
                   <div className="flex min-w-0 grid-cols-2 gap-2.5">
                     <AppDatePicker
                       id="dtpFromDate"
                       label="Period start date"
                       value={fromDate}
-                      onChange={setFromDate}
-                    />
-
+                      onChange={setFromDate} />
                     <AppDatePicker
                       id="dtpToDate"
                       label="Period end date"
                       value={toDate}
-                      onChange={setToDate}
-                    />
+                      onChange={setToDate} />
                   </div>
                 </div>
-
-                {/* Detail and buttons */}
                 <div className="grid grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                   <RadioGroup
                     name="rdgDetSum"
@@ -407,7 +363,6 @@ const RptAirlinePage: React.FC = () => {
                       { value: "Summary", label: "Summary" },
                     ]}
                   />
-
                   <div className="flex flex-wrap items-center justify-center gap-2 mt-10">
                     <ActionButton onClick={handlePrint}>
                       <u>P</u>rint
@@ -419,7 +374,6 @@ const RptAirlinePage: React.FC = () => {
                   </div>
                 </div>
               </div>
-
               {/* RIGHT SECTION */}
               <div className="flex min-w-0 flex-col items-stretch gap-2">
                 {/* Sales / Refund / Net */}
@@ -434,7 +388,6 @@ const RptAirlinePage: React.FC = () => {
                     { value: "Net", label: "Net" },
                   ]}
                 />
-
                 {/* Invoice Status */}
                 <RadioGroup
                   name="rdginvoiced"
@@ -445,9 +398,7 @@ const RptAirlinePage: React.FC = () => {
                     { value: "Not-Invoiced", label: "Not-Invoiced" },
                     { value: "Invoiced", label: "Invoiced" },
                     { value: "All", label: "All" },
-                  ]}
-                />
-
+                  ]} />
                 {/* Domestic / International */}
                 <RadioGroup
                   name="rdgDI"
@@ -458,14 +409,10 @@ const RptAirlinePage: React.FC = () => {
                     { value: "Domestic", label: "Domestic" },
                     { value: "International", label: "International" },
                     { value: "All", label: "All" },
-                  ]}
-                />
-
-                {/* Order By: directly under Domestic / International */}
+                  ]}  />
                 <AirlineOrderGroup
                   value={orderBy}
-                  onChange={setOrderBy}
-                />
+                  onChange={setOrderBy}  />
               </div>
             </div>
           </section>
@@ -474,5 +421,4 @@ const RptAirlinePage: React.FC = () => {
     </LocalizationProvider>
   );
 };
-
 export default RptAirlinePage;
