@@ -2,9 +2,9 @@ export type AirlineRecord = {
   fcoid: string;
   fairlineno: string;
   fairlinename: string;
-  fairlineid: string | null;
-  fsuserid?: string | null;
-  fsuserdate?: string | null;
+  fairlinecode: string | null;
+  fcuserid?: string | null;
+  fcuserdate?: string | null;
   fmuserid?: string | null;
   fmuserdate?: string | null;
   fvatoncommission: boolean | null;
@@ -13,9 +13,9 @@ export type AirlineRecord = {
 export type AirlinePayload = {
   fairlineno: string;
   fairlinename: string;
-  fairlineid: string | null;
+  fairlinecode: string | null;
   fvatoncommission: boolean;
-  fsuserid?: string | null;
+  fcuserid?: string | null;
   fmuserid?: string | null;
 };
 

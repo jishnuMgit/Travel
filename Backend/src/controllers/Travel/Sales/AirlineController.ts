@@ -6,10 +6,10 @@ type AirlineBody = {
   fcoid?: unknown;
   fairlineno?: unknown;
   fairlinename?: unknown;
-  fairlineid?: unknown;
-  fvatoncommission?: unknown;
-  fsuserid?: unknown;
+  fairlinecode?: unknown;
+  fcuserid?: unknown;
   fmuserid?: unknown;
+  fvatoncommission?: unknown;
 };
 
 const cleanString = (value: unknown) =>
@@ -19,33 +19,21 @@ const validateAirline = (body: AirlineBody, requireCompany = false) => {
   const fcoid = cleanString(body.fcoid);
   const fairlineno = cleanString(body.fairlineno);
   const fairlinename = cleanString(body.fairlinename);
-  const fairlineid = cleanString(body.fairlineid);
-  const fsuserid = cleanString(body.fsuserid);
+  const fairlinecode = cleanString(body.fairlinecode);
+  const fcuserid = cleanString(body.fcuserid);
   const fmuserid = cleanString(body.fmuserid);
+  const fvatoncommission = body.fvatoncommission;
 
-  if (requireCompany && !fcoid) return { error: "fcoid is required." };
-  if (!fairlineno) return { error: "Airline No is required." };
-  if (!fairlinename) return { error: "Airline Name is required." };
-  if (fcoid.length > 3) return { error: "fcoid must not exceed 3 characters." };
-  if (fairlineno.length > 3) return { error: "Airline No must not exceed 3 characters." };
-  if (fairlinename.length > 50) return { error: "Airline Name must not exceed 50 characters." };
-  if (fairlineid.length > 3) return { error: "Airline Code must not exceed 3 characters." };
-  if (fsuserid.length > 30 || fmuserid.length > 30) {
-    return { error: "User ID must not exceed 30 characters." };
-  }
-  if (body.fvatoncommission !== undefined && typeof body.fvatoncommission !== "boolean") {
-    return { error: "fvatoncommission must be true or false." };
-  }
 
   return {
     data: {
       fcoid,
       fairlineno,
       fairlinename,
-      fairlineid: fairlineid || null,
-      fvatoncommission: body.fvatoncommission === true,
-      fsuserid: fsuserid || null,
+      fairlinecode: fairlinecode || null,
+      fcuserid: fcuserid || null,
       fmuserid: fmuserid || null,
+      fvatoncommission: fvatoncommission === true,
     },
   };
 };
@@ -74,7 +62,7 @@ export const getAirlines = async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      `SELECT fcoid, fairlineno, fairlinename, fairlineid, fvatoncommission
+      `SELECT fcoid, fairlineno, fairlinename, fairlinecode, fvatoncommission
          FROM dbo.tblairline
         WHERE fcoid = $1
         ORDER BY fairlineno`,
@@ -91,8 +79,9 @@ export const getAirline = async (req: Request, res: Response) => {
   const { fcoid, fairlineno } = req.params;
   try {
     const result = await pool.query(
-      `SELECT fcoid, fairlineno, fairlinename, fairlineid,
-              fsuserid, fsuserdate, fmuserid, fmuserdate, fvatoncommission
+      `SELECT fcoid, fairlineno, fairlinename, fairlinecode,
+              fcuserid, fcuserdate, fmuserid, fmuserdate,
+              fvatoncommission
          FROM dbo.tblairline
         WHERE fcoid = $1 AND fairlineno = $2`,
       [fcoid, fairlineno],
@@ -120,17 +109,18 @@ export const createAirline = async (req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `INSERT INTO dbo.tblairline
-         (fcoid, fairlineno, fairlinename, fairlineid,
-          fsuserid, fsuserdate, fvatoncommission)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)
-       RETURNING fcoid, fairlineno, fairlinename, fairlineid,
-                 fsuserid, fsuserdate, fmuserid, fmuserdate, fvatoncommission`,
+         (fcoid, fairlineno, fairlinename, fairlinecode,
+          fcuserid, fcuserdate, fmuserid, fmuserdate, fvatoncommission)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, NULL, NULL, $6)
+       RETURNING fcoid, fairlineno, fairlinename, fairlinecode,
+                 fcuserid, fcuserdate, fmuserid, fmuserdate,
+                 fvatoncommission`,
       [
         data.fcoid,
         data.fairlineno,
         data.fairlinename,
-        data.fairlineid,
-        data.fsuserid,
+        data.fairlinecode,
+        data.fcuserid,
         data.fvatoncommission,
       ],
     );
@@ -156,21 +146,22 @@ export const updateAirline = async (req: Request, res: Response) => {
       `UPDATE dbo.tblairline
           SET fairlineno = $3,
               fairlinename = $4,
-              fairlineid = $5,
-              fvatoncommission = $6,
-              fmuserid = $7,
-              fmuserdate = CURRENT_DATE
+              fairlinecode = $5,
+              fmuserid = $6,
+              fmuserdate = CURRENT_DATE,
+              fvatoncommission = $7
         WHERE fcoid = $1 AND fairlineno = $2
-        RETURNING fcoid, fairlineno, fairlinename, fairlineid,
-                  fsuserid, fsuserdate, fmuserid, fmuserdate, fvatoncommission`,
+        RETURNING fcoid, fairlineno, fairlinename, fairlinecode,
+                  fcuserid, fcuserdate, fmuserid, fmuserdate,
+                  fvatoncommission`,
       [
         fcoid,
         oldFairlineno,
         data.fairlineno,
         data.fairlinename,
-        data.fairlineid,
-        data.fvatoncommission,
+        data.fairlinecode,
         data.fmuserid,
+        data.fvatoncommission,
       ],
     );
 

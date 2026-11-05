@@ -9,7 +9,7 @@ import {
   updateAirline,
 } from "../../../utils/airlineApi";
 import type { AirlinePayload, AirlineRecord } from "../../../utils/airlineApi";
-import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 import { HiOutlinePencilAlt } from "react-icons/hi";
 
 
@@ -28,8 +28,8 @@ type AirlinePageProps = {
   onClose?: () => void;
   /** Company ID (dbo.tblairline.fcoid). If omitted, VITE_COMPANY_ID is used. */
   fcoid?: string;
-  /** User ID saved in fsuserid/fmuserid. */
-  fsuserid?: string;
+  /** User ID saved in fcuserid/fmuserid. */
+  fcuserid?: string;
 };
 
 const MIN_ROWS = 20;
@@ -68,12 +68,12 @@ const mapRecordToRow = (record: AirlineRecord): AirlineRow => ({
   originalValues: {
     no: record.fairlineno ?? "",
     name: record.fairlinename ?? "",
-    code: record.fairlineid ?? "",
+    code: record.fairlinecode ?? "",
     vatOnCommission: Boolean(record.fvatoncommission),
   },
   no: record.fairlineno ?? "",
   name: record.fairlinename ?? "",
-  code: record.fairlineid ?? "",
+  code: record.fairlinecode ?? "",
   vatOnCommission: Boolean(record.fvatoncommission),
 });
 
@@ -94,7 +94,7 @@ const niceScrollbar = [
 const thClass =
   "h-[30px] border border-[#B7ECD0] bg-[#E7F7ED] px-2 font-normal text-[#405066]";
 
-const AirlinePage: React.FC<AirlinePageProps> = ({ onClose, fcoid, fsuserid }) => {
+const AirlinePage: React.FC<AirlinePageProps> = ({ onClose, fcoid, fcuserid }) => {
 const CoID = (
   fcoid ||
   localStorage.getItem("PstrCoID") ||
@@ -114,7 +114,7 @@ const CoID = (
   const [txtAirlineNo, txtsetAirlineNo] = useState("");
   const [txtAirlineName, txtsetAirlineName] = useState("");
   const [txtAirlineCode, txtsetAirlineCode] = useState("");
-  const [txtVatOnCommission, txtsetVatOnCommission] = useState(false);
+  const [chkVatOnCommision, txtsetVatOnCommission] = useState(false);
   const [formError, setFormError] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -247,9 +247,9 @@ const CoID = (
     const payload: AirlinePayload = {
       fairlineno: airlineNo,
       fairlinename: airlineName,
-      fairlineid: airlineCode || null,
-      fvatoncommission: txtVatOnCommission,
-      fsuserid: fsuserid || localStorage.getItem("PstrUserID") || null,
+      fairlinecode: airlineCode || null,
+      fvatoncommission: chkVatOnCommision,
+      fcuserid: fcuserid || localStorage.getItem("PstrUserID") || null,
       fmuserid:  localStorage.getItem("PstrUserID") || null,
     };
 
@@ -323,7 +323,7 @@ const CoID = (
                     <th id="txtAirlineNo" className={`${thClass} text-left`}>Airline No</th>
                     <th id="txtAirlineName" className={`${thClass} text-left`}>Airline Name</th>
                     <th id="txtAirlineCode" className={`${thClass} text-left`}>Airline Code</th>
-                    <th id="txtVatOnCommission" className={`${thClass} text-center`}>VAT On Commission</th>
+                    <th id="chkVatOnCommision" className={`${thClass} text-center`}>VAT On Commission</th>
                     <th className={`${thClass} text-center`}>Modify</th>
                     <th className={`${thClass} text-center`}>Delete</th>
                   </tr>
@@ -448,7 +448,7 @@ const CoID = (
 
                 <span className="text-[13px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
                 <label className="flex items-center gap-2 text-[13px] text-[#24364d]">
-                  <input type="checkbox" checked={txtVatOnCommission} onChange={(event) => txtsetVatOnCommission(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
+                  <input type="checkbox" checked={chkVatOnCommision} onChange={(event) => txtsetVatOnCommission(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
                   
                 </label>
               </div>

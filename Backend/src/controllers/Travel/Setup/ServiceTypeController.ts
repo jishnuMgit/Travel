@@ -59,9 +59,14 @@ export const GetData = async (req: Request, res: Response) => {
           dbo.tblservicetype.fcoid,
           dbo.tblservicetype.fservicetypeid,
           dbo.tblservicetype.fservicetypegroupid,
-          dbo.tblservicetypegroup.fservicetypegroupname,
           dbo.tblservicetype.fservicetypename,
-          dbo.tblservicetype.fpositionno
+          dbo.tblservicetype.fctacarriercode,
+          dbo.tblservicetype.fcuserid,
+          dbo.tblservicetype.fcuserdate,
+          dbo.tblservicetype.fmuserid,
+          dbo.tblservicetype.fmuserdate,
+          dbo.tblservicetype.fpositionno,
+          dbo.tblservicetypegroup.fservicetypegroupname
        FROM dbo.tblservicetype
        LEFT JOIN dbo.tblservicetypegroup
           ON dbo.tblservicetypegroup.fcoid =
@@ -242,22 +247,22 @@ export const SaveData = async (req: Request, res: Response) => {
       if (persistedTxtServiceTypeID) {
         const result = await client.query(
           `UPDATE dbo.tblservicetype
-           SET fservicetypeid = $3,
-               fservicetypegroupid = $4,
-               fservicetypename = $5,
-               fmuserid = $6,
+           SET fservicetypeid = $2,
+               fservicetypegroupid = $3,
+               fservicetypename = $4,
+               fmuserid = $5,
                fmuserdate = CURRENT_TIMESTAMP,
-               fpositionno = $7
+               fpositionno = $6
            WHERE fcoid = $1
-             AND fservicetypeid = $2`,
+             AND fservicetypeid = $7`,
           [
             PstrCoID,
-            persistedTxtServiceTypeID,
             fservicetypeid,
             fservicetypegroupid,
             fservicetypename,
             String(PstrUserID),
             fpositionno,
+            persistedTxtServiceTypeID,
           ]
         );
 
@@ -273,11 +278,16 @@ export const SaveData = async (req: Request, res: Response) => {
               fservicetypeid,
               fservicetypegroupid,
               fservicetypename,
+              fctacarriercode,
               fcuserid,
               fcuserdate,
+              fmuserid,
+              fmuserdate,
               fpositionno
            )
-           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
+           VALUES (
+             $1, $2, $3, $4, NULL, $5, CURRENT_TIMESTAMP, NULL, NULL, $6
+           )`,
           [
             PstrCoID,
             fservicetypeid,
