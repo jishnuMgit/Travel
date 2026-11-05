@@ -14,7 +14,7 @@ import {
 import "./LoginPage.css";
 import selectComponents from "../../components/comman/selectComponents";
 import { notifyAuthStateChanged } from "../../utils/authStorage";
-//hiii
+
 type LoginResponse = {
   success: boolean;
   message?: string;
