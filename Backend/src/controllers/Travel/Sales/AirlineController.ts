@@ -74,8 +74,7 @@ export const getAirlines = async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      `SELECT fcoid, fairlineno, fairlinename, fairlineid,
-              fsuserid, fsuserdate, fmuserid, fmuserdate, fvatoncommission
+      `SELECT fcoid, fairlineno, fairlinename, fairlineid, fvatoncommission
          FROM dbo.tblairline
         WHERE fcoid = $1
         ORDER BY fairlineno`,

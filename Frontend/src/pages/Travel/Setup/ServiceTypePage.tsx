@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { MdAdd, MdClose } from "react-icons/md";
-import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 import Select, { components } from "react-select";
 import type { GroupBase, MenuListProps } from "react-select";
 import type { Option } from "../../../components/comman/Combo";
@@ -42,6 +42,7 @@ type ServiceTypeApi = {
 };
 
 type ServiceTypePayloadRow = {
+  persistedTxtServiceTypeID: string;
   txtServiceTypeID: string;
   lkpServiceGroupName: string;
   txtServiceTypeName: string;
@@ -246,33 +247,15 @@ const ServiceTypePage: React.FC = () => {
       return;
     }
 
-    const nextRows: ServiceTypePayloadRow[] = rows.map((row) => ({
-      txtServiceTypeID:
-        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
-          ? serviceTypeID
-          : row.txtServiceTypeID.trim(),
-      lkpServiceGroupName:
-        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
-          ? formGroup.value
-          : row.lkpServiceGroupName?.value ?? "",
-      txtServiceTypeName:
-        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
-          ? serviceTypeName
-          : row.txtServiceTypeName.trim(),
-      txtPositionNo:
-        row.persistedTxtServiceTypeID === editingTarget?.persistedTxtServiceTypeID
-          ? positionNo
-          : row.txtPositionNo.trim(),
-    }));
-
-    if (!editingTarget) {
-      nextRows.push({
+    const nextRows: ServiceTypePayloadRow[] = [
+      {
+        persistedTxtServiceTypeID: editingTarget?.persistedTxtServiceTypeID ?? "",
         txtServiceTypeID: serviceTypeID,
         lkpServiceGroupName: formGroup.value,
         txtServiceTypeName: serviceTypeName,
         txtPositionNo: positionNo,
-      });
-    }
+      },
+    ];
 
     try {
       setSaving(true);
@@ -331,7 +314,7 @@ const ServiceTypePage: React.FC = () => {
 
   return (
     <div className="flex min-h-full w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-230 max-w-full bg-white p-0">
+      <div className="min-h-fit w-220 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
           <Header Name="Service Type" />
 
@@ -342,7 +325,7 @@ const ServiceTypePage: React.FC = () => {
               placeholder="Search by Service Group, Service Type ID or Name"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="input-style h-7.5 w-164.5 max-w-full rounded-sm border border-gray-500!"
+              className="input-style h-7.5 w-150 max-w-full rounded-sm border border-gray-500!"
             />
             <button
               type="button"
@@ -366,12 +349,12 @@ const ServiceTypePage: React.FC = () => {
                   Loading service types...
                 </p>
               ) : (
-                <table className="w-full min-w-[780px] table-fixed border-collapse text-[13px] text-[#24364d]">
+                <table className="w-full min-w-190 table-fixed border-collapse text-[13px] text-[#24364d]">
                   <colgroup>
                     <col className="w-12" />
                     <col className="w-44" />
                     <col className="w-32" />
-                    <col />
+                    <col className="w-50" />
                     <col className="w-24" />
                     <col className="w-16" />
                     <col className="w-16" />
@@ -468,7 +451,7 @@ const ServiceTypePage: React.FC = () => {
 
       {showModal && (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !saving) {
               setShowModal(false);
@@ -480,9 +463,9 @@ const ServiceTypePage: React.FC = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="service-type-modal-title"
-            className="w-full max-w-[440px] overflow-visible rounded-md border border-[#91a7bb] bg-white shadow-xl"
+            className="w-full max-w-130 overflow-visible rounded-md border border-[#91a7bb] bg-white shadow-xl"
           >
-            <div className="flex h-[38px] items-center justify-between rounded-t-md bg-[#9fdfbc] px-3">
+            <div className="flex h-9.5 items-center justify-between rounded-t-md bg-[#9fdfbc] px-3">
               <h2 id="service-type-modal-title" className="text-[14px] font-semibold text-[#24364d]">
                 {editingTarget ? "Modify Service Type" : "Add Service Type"}
               </h2>
@@ -505,7 +488,8 @@ const ServiceTypePage: React.FC = () => {
                 <label htmlFor="service-type-group" className="text-[13px] text-[#405066]">
                   Service Group <span className="text-red-600">*</span>
                 </label>
-                <Select<ServiceGroup, false>
+               <div className="w-[70%]">
+                 <Select<ServiceGroup, false>
                   inputId="service-type-group"
                   instanceId="service-type-group"
                   aria-label="Service Group"
@@ -537,7 +521,7 @@ const ServiceTypePage: React.FC = () => {
                     input: () => "!m-0 !p-0 !text-[13px]",
                     singleValue: () => "!text-[13px] !text-[#24364d]",
                     placeholder: () => "!text-[13px] !text-slate-400",
-                    menu: () => "!z-[10001] !mt-1 !rounded-sm !border !border-[#B7ECD0] !shadow-lg",
+                    menu: () => "!z-[10001] !mt-1 !rounded-sm !border !border-[#B7ECD0] !shadow-lg ",
                     menuList: () => "!p-0",
                     option: ({ isFocused, isSelected }) =>
                       `!rounded-none !px-3 !py-2 ${
@@ -548,11 +532,23 @@ const ServiceTypePage: React.FC = () => {
                             : "!bg-white !text-[#24364d]"
                       }`,
                   }}
-                  styles={{
-                    menuPortal: (base) => ({ ...base, zIndex: 10001 }),
-                    option: (base) => ({ ...base, padding: 0 }),
-                  }}
+                         styles={{
+                             menuPortal: (base) => ({
+                              ...base,
+                              zIndex: 10001,
+                              width: "42%",
+                             }),
+                            menu: (base) => ({
+                             ...base,
+                              width: "42%",
+                            }),
+                            option: (base) => ({
+                              ...base,
+                              padding: 0,
+                            }),
+                          }}
                 />
+               </div>
 
                 <label htmlFor="service-type-id" className="text-[13px] text-[#405066]">
                   Service Type ID <span className="text-red-600">*</span>
@@ -564,10 +560,10 @@ const ServiceTypePage: React.FC = () => {
                   maxLength={4}
                   value={formServiceTypeID}
                   onChange={(event) => setFormServiceTypeID(event.target.value)}
-                  className="h-[30px] w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                  className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
                 />
 
-                <label htmlFor="service-type-name" className="text-[13px] text-[#405066]">
+                <label htmlFor="service-type-name" className="text-[13px] text-[#405066] whitespace-nowrap">
                   Service Type Name <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -576,11 +572,11 @@ const ServiceTypePage: React.FC = () => {
                   maxLength={50}
                   value={formServiceTypeName}
                   onChange={(event) => setFormServiceTypeName(event.target.value)}
-                  className="h-[30px] w-full rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                  className="h-7.5 w-[70%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
                 />
 
                 <label htmlFor="service-type-position" className="text-[13px] text-[#405066]">
-                  Position No.
+                  Position No.<span className="text-red-600">*</span> 
                 </label>
                 <input
                   id="service-type-position"
@@ -588,7 +584,7 @@ const ServiceTypePage: React.FC = () => {
                   step="1"
                   value={formPositionNo}
                   onChange={(event) => setFormPositionNo(event.target.value)}
-                  className="h-[30px] w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                  className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
                 />
               </div>
 
@@ -619,7 +615,7 @@ const ServiceTypePage: React.FC = () => {
 
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !deleting) {
               setDeleteTarget(null);
@@ -632,9 +628,9 @@ const ServiceTypePage: React.FC = () => {
             aria-modal="true"
             aria-labelledby="delete-service-type-title"
             aria-describedby="delete-service-type-description"
-            className="w-full max-w-[400px] overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl"
+            className="w-full max-w-100 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl"
           >
-            <div className="flex h-[38px] items-center justify-between bg-[#9fdfbc] px-3">
+            <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
               <h2 id="delete-service-type-title" className="text-[14px] font-semibold text-[#24364d]">
                 Delete Service Type
               </h2>

@@ -249,11 +249,11 @@ const CoID = (
       fairlinename: airlineName,
       fairlineid: airlineCode || null,
       fvatoncommission: txtVatOnCommission,
-      fsuserid: fsuserid || null,
-      fmuserid: fsuserid || null,
+      fsuserid: fsuserid || localStorage.getItem("PstrUserID") || null,
+      fmuserid:  localStorage.getItem("PstrUserID") || null,
     };
 
-    try {
+    try { 
       if (editingTarget) {
         const originalNo = editingTarget.originalNo ?? editingTarget.no;
         await updateAirline(CoID, originalNo, payload);
@@ -437,7 +437,7 @@ const CoID = (
 
             <form onSubmit={(event) => void handleModalSubmit(event)} className="space-y-3 p-4">
               <div className="grid grid-cols-[115px_minmax(0,1fr)] items-center gap-3">
-                <label htmlFor="add-airline-no" className="text-[13px] text-[#405066]">Airline No <span className="text-red-600">*</span></label>
+                <label htmlFor="add-airline-no" className="text-[13px] text-[#405066]">Airline No. <span className="text-red-600">*</span></label>
                 <input id="add-airline-no" autoFocus maxLength={3} required value={txtAirlineNo} onChange={(event) => txtsetAirlineNo(event.target.value.toUpperCase())}  className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995] w-[30%]" />
 
                 <label htmlFor="add-airline-name" className="text-[13px] text-[#405066]">Airline Name <span className="text-red-600">*</span></label>
@@ -449,7 +449,7 @@ const CoID = (
                 <span className="text-[13px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
                 <label className="flex items-center gap-2 text-[13px] text-[#24364d]">
                   <input type="checkbox" checked={txtVatOnCommission} onChange={(event) => txtsetVatOnCommission(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
-                  Enable VAT on commission
+                  
                 </label>
               </div>
 

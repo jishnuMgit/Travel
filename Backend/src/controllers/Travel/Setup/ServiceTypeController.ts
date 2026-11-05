@@ -8,9 +8,9 @@ import pool from "../../../DB/db";
  */
 export const getGroupOptions = async (req: Request, res: Response) => {
   try {
-    const PstrCoID = String(req.query.PstrCoID ?? "").trim();
+    const fcoid = String(req.query.PstrCoID ?? "").trim();
 
-    if (!PstrCoID) {
+    if (!fcoid) {
       return res.status(400).json({
         message: "Company ID is required.",
       });
@@ -27,7 +27,7 @@ export const getGroupOptions = async (req: Request, res: Response) => {
        ORDER BY
           dbo.tblservicetypegroup.fpositionno NULLS LAST,
           dbo.tblservicetypegroup.fservicetypegroupname`,
-      [PstrCoID]
+      [fcoid]
     );
 
     return res.json(result.rows);
@@ -46,9 +46,9 @@ export const getGroupOptions = async (req: Request, res: Response) => {
  */
 export const GetData = async (req: Request, res: Response) => {
   try {
-    const PstrCoID = String(req.query.PstrCoID ?? "").trim();
+    const fcoid = String(req.query.PstrCoID ?? "").trim();
 
-    if (!PstrCoID) {
+    if (!fcoid) {
       return res.status(400).json({
         message: "Company ID is required.",
       });
@@ -72,7 +72,7 @@ export const GetData = async (req: Request, res: Response) => {
        ORDER BY
           dbo.tblservicetype.fpositionno NULLS LAST,
           dbo.tblservicetype.fservicetypeid`,
-      [PstrCoID]
+      [fcoid]
     );
 
     return res.json(result.rows);
@@ -89,10 +89,10 @@ export const GetData = async (req: Request, res: Response) => {
  * DELETE dbo.tblservicetype
  */
 export const DeleteData = async (req: Request, res: Response) => {
-  const PstrCoID = String(req.query.PstrCoID ?? "").trim();
-  const txtServiceTypeID = String(req.query.txtServiceTypeID ?? "").trim();
+  const fcoid = String(req.query.PstrCoID ?? "").trim();
+  const fservicetypeid = String(req.query.txtServiceTypeID ?? "").trim();
 
-  if (!PstrCoID || !txtServiceTypeID) {
+  if (!fcoid || !fservicetypeid) {
     return res.status(400).json({
       message: "Company ID and service type ID are required.",
     });
@@ -104,7 +104,7 @@ export const DeleteData = async (req: Request, res: Response) => {
        WHERE fcoid = $1
          AND fservicetypeid = $2
        RETURNING fservicetypeid`,
-      [PstrCoID, txtServiceTypeID]
+      [fcoid, fservicetypeid]
     );
 
     if (result.rowCount === 0) {
@@ -164,49 +164,49 @@ export const SaveData = async (req: Request, res: Response) => {
   const seenIds = new Set<string>();
 
   for (const row of validRows) {
-    const txtServiceTypeID = String(row.txtServiceTypeID ?? "").trim();
-    const lkpServiceGroupName = String(row.lkpServiceGroupName ?? "").trim();
-    const txtServiceTypeName = String(row.txtServiceTypeName ?? "").trim();
-    const txtPositionNo = String(row.txtPositionNo ?? "").trim();
+    const fservicetypeid = String(row.txtServiceTypeID ?? "").trim();
+    const fservicetypegroupid = String(row.lkpServiceGroupName ?? "").trim();
+    const fservicetypename = String(row.txtServiceTypeName ?? "").trim();
+    const fpositionno = String(row.txtPositionNo ?? "").trim();
 
-    if (!txtServiceTypeID || !lkpServiceGroupName || !txtServiceTypeName) {
+    if (!fservicetypeid || !fservicetypegroupid || !fservicetypename) {
       return res.status(400).json({
         message:
           "Service Type ID, Service Group Name, and Service Type Name are required.",
       });
     }
 
-    if (txtServiceTypeID.length > 4) {
+    if (fservicetypeid.length > 4) {
       return res.status(400).json({
-        message: `Service Type ID "${txtServiceTypeID}" must not exceed 4 characters.`,
+        message: `Service Type ID "${fservicetypeid}" must not exceed 4 characters.`,
       });
     }
 
-    if (lkpServiceGroupName.length > 4) {
+    if (fservicetypegroupid.length > 4) {
       return res.status(400).json({
         message: "Service Group ID must not exceed 4 characters.",
       });
     }
 
-    if (txtServiceTypeName.length > 50) {
+    if (fservicetypename.length > 50) {
       return res.status(400).json({
-        message: `Service Type Name for "${txtServiceTypeID}" must not exceed 50 characters.`,
+        message: `Service Type Name for "${fservicetypeid}" must not exceed 50 characters.`,
       });
     }
 
-    if (!txtPositionNo) {
+    if (!fpositionno) {
       return res.status(400).json({
-        message: `Position number is required for Service Type ID "${txtServiceTypeID}".`,
+        message: `Position number is required for Service Type ID "${fservicetypeid}".`,
       });
     }
 
-    if (seenIds.has(txtServiceTypeID)) {
+    if (seenIds.has(fservicetypeid)) {
       return res.status(400).json({
-        message: `Duplicate Service Type ID: ${txtServiceTypeID}`,
+        message: `Duplicate Service Type ID: ${fservicetypeid}`,
       });
     }
 
-    seenIds.add(txtServiceTypeID);
+    seenIds.add(fservicetypeid);
   }
 
   const client = await pool.connect();
@@ -215,61 +215,79 @@ export const SaveData = async (req: Request, res: Response) => {
     await client.query("BEGIN");
 
     for (const row of validRows) {
-      const txtServiceTypeID = String(row.txtServiceTypeID).trim();
-      const lkpServiceGroupName = String(row.lkpServiceGroupName).trim();
-      const txtServiceTypeName = String(row.txtServiceTypeName).trim();
+      const fservicetypeid = String(row.txtServiceTypeID).trim();
+      const fservicetypegroupid = String(row.lkpServiceGroupName).trim();
+      const fservicetypename = String(row.txtServiceTypeName).trim();
       const txtPositionNo = String(row.txtPositionNo ?? "").trim();
-      const position = txtPositionNo ? Number(txtPositionNo) : null;
+      const fpositionno = txtPositionNo ? Number(txtPositionNo) : null;
 
       const groupResult = await client.query(
         `SELECT 1
          FROM dbo.tblservicetypegroup
          WHERE dbo.tblservicetypegroup.fcoid = $1
            AND dbo.tblservicetypegroup.fservicetypegroupid = $2`,
-        [PstrCoID, lkpServiceGroupName]
+        [PstrCoID, fservicetypegroupid]
       );
 
       if (groupResult.rowCount === 0) {
         throw new Error(
-          `Service group "${lkpServiceGroupName}" does not exist for this company.`
+          `Service group "${fservicetypegroupid}" does not exist for this company.`
         );
       }
 
-      await client.query(
-        `INSERT INTO dbo.tblservicetype (
-            fcoid,
+      const persistedTxtServiceTypeID = String(
+        row.persistedTxtServiceTypeID ?? ""
+      ).trim();
+
+      if (persistedTxtServiceTypeID) {
+        const result = await client.query(
+          `UPDATE dbo.tblservicetype
+           SET fservicetypeid = $3,
+               fservicetypegroupid = $4,
+               fservicetypename = $5,
+               fmuserid = $6,
+               fmuserdate = CURRENT_TIMESTAMP,
+               fpositionno = $7
+           WHERE fcoid = $1
+             AND fservicetypeid = $2`,
+          [
+            PstrCoID,
+            persistedTxtServiceTypeID,
             fservicetypeid,
             fservicetypegroupid,
             fservicetypename,
-            fcuserid,
-            fcuserdate,
-            fmuserid,
-            fmuserdate,
-            fpositionno
-         )
-         VALUES (
-            $1, $2, $3, $4, $5,
-            CURRENT_TIMESTAMP,
-            $5, CURRENT_TIMESTAMP, $6
-         )
-         ON CONFLICT (fcoid, fservicetypeid)
-         DO UPDATE SET
-            fservicetypegroupid =
-                EXCLUDED.fservicetypegroupid,
-            fservicetypename =
-                EXCLUDED.fservicetypename,
-            fmuserid = EXCLUDED.fcuserid,
-            fmuserdate = CURRENT_TIMESTAMP,
-            fpositionno = EXCLUDED.fpositionno`,
-        [
-          PstrCoID,
-          txtServiceTypeID,
-          lkpServiceGroupName,
-          txtServiceTypeName,
-          String(PstrUserID),
-          position,
-        ]
-      );
+            String(PstrUserID),
+            fpositionno,
+          ]
+        );
+
+        if (result.rowCount === 0) {
+          throw new Error(
+            `Service type "${persistedTxtServiceTypeID}" was not found.`
+          );
+        }
+      } else {
+        await client.query(
+          `INSERT INTO dbo.tblservicetype (
+              fcoid,
+              fservicetypeid,
+              fservicetypegroupid,
+              fservicetypename,
+              fcuserid,
+              fcuserdate,
+              fpositionno
+           )
+           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)`,
+          [
+            PstrCoID,
+            fservicetypeid,
+            fservicetypegroupid,
+            fservicetypename,
+            String(PstrUserID),
+            fpositionno,
+          ]
+        );
+      }
     }
 
     await client.query("COMMIT");
