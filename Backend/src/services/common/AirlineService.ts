@@ -19,7 +19,7 @@ export const getAirlines = async (
       SELECT 
         fairlineno,
         fairlinename,
-        fairlineid
+        fairlinecode
       FROM dbo.tblairline
       WHERE fcoid = $1
       ORDER BY fairlineno ASC
@@ -41,4 +41,3 @@ export const getAirlines = async (
     });
   }
 };
-
