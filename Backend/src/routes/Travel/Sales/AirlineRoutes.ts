@@ -9,10 +9,10 @@ import {
 
 const AirlineRouter = Router();
 
-AirlineRouter.get("/:fcoid", getAirlines);
-AirlineRouter.get("/:fcoid/:fairlineno", getAirline);
+AirlineRouter.get("/:PstrCoID", getAirlines);
+AirlineRouter.get("/:PstrCoID/:StrAirlineNo", getAirline);
 AirlineRouter.post("/", createAirline);
-AirlineRouter.put("/:fcoid/:oldFairlineno", updateAirline);
-AirlineRouter.delete("/:fcoid/:fairlineno", deleteAirline);
-
+AirlineRouter.put("/:PstrCoID/:oldStrAirlineNo", updateAirline);
+AirlineRouter.delete("/:PstrCoID/:StrAirlineNo", deleteAirline);
+ 
 export default AirlineRouter;

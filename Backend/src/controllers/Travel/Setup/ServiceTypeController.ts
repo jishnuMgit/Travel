@@ -1,36 +1,70 @@
-
 import { Request, Response } from "express";
 import pool from "../../../DB/db";
 
+/**
+ * Common stored procedure executor
+ *
+ * Parameter order must match dbo.sp_pageservicetype:
+ * 1. Mode
+ * 2. Company ID
+ * 3. Service Type ID
+ * 4. Service Type Group ID
+ * 5. Service Type Name
+ * 6. User ID 
+ * 7. Position Number
+ * 8. Persisted Service Type ID
+ * 9. OUT Result
+ */
+const executeServiceTypeSP = async (
+  client: any,
+  StrMode: string,
+  PstrCoID: string,
+  StrServiceTypeID: string | null = null,
+  StrServiceTypeGroupID: string | null = null,
+  StrServiceTypeName: string | null = null,
+  PstrUserID: string | null = null,
+  NumPositioNo: number | null = null,
+  StrPersistedServiceTypeID: string | null = null
+) => {
+  const result = await client.query(
+    `CALL dbo.sp_pageservicetype(
+      $1, $2, $3, $4, $5, $6, $7, $8, NULL
+    )`,
+    [
+      StrMode,
+      PstrCoID,
+      StrServiceTypeID,
+      StrServiceTypeGroupID,
+      StrServiceTypeName,
+      PstrUserID,
+      NumPositioNo,
+      StrPersistedServiceTypeID,
+    ]
+  );
+
+  return result.rows[0]?.p_result ?? null;
+};
 
 /**
  * GET dbo.tblservicetypegroup
  */
 export const getGroupOptions = async (req: Request, res: Response) => {
   try {
-    const fcoid = String(req.query.PstrCoID ?? "").trim();
+    const StrCoID = String(req.query.PstrCoID ?? "").trim();
 
-    if (!fcoid) {
+    if (!StrCoID) {
       return res.status(400).json({
         message: "Company ID is required.",
       });
     }
 
-    const result = await pool.query(
-      `SELECT
-          dbo.tblservicetypegroup.fcoid,
-          dbo.tblservicetypegroup.fservicetypegroupid,
-          dbo.tblservicetypegroup.fservicetypegroupname,
-          dbo.tblservicetypegroup.fpositionno
-       FROM dbo.tblservicetypegroup
-       WHERE dbo.tblservicetypegroup.fcoid = $1
-       ORDER BY
-          dbo.tblservicetypegroup.fpositionno NULLS LAST,
-          dbo.tblservicetypegroup.fservicetypegroupname`,
-      [fcoid]
+    const result = await executeServiceTypeSP(
+      pool,
+      "GETGROUP",
+      StrCoID
     );
 
-    return res.json(result.rows);
+    return res.json(result ?? []);
   } catch (error) {
     console.error("Error fetching dbo.tblservicetypegroup:", error);
 
@@ -46,41 +80,21 @@ export const getGroupOptions = async (req: Request, res: Response) => {
  */
 export const GetData = async (req: Request, res: Response) => {
   try {
-    const fcoid = String(req.query.PstrCoID ?? "").trim();
+    const PstrCoID = String(req.query.PstrCoID ?? "").trim();
 
-    if (!fcoid) {
+    if (!PstrCoID) {
       return res.status(400).json({
         message: "Company ID is required.",
       });
     }
 
-    const result = await pool.query(
-      `SELECT
-          dbo.tblservicetype.fcoid,
-          dbo.tblservicetype.fservicetypeid,
-          dbo.tblservicetype.fservicetypegroupid,
-          dbo.tblservicetype.fservicetypename,
-          dbo.tblservicetype.fctacarriercode,
-          dbo.tblservicetype.fcuserid,
-          dbo.tblservicetype.fcuserdate,
-          dbo.tblservicetype.fmuserid,
-          dbo.tblservicetype.fmuserdate,
-          dbo.tblservicetype.fpositionno,
-          dbo.tblservicetypegroup.fservicetypegroupname
-       FROM dbo.tblservicetype
-       LEFT JOIN dbo.tblservicetypegroup
-          ON dbo.tblservicetypegroup.fcoid =
-             dbo.tblservicetype.fcoid
-         AND dbo.tblservicetypegroup.fservicetypegroupid =
-             dbo.tblservicetype.fservicetypegroupid
-       WHERE dbo.tblservicetype.fcoid = $1
-       ORDER BY
-          dbo.tblservicetype.fpositionno NULLS LAST,
-          dbo.tblservicetype.fservicetypeid`,
-      [fcoid]
+    const result = await executeServiceTypeSP(
+      pool,
+      "GETALL",
+      PstrCoID
     );
 
-    return res.json(result.rows);
+    return res.json(result ?? []);
   } catch (error) {
     console.error("Error fetching dbo.tblservicetype:", error);
 
@@ -94,33 +108,35 @@ export const GetData = async (req: Request, res: Response) => {
  * DELETE dbo.tblservicetype
  */
 export const DeleteData = async (req: Request, res: Response) => {
-  const fcoid = String(req.query.PstrCoID ?? "").trim();
-  const fservicetypeid = String(req.query.txtServiceTypeID ?? "").trim();
+  const PstrCoID = String(req.query.PstrCoID ?? "").trim();
 
-  if (!fcoid || !fservicetypeid) {
+  const StrServiceTypeID = String(
+    req.query.txtServiceTypeID ?? ""
+  ).trim();
+
+  if (!PstrCoID || !StrServiceTypeID) {
     return res.status(400).json({
       message: "Company ID and service type ID are required.",
     });
   }
 
   try {
-    const result = await pool.query(
-      `DELETE FROM dbo.tblservicetype
-       WHERE fcoid = $1
-         AND fservicetypeid = $2
-       RETURNING fservicetypeid`,
-      [fcoid, fservicetypeid]
+    const result = await executeServiceTypeSP(
+      pool,
+      "D",
+      PstrCoID,
+      StrServiceTypeID
     );
 
-    if (result.rowCount === 0) {
+    if (!result) {
       return res.status(404).json({
         message: "Service type was not found.",
       });
     }
 
-    return res.json({
-      message: "Service type deleted successfully.",
-    });
+    return res.json(
+      result
+    );
   } catch (error) {
     console.error("Error deleting dbo.tblservicetype:", error);
 
@@ -134,11 +150,12 @@ export const DeleteData = async (req: Request, res: Response) => {
  * INSERT / UPDATE dbo.tblservicetype
  */
 export const SaveData = async (req: Request, res: Response) => {
-  const { rows,  PstrUserID,
-           PstrCoID,} = req.body;
+  const { rows } = req.body;
 
+  console.log("Received request body:", req.body);
 
-           console.log("Received request body:", req.body);
+  const PstrCoID = String(req.body.PstrCoID ?? "").trim();
+  const PstrUserID = String(req.body.PstrUserID ?? "").trim();
 
   if (!PstrCoID || !PstrUserID) {
     return res.status(400).json({
@@ -152,6 +169,7 @@ export const SaveData = async (req: Request, res: Response) => {
     });
   }
 
+  // Keep only rows containing at least one entered value.
   const validRows = rows.filter(
     (row: any) =>
       String(row.txtServiceTypeID ?? "").trim() ||
@@ -166,52 +184,46 @@ export const SaveData = async (req: Request, res: Response) => {
     });
   }
 
+  // Validate rows before starting the transaction.
   const seenIds = new Set<string>();
 
   for (const row of validRows) {
-    const fservicetypeid = String(row.txtServiceTypeID ?? "").trim();
-    const fservicetypegroupid = String(row.lkpServiceGroupName ?? "").trim();
-    const fservicetypename = String(row.txtServiceTypeName ?? "").trim();
-    const fpositionno = String(row.txtPositionNo ?? "").trim();
+      const StrServiceTypeID = String(row.txtServiceTypeID ?? "").trim();
 
-    if (!fservicetypeid || !fservicetypegroupid || !fservicetypename) {
+    const StrServiceTypeGroupID = String(row.lkpServiceGroupName ?? "").trim();
+
+    const StrServiceTypeName = String(row.txtServiceTypeName ?? "").trim();
+
+    const NumPositioNo = String(row.txtPositionNo ?? "").trim();
+
+    if (!StrServiceTypeID || !StrServiceTypeGroupID || !StrServiceTypeName) {
       return res.status(400).json({
         message:
           "Service Type ID, Service Group Name, and Service Type Name are required.",
       });
     }
 
-    if (fservicetypeid.length > 4) {
+    if (!NumPositioNo) {
       return res.status(400).json({
-        message: `Service Type ID "${fservicetypeid}" must not exceed 4 characters.`,
+        message: `Position number is required for Service Type ID "${StrServiceTypeID}".`,
       });
     }
 
-    if (fservicetypegroupid.length > 4) {
+    const PositionNo = Number(NumPositioNo);
+
+    if (!Number.isInteger(PositionNo)) {
       return res.status(400).json({
-        message: "Service Group ID must not exceed 4 characters.",
+        message: `Position number must be a valid integer for Service Type ID "${StrServiceTypeID}".`,
       });
     }
 
-    if (fservicetypename.length > 50) {
+    if (seenIds.has(StrServiceTypeID)) {
       return res.status(400).json({
-        message: `Service Type Name for "${fservicetypeid}" must not exceed 50 characters.`,
+        message: `Duplicate Service Type ID: ${StrServiceTypeID}`,
       });
     }
 
-    if (!fpositionno) {
-      return res.status(400).json({
-        message: `Position number is required for Service Type ID "${fservicetypeid}".`,
-      });
-    }
-
-    if (seenIds.has(fservicetypeid)) {
-      return res.status(400).json({
-        message: `Duplicate Service Type ID: ${fservicetypeid}`,
-      });
-    }
-
-    seenIds.add(fservicetypeid);
+    seenIds.add(StrServiceTypeID);
   }
 
   const client = await pool.connect();
@@ -220,82 +232,44 @@ export const SaveData = async (req: Request, res: Response) => {
     await client.query("BEGIN");
 
     for (const row of validRows) {
-      const fservicetypeid = String(row.txtServiceTypeID).trim();
-      const fservicetypegroupid = String(row.lkpServiceGroupName).trim();
-      const fservicetypename = String(row.txtServiceTypeName).trim();
-      const txtPositionNo = String(row.txtPositionNo ?? "").trim();
-      const fpositionno = txtPositionNo ? Number(txtPositionNo) : null;
+      const StrServiceTypeID = String( row.txtServiceTypeID ?? "" ).trim();
 
-      const groupResult = await client.query(
-        `SELECT 1
-         FROM dbo.tblservicetypegroup
-         WHERE dbo.tblservicetypegroup.fcoid = $1
-           AND dbo.tblservicetypegroup.fservicetypegroupid = $2`,
-        [PstrCoID, fservicetypegroupid]
-      );
+      const StrServiceTypeGroupID = String(row.lkpServiceGroupName ?? "").trim();
 
-      if (groupResult.rowCount === 0) {
-        throw new Error(
-          `Service group "${fservicetypegroupid}" does not exist for this company.`
-        );
-      }
+      const StrServiceTypeName = String(row.txtServiceTypeName ?? "").trim();
 
-      const persistedTxtServiceTypeID = String(
+      const NumPositioNo = Number(String(row.txtPositionNo ?? "").trim() );
+
+      const StrPersistedServiceTypeID = String(
         row.persistedTxtServiceTypeID ?? ""
       ).trim();
 
-      if (persistedTxtServiceTypeID) {
-        const result = await client.query(
-          `UPDATE dbo.tblservicetype
-           SET fservicetypeid = $2,
-               fservicetypegroupid = $3,
-               fservicetypename = $4,
-               fmuserid = $5,
-               fmuserdate = CURRENT_TIMESTAMP,
-               fpositionno = $6
-           WHERE fcoid = $1
-             AND fservicetypeid = $7`,
-          [
-            PstrCoID,
-            fservicetypeid,
-            fservicetypegroupid,
-            fservicetypename,
-            String(PstrUserID),
-            fpositionno,
-            persistedTxtServiceTypeID,
-          ]
+      if (StrPersistedServiceTypeID) {
+        // UPDATE existing service type.
+        // The persisted ID identifies the original database record.
+        await executeServiceTypeSP(
+          client,
+          "M",
+          PstrCoID,
+          StrServiceTypeID,
+          StrServiceTypeGroupID,
+          StrServiceTypeName,
+          PstrUserID,
+          NumPositioNo,
+          StrPersistedServiceTypeID
         );
-
-        if (result.rowCount === 0) {
-          throw new Error(
-            `Service type "${persistedTxtServiceTypeID}" was not found.`
-          );
-        }
       } else {
-        await client.query(
-          `INSERT INTO dbo.tblservicetype (
-              fcoid,
-              fservicetypeid,
-              fservicetypegroupid,
-              fservicetypename,
-              fctacarriercode,
-              fcuserid,
-              fcuserdate,
-              fmuserid,
-              fmuserdate,
-              fpositionno
-           )
-           VALUES (
-             $1, $2, $3, $4, NULL, $5, CURRENT_TIMESTAMP, NULL, NULL, $6
-           )`,
-          [
-            PstrCoID,
-            fservicetypeid,
-            fservicetypegroupid,
-            fservicetypename,
-            String(PstrUserID),
-            fpositionno,
-          ]
+        // INSERT new service type.
+        await executeServiceTypeSP(
+          client,
+          "S",
+          PstrCoID,
+          StrServiceTypeID,
+          StrServiceTypeGroupID,
+          StrServiceTypeName,
+          PstrUserID,
+          NumPositioNo,
+          null
         );
       }
     }

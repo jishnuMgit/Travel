@@ -81,9 +81,7 @@ const ServiceTypePage: React.FC = () => {
   const [editingTarget, setEditingTarget] = useState<ServiceTypeRow | null>(null);
   const [formError, setFormError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ServiceTypeRow | null>(null);
-  const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const noButtonRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [formGroup, setFormGroup] = useState<ServiceGroup | null>(null);
@@ -151,10 +149,6 @@ const ServiceTypePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (deleteTarget) noButtonRef.current?.focus();
-  }, [deleteTarget]);
-
   const visibleRows = useMemo(() => {
     const search = query.trim().toLowerCase();
     if (!search) return rows;
@@ -179,11 +173,13 @@ const ServiceTypePage: React.FC = () => {
 
   const openAddModal = () => {
     setEditingTarget(null);
+    setDeleteTarget(null);
     resetForm();
     setShowModal(true);
   };
 
   const openModifyModal = (row: ServiceTypeRow) => {
+    setDeleteTarget(null);
     setEditingTarget(row);
     setFormGroup(row.lkpServiceGroupName);
     setFormServiceTypeID(row.txtServiceTypeID);
@@ -193,8 +189,21 @@ const ServiceTypePage: React.FC = () => {
     setShowModal(true);
   };
 
+  const openDeleteModal = (row: ServiceTypeRow) => {
+    setShowModal(false);
+    setEditingTarget(null);
+    setDeleteTarget(row);
+    setFormGroup(row.lkpServiceGroupName);
+    setFormServiceTypeID(row.txtServiceTypeID);
+    setFormServiceTypeName(row.txtServiceTypeName);
+    setFormPositionNo(row.txtPositionNo);
+    setFormError("");
+  };
+
   const handleModalSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (deleteTarget) return;
+
     const PstrUserID = localStorage.getItem("PstrUserID");
     const PstrCoID = localStorage.getItem("PstrCoID");
 
@@ -288,13 +297,13 @@ const ServiceTypePage: React.FC = () => {
     if (!deleteTarget) return;
     const PstrCoID = localStorage.getItem("PstrCoID");
     if (!PstrCoID) {
-      setDeleteError("Company ID (PstrCoID) was not found in localStorage.");
+      setFormError("Company ID (PstrCoID) was not found in localStorage.");
       return;
     }
 
     try {
       setDeleting(true);
-      setDeleteError("");
+      setFormError("");
       const response = await fetch(
         `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}&txtServiceTypeID=${encodeURIComponent(deleteTarget.persistedTxtServiceTypeID)}`,
         { method: "DELETE" }
@@ -304,9 +313,10 @@ const ServiceTypePage: React.FC = () => {
         throw new Error(result.message || "Failed to delete service type.");
       }
       setDeleteTarget(null);
+      resetForm();
       await loadData();
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Failed to delete service type.");
+      setFormError(err instanceof Error ? err.message : "Failed to delete service type.");
     } finally {
       setDeleting(false);
     }
@@ -417,10 +427,7 @@ const ServiceTypePage: React.FC = () => {
                                 aria-label={`Delete service type on line ${lineNumber}`}
                                 title="Delete service type"
                                 disabled={saving || deleting}
-                                onClick={() => {
-                                  setDeleteError("");
-                                  setDeleteTarget(row);
-                                }}
+                                onClick={() => openDeleteModal(row)}
                                 className="inline-flex h-8 w-8 items-center justify-center rounded text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 <FiTrash2 aria-hidden="true" size={17} />
@@ -449,13 +456,14 @@ const ServiceTypePage: React.FC = () => {
         </main>
       </div>
 
-      {showModal && (
+      {(showModal || deleteTarget) && (
         <div
           className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !saving) {
+            if (event.target === event.currentTarget && !saving && !deleting) {
               setShowModal(false);
               setEditingTarget(null);
+              setDeleteTarget(null);
             }
           }}
         >
@@ -467,15 +475,16 @@ const ServiceTypePage: React.FC = () => {
           >
             <div className="flex h-9.5 items-center justify-between rounded-t-md bg-[#9fdfbc] px-3">
               <h2 id="service-type-modal-title" className="text-[14px] font-semibold text-[#24364d]">
-                {editingTarget ? "Modify Service Type" : "Add Service Type"}
+                {deleteTarget ? "Delete - Service Type" : editingTarget ? "Modify - Service Type" : "Add Service Type"}
               </h2>
               <button
                 type="button"
                 aria-label="Close service type form"
-                disabled={saving}
+                disabled={saving || deleting}
                 onClick={() => {
                   setShowModal(false);
                   setEditingTarget(null);
+                  setDeleteTarget(null);
                 }}
                 className="rounded p-1 text-[#24364d] hover:bg-white/40 disabled:opacity-50"
               >
@@ -497,6 +506,7 @@ const ServiceTypePage: React.FC = () => {
                   options={serviceGroupOptions}
                   value={formGroup}
                   onChange={(option) => setFormGroup(option)}
+                  isDisabled={Boolean(deleteTarget)}
                   getOptionLabel={(option) => option.label}
                   formatOptionLabel={(option, { context }) =>
                     context === "value" ? (
@@ -558,9 +568,10 @@ const ServiceTypePage: React.FC = () => {
                   autoFocus
                   required
                   maxLength={4}
+                  readOnly={Boolean(deleteTarget)}
                   value={formServiceTypeID}
                   onChange={(event) => setFormServiceTypeID(event.target.value)}
-                  className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                  className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995] read-only:bg-gray-100"
                 />
 
                 <label htmlFor="service-type-name" className="text-[13px] text-[#405066] whitespace-nowrap">
@@ -570,9 +581,10 @@ const ServiceTypePage: React.FC = () => {
                   id="service-type-name"
                   required
                   maxLength={50}
+                  readOnly={Boolean(deleteTarget)}
                   value={formServiceTypeName}
                   onChange={(event) => setFormServiceTypeName(event.target.value)}
-                  className="h-7.5 w-[70%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                  className="h-7.5 w-[70%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995] read-only:bg-gray-100"
                 />
 
                 <label htmlFor="service-type-position" className="text-[13px] text-[#405066]">
@@ -582,9 +594,10 @@ const ServiceTypePage: React.FC = () => {
                   id="service-type-position"
                   type="number"
                   step="1"
+                  readOnly={Boolean(deleteTarget)}
                   value={formPositionNo}
                   onChange={(event) => setFormPositionNo(event.target.value)}
-                  className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995]"
+                  className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995] read-only:bg-gray-100"
                 />
               </div>
 
@@ -595,97 +608,40 @@ const ServiceTypePage: React.FC = () => {
               )}
 
               <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
-                <button type="submit" disabled={saving} className="btn-style disabled:opacity-60">
-                  {saving
-                    ? editingTarget
-                      ? "Modifying..."
-                      : "Saving..."
-                    : editingTarget
-                      ? "Modify"
-                      : "Save"}
-                </button>
-                <button type="button" disabled={saving} onClick={resetForm} className="btn-style disabled:opacity-60">
-                  Clear
-                </button>
+                {editingTarget || deleteTarget ? (
+                  <>
+                    <button
+                      type="submit"
+                      disabled={saving || deleting || Boolean(deleteTarget)}
+                      className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {saving ? "Modifying..." : "Modify"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving || deleting || !deleteTarget}
+                      onClick={() => void handleDelete()}
+                      className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deleting ? "Deleting..." : "Delete"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="submit" disabled={saving} className="btn-style disabled:opacity-60">
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                    <button type="button" disabled={saving} onClick={resetForm} className="btn-style disabled:opacity-60">
+                      Clear
+                    </button>
+                  </>
+                )}
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {deleteTarget && (
-        <div
-          className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !deleting) {
-              setDeleteTarget(null);
-              setDeleteError("");
-            }
-          }}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="delete-service-type-title"
-            aria-describedby="delete-service-type-description"
-            className="w-full max-w-100 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl"
-          >
-            <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
-              <h2 id="delete-service-type-title" className="text-[14px] font-semibold text-[#24364d]">
-                Delete Service Type
-              </h2>
-              <button
-                type="button"
-                aria-label="Close delete confirmation"
-                disabled={deleting}
-                onClick={() => {
-                  setDeleteTarget(null);
-                  setDeleteError("");
-                }}
-                className="rounded p-1 text-[#24364d] hover:bg-white/40 disabled:opacity-50"
-              >
-                <MdClose size={19} />
-              </button>
-            </div>
-            <div className="p-4">
-              <p id="delete-service-type-description" className="text-[13px] text-[#405066]">
-                Do you want to delete Line{" "}
-                <span className="font-semibold text-[#24364d]">
-                  {rows.findIndex((row) => row.id === deleteTarget.id) + 1}
-                </span>
-                ?
-              </p>
-              {deleteError && (
-                <p role="alert" className="mt-3 text-[13px] text-red-600">
-                  {deleteError}
-                </p>
-              )}
-              <div className="mt-5 flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
-                <button
-                  ref={noButtonRef}
-                  type="button"
-                  disabled={deleting}
-                  onClick={() => {
-                    setDeleteTarget(null);
-                    setDeleteError("");
-                  }}
-                  className="btn-style disabled:opacity-60"
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  disabled={deleting}
-                  onClick={() => void handleDelete()}
-                  className="btn-style disabled:opacity-60"
-                >
-                  {deleting ? "Deleting..." : "Yes"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
