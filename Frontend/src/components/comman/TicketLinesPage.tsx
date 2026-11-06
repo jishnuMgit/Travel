@@ -285,7 +285,7 @@ const TicketLinesGrid: React.FC<{
             <th className={`${th} text-left`}>Customer ID</th>
             <th className={`${th} text-left`}>Customer Name</th>
             <th className={`${th} text-left`}>Division</th>
-            <th className={`${th} text-left`}>Type</th>
+            <th className={`${th} text-left`}>B.Type</th>
             <th className={`${th} text-right`}>Fare</th>
             <th className={`${th} text-right`}>Tax</th>
             <th className={`${th} text-right`}>CD. Amt.</th>

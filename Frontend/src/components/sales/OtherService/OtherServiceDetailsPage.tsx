@@ -8,7 +8,7 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../comman/Header";
 import { Combo, PairCombo, type Option } from "../../comman/Combo";
 import selectComponents from "../../comman/selectComponents";
-import TicketLinesPage from "../../comman/TicketLinesPage";
+import TicketLinesPage from "./OtherServerBottom";
 
 dayjs.extend(customParseFormat);
 

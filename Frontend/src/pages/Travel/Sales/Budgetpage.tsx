@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import Select from "react-select";
 import dayjs from "dayjs";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import selectComponents from "../../../components/comman/selectComponents";
 
 /* =====================================================================
    FILE MAP
@@ -188,7 +192,7 @@ const selectClassNames = {
   indicatorSeparator: () => "!hidden",
   clearIndicator: () => "!p-[3px]",
   menu: () =>
-    "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md !min-w-[260px]",
+    "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md ",
   menuList: () => "!p-0 !max-h-[180px]",
   option: ({
     isFocused,
@@ -272,6 +276,7 @@ const LabeledCombo: React.FC<{
       <Select
         inputId={id}
         instanceId={id}
+        components={selectComponents}
         options={options}
         value={options.find((o) => o.value === value) ?? null}
         onChange={(option) => onChange(option?.value ?? null)}
@@ -358,7 +363,7 @@ function ScrollGrid<R>({
 }) {
   const cols = (gutter: boolean) => (
     <colgroup>
-      <col className="w-[22px]" />
+      <col className="w-[20px]" />
       {columns.map((c) => (
         <col key={c.id} className={c.width} />
       ))}
@@ -443,7 +448,7 @@ function ScrollGrid<R>({
                       tabIndex={-1}
                       aria-label={`Total ${c.header}`}
                       value={formatAmount(totals[c.id] ?? 0)}
-                      className="h-[26px] w-full rounded-[3px] border border-[#cfd7df] bg-white px-2 text-right text-[12px] text-[#24364d] outline-none"
+                      className="h-[30px] w-[105%] -ml-0.5 rounded-[3px] border border-[#cfd7df] bg-white px-2 text-right text-[12px] text-[#24364d] outline-none"
                     />
                   </td>
                 ) : (
@@ -483,25 +488,76 @@ const BudgetHeader: React.FC<{
   onBranchChange,
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5">
-    <div className="flex items-center gap-2">
-      <label
-        htmlFor="txtYear"
-        className="shrink-0 text-right text-[12px] text-[#405066]"
-      >
-        Year :
-      </label>
-      <input
-        id="txtYear"
-        inputMode="numeric"
-        maxLength={4}
-        value={year}
-        onFocus={(event) => event.target.select()}
-        onChange={(event) => {
-          if (/^\d{0,4}$/.test(event.target.value)) onYearChange(event.target.value);
-        }}
-        className="h-[30px] w-[64px] rounded-[4px] border border-[#cfd7df] bg-white px-2 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9]"
-      />
-    </div>
+    
+<div className="flex items-center gap-2">
+  <label
+    htmlFor="txtYear"
+    className="shrink-0 text-right text-[12px] text-[#405066]"
+  >
+    Year :
+  </label>
+
+  <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <DatePicker
+      views={["year"]}
+      openTo="year"
+      format="YYYY"
+      value={year ? dayjs(`${year}-01-01`) : null}
+      onChange={(value) =>
+        onYearChange(value?.isValid() ? value.format("YYYY") : "")
+      }
+      slotProps={{
+        textField: {
+          id: "txtYear",
+          size: "small",
+          sx: {
+            width: "82px",
+
+            "& .MuiPickersInputBase-root": {
+              height: "30px !important",
+              minHeight: "30px !important",
+              fontSize: "12px",
+            },
+
+            "& .MuiPickersOutlinedInput-root": {
+              height: "30px !important",
+              minHeight: "30px !important",
+            },
+
+            "& .MuiPickersInputBase-sectionsContainer": {
+              padding: "0 4px",
+            },
+
+            "& .MuiPickersSectionList-root": {
+              padding: "0 !important",
+              fontSize: "12px",
+            },
+
+            "& .MuiInputBase-input": {
+              padding: "3px 4px !important",
+              fontSize: "12px",
+            },
+
+            "& .MuiInputAdornment-root": {
+              marginLeft: "0px",
+            },
+
+            "& .MuiIconButton-root": {
+              width: "20px",
+              height: "20px",
+              padding: "2px",
+            },
+
+            "& .MuiSvgIcon-root": {
+              fontSize: "15px",
+            },
+          },
+        },
+      }}
+    />
+  </LocalizationProvider>
+</div>
+
 
     <LabeledCombo
       id="lkpBudgetHeadType"
@@ -562,6 +618,7 @@ const BudgetGrid: React.FC<{
             inputId={`lkpAccount-${row.key}`}
             instanceId={`lkpAccount-${row.key}`}
             aria-label="Account ID"
+              components={selectComponents}
             options={options}
             value={
               row.accountId
@@ -601,7 +658,7 @@ const BudgetGrid: React.FC<{
     {
       id: "total",
       header: "Total",
-      width: "w-[100px]",
+      width: "w-[80px]",
       align: "right",
       total: true,
       cellClass: "bg-[#eef1f4] px-2 text-right",
@@ -686,7 +743,7 @@ const BudgetFooter: React.FC<{
       </button>
     </div>
 
-    <span className="min-w-[200px] text-right text-[12px] text-[#7a8794]">
+    <span className="min-w-50 text-right text-[12px] text-[#7a8794]">
       {savedBy ? `Saved By : ${savedBy}` : ""}
     </span>
   </div>
@@ -798,8 +855,8 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-full max-w-[1400px] bg-white p-0">
-        <main className="w-full overflow-hidden border border-[#d5dce2] bg-white">
+      <div className="min-h-fit w-full max-w-362.5 bg-white p-0">
+        <main className="w-full overflow-hidden border border-gray-400 bg-white">
           <header className="flex h-7.5 items-center justify-start bg-[#9fdfbc]">
             <h1 className="m-0 ml-3.5 text-[17px] font-semibold text-[#24364d]">
               Budget
