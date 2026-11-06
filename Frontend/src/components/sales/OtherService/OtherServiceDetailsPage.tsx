@@ -762,7 +762,7 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           className={inputClass}
         />
       </Field>
-      <Field label="Service :" labelClassName={LR1} className="lg:col-span-3">
+      <Field label="Service Type :" labelClassName={LR1} className="lg:col-span-3">
         <Combo
           id="lkpService"
           options={serviceOptions}
@@ -771,7 +771,7 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           className="w-18 shrink-0"
         />
       </Field>
-      <Field label="Service CP :" labelClassName={LR2} className="lg:col-span-3">
+      <Field label="Service Policy :" labelClassName={LR2} className="lg:col-span-3">
         <Combo
           id="lkpServiceCp"
           options={serviceCpOptions}

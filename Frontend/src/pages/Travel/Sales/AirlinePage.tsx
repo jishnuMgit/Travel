@@ -451,7 +451,7 @@ const CoID = (
         }}>
           <div role="dialog" aria-modal="true" aria-labelledby="airline-modal-title" className="w-full max-w-150 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl">
             <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
-              <h2 id="airline-modal-title" className="text-[14px] font-semibold text-[#24364d]">{deleteTarget ? "Airline_Delete " : editingTarget ? "Airline_Modify " : "Add Airline"}</h2>
+              <h2 id="airline-modal-title" className="text-[14px] font-semibold text-[#24364d]">{deleteTarget ? "Airline - Delete " : editingTarget ? "Airline - Modify " : "Add Airline"}</h2>
               <button type="button" aria-label="Close airline form" disabled={adding || deleting} onClick={() => {
                 setShowAddModal(false);
                 setDeleteTarget(null);
