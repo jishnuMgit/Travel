@@ -10,13 +10,15 @@ export type AirlineRecord = {
   fvatoncommission: boolean | null;
 };
 
+
 export type AirlinePayload = {
-  fairlineno: string;
-  fairlinename: string;
-  fairlinecode: string | null;
-  fvatoncommission: boolean;
-  fcuserid?: string | null;
-  fmuserid?: string | null;
+  StrAirlineNo: string;
+  StrAirlineName: string;
+  StrAirlineCode: string | null;
+  ChkVatOnCommission: boolean;
+  PstrUserID?: string | null;
+  userdate?: string | null;
+ 
 };
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api").replace(/\/$/, "");
@@ -42,30 +44,30 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const encode = (value: string) => encodeURIComponent(value);
 
-export const getAirlines = (fcoid: string) =>
-  request<AirlineRecord[]>(`/airlines/${encode(fcoid)}`);
+export const getAirlines = (PstrCoID : string) =>
+  request<AirlineRecord[]>(`/airlines/${encode(PstrCoID )}`);
 
-export const getAirline = (fcoid: string, fairlineno: string) =>
-  request<AirlineRecord>(`/airlines/${encode(fcoid)}/${encode(fairlineno)}`);
+export const getAirline = (PstrCoID : string, StrAirlineNo: string) =>
+  request<AirlineRecord>(`/airlines/${encode(PstrCoID )}/${encode(StrAirlineNo)}`);
 
-export const createAirline = (fcoid: string, payload: AirlinePayload) =>
+export const createAirline = (PstrCoID : string, payload: AirlinePayload) =>
   request<AirlineRecord>("/airlines", {
     method: "POST",
-    body: JSON.stringify({ fcoid, ...payload }),
+    body: JSON.stringify({ PstrCoID , ...payload }),
   });
 
 export const updateAirline = (
-  fcoid: string,
-  oldFairlineno: string,
+  PstrCoID : string,
+  oldStrAirlineNo: string,
   payload: AirlinePayload,
 ) =>
-  request<AirlineRecord>(`/airlines/${encode(fcoid)}/${encode(oldFairlineno)}`, {
+  request<AirlineRecord>(`/airlines/${encode(PstrCoID )}/${encode(oldStrAirlineNo)}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
 
-export const deleteAirline = (fcoid: string, fairlineno: string) =>
+export const deleteAirline = (PstrCoID : string, StrAirlineNo: string) =>
   request<{ message: string }>(
-    `/airlines/${encode(fcoid)}/${encode(fairlineno)}`,
+    `/airlines/${encode(PstrCoID )}/${encode(StrAirlineNo)}`,
     { method: "DELETE" },
   );
