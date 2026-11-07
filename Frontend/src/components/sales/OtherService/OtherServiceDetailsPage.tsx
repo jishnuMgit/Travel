@@ -5,9 +5,9 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../comman/Header";
-import { Combo, PairCombo, type Option } from "../../comman/Combo";
-import selectComponents from "../../comman/selectComponents";
+import Header from "../../common/Header";
+import { Combo, PairCombo, type Option } from "../../common/Combo";
+import selectComponents from "../../common/selectComponents";
 import TicketLinesPage from "./OtherServerBottom";
 
 dayjs.extend(customParseFormat);

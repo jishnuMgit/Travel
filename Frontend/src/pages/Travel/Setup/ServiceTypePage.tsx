@@ -5,9 +5,9 @@ import { MdAdd, MdClose } from "react-icons/md";
 import { FiTrash2 } from "react-icons/fi";
 import Select, { components } from "react-select";
 import type { GroupBase, MenuListProps } from "react-select";
-import type { Option } from "../../../components/comman/Combo";
-import Header from "../../../components/comman/Header";
-import selectComponents from "../../../components/comman/selectComponents";
+import type { Option } from "../../../components/common/Combo";
+import Header from "../../../components/common/Header";
+import selectComponents from "../../../components/common/selectComponents";
 import { API_BASE_URL } from "../../../config/api";
 import { HiOutlinePencilAlt } from "react-icons/hi";
 

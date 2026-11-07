@@ -12,7 +12,7 @@ import {
   FiUser,
 } from "react-icons/fi";
 import "./LoginPage.css";
-import selectComponents from "../../components/comman/selectComponents";
+import selectComponents from "../../components/common/selectComponents";
 import { notifyAuthStateChanged } from "../../utils/authStorage";
 
 type LoginResponse = {

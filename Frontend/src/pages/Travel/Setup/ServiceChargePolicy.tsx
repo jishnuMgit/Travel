@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Select from "react-select";
-import { PairCombo, type Option } from "../../../components/comman/Combo";
-import Header from "../../../components/comman/Header";
-import selectComponents from "../../../components/comman/selectComponents";
+import { PairCombo, type Option } from "../../../components/common/Combo";
+import Header from "../../../components/common/Header";
+import selectComponents from "../../../components/common/selectComponents";
 
 type PolicyTab = "Sales" | "Refund";
 type ChargeType = "A" | "P";

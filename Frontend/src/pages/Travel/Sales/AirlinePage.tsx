@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import Header from "../../../components/comman/Header";
+import Header from "../../../components/common/Header";
 import { MdAdd, MdClose } from "react-icons/md";
 import {
   createAirline,
