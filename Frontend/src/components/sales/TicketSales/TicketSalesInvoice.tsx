@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import Select from "react-select";
-import selectComponents from "../../comman/selectComponents";
-import TicketLinesFields from "../../comman/TicketLinesFields";
-import { fieldSelectProps } from "../../comman/Combo";
+import selectComponents from "../../common/selectComponents";
+import TicketLinesFields from "../../common/TicketLinesFields";
+import { fieldSelectProps } from "../../common/Combo";
 
 /* =====================================================================
    FILE MAP

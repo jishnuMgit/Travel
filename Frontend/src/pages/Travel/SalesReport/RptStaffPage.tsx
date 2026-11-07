@@ -2,10 +2,10 @@
 import React, { useState } from "react";
 import CommonTableSelect, {
   type TableSelectOption,
-} from "../../../components/comman/CommonTableSelect";
+} from "../../../components/common/CommonTableSelect";
 import CustomLinkedPairSelect, {
   type PairSelectOption,
-} from "../../../components/comman/CustomLinkedPairSelect";
+} from "../../../components/common/CustomLinkedPairSelect";
 import {LocalizationProvider,} from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";

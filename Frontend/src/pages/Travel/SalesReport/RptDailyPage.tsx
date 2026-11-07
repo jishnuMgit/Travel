@@ -4,13 +4,13 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../../components/comman/Header";
+import Header from "../../../components/common/Header";
 import CommonTableSelect, {
   type TableSelectOption,
-} from "../../../components/comman/CommonTableSelect";
+} from "../../../components/common/CommonTableSelect";
 import CustomLinkedPairSelect, {
   type PairSelectOption,
-} from "../../../components/comman/CustomLinkedPairSelect";
+} from "../../../components/common/CustomLinkedPairSelect";
 
 type Option = {
   value: string;
