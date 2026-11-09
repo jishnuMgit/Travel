@@ -1000,7 +1000,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         : undefined;
       const charge = calcPolicyCharge(
         policy,
-        context.dorI,
+        context.boxDorI,
         toNumber(row.fare),
         toNumber(row.tax),
       );
@@ -1085,7 +1085,8 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     );
 
   /* The fares panel: the first line's Fare = S. Fare + Sup. Fee and its Tax = Tax (the old
-     SetRowCellValue(0, ...)). Only when one of them changes. */
+     SetRowCellValue(0, ...)). Only when one of them changes, and only once the line has a
+     customer: the old grid has no row until a customer is chosen, so nothing was filled before. */
   const panelKey = context ? `${context.sFare}|${context.supFee}|${context.tax}` : "";
   const lastPanelKey = useRef(panelKey);
 
@@ -1096,7 +1097,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     setRows((prev) =>
       padLines(
         prev.map((row, index) =>
-          index === 0
+          index === 0 && row.customerId
             ? recalcRow(
                 {
                   ...row,
@@ -1113,7 +1114,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
 
   /* D/I, VAT %, service type, merchant, customers or policies changed: every line again. */
   const settingsKey = context
-    ? `${context.dorI}|${context.vatPer}|${context.serviceId}|${context.merchantIsAirline}`
+    ? `${context.dorI}|${context.boxDorI}|${context.vatPer}|${context.serviceId}|${context.merchantIsAirline}`
     : "";
 
   useEffect(() => {

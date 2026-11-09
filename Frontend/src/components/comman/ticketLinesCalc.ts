@@ -21,7 +21,8 @@ export type LineInput = {
 };
 
 export type LineContext = {
-  dorI: DorI; // D when the D/I box is D or K7 is entered (the old strDorI)
+  dorI: DorI; // D when the D/I box is D or K7 is entered (the old strDorI): used for the VAT
+  boxDorI?: DorI; // the D/I box only (the old lkpDorI.Text): used for the CD. Amt. split; defaults to dorI
   vatPer: number; // the service charge VAT % (dbo.getvatper)
   merchantIsAirline: boolean; // the Merchant is "A" (Airline)
 };
@@ -40,6 +41,7 @@ export type LineAmounts = {
 export const calcLineAmounts = (input: LineInput, ctx: LineContext): LineAmounts => {
   const { fare, tax, cdAmt, sChg, prevVatAmt, prevSChgV, mfPer } = input;
   const { dorI, vatPer, merchantIsAirline } = ctx;
+  const boxDorI = ctx.boxDorI ?? dorI;
 
   // S. Chg. V.: the VAT of the service charge
   let sChgV = sChg !== 0 ? round2(sChg * vatPer * 0.01) : 0;
@@ -64,7 +66,7 @@ export const calcLineAmounts = (input: LineInput, ctx: LineContext): LineAmounts
   let hCharge = 0;
   let hScVat = 0;
   if (cdAmt !== 0) {
-    if (cdAmt > 0 || dorI === "D") {
+    if (cdAmt > 0 || boxDorI === "D") {
       hCharge = round2((cdAmt / (100 + vatPer)) * 100);
       hScVat = round2(cdAmt - hCharge);
     } else {
@@ -111,7 +113,8 @@ export type TicketLinesContext = {
   sFare: number;
   supFee: number;
   tax: number;
-  dorI: DorI;
+  dorI: DorI; // for the VAT (the D/I box, or D when K7 is entered)
+  boxDorI: DorI; // the D/I box only: the policy rate and the CD. Amt. split follow it (the old lkpDorI.Text)
   vatPer: number;
   serviceId: string;
   merchantIsAirline: boolean;

@@ -703,8 +703,9 @@ const TicketDetailsFields: React.FC<
     <Field label="D/I :" labelClassName={LA} className="min-w-0 lg:col-span-2 mb-2">
       <Combo
         id="lkpDI"
-        firstColumnWidth={44}
-        secondColumnExtra={25}
+        firstHeader="Name"
+        secondHeader="ID"
+        secondColumnExtra={44}
         options={diOptions}
         value={form.di}
         onChange={(v) => set("di", v)}
@@ -1457,7 +1458,7 @@ console.log(onClose);
   }, []);
 
   /* D/I lookup (tbltlparam, fptype = DITP): value = fpid (D, I). The box shows
-     the id; the list reads "ID | Name". */
+     the id; the list reads "Name | ID". */
   const [diOptions, setDiOptions] = useState<Option[]>([]);
 
   useEffect(() => {
@@ -1470,7 +1471,8 @@ console.log(onClose);
           rows.map((r) => ({
             value: r.fpid,
             label: r.fpid, // the box shows the id
-            secondLabel: r.fpname ?? "", // the list reads "ID | Name"
+            listFirst: r.fpname ?? r.fpid, // the list reads "Name | ID"
+            secondLabel: r.fpid,
           })),
         );
       })
@@ -1952,6 +1954,7 @@ console.log(onClose);
               supFee: toNumber(form.supFee),
               tax: toNumber(form.tax),
               dorI: vatDorI,
+              boxDorI: form.di === "D" ? "D" : "I",
               vatPer: vat.txtSCVATPer,
               serviceId: form.service ?? "",
               merchantIsAirline: form.merchant === "A",
