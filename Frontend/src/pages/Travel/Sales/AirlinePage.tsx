@@ -169,10 +169,12 @@ const CoID = (
     const row = deleteTarget;
     setFormError("");
     setDeleting(true);
+    const PstrYear=localStorage.getItem("PstrYear")||""
+    const PstrUserID=localStorage.getItem("PstrUserID")||""
     try {
       if (row.originalNo) {
         if (!CoID) throw new Error("Company ID (fcoid) is missing.");
-        await deleteAirline(CoID, row.originalNo);
+        await deleteAirline(CoID, row.originalNo,PstrYear,PstrUserID);
         toast.success("Deleted successfully");
         await loadAirlines();
       } else {
@@ -409,9 +411,9 @@ const CoID = (
                                 event.stopPropagation();
                                 openDeleteModal(row);
                               }}
-                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-[#c0392b] hover:bg-red-50"
+                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-gray-600 hover:bg-red-50 hover:text-red-600"
                             >
-                              <FiTrash2 size={18} />
+                              <MdClose size={15 } />
                             </button>
                           )}
                         </td>
@@ -443,19 +445,82 @@ const CoID = (
         </main>
       </div>
 
-      {(showAddModal || deleteTarget) && (
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deleting) {
+              setDeleteTarget(null);
+              setFormError("");
+            }
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="airline-delete-title"
+            className="w-full max-w-105 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl"
+          >
+            <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
+              <h2 id="airline-delete-title" className="text-[14px] font-semibold text-[#24364d]">
+                Airline - Delete
+              </h2>
+              <button
+                type="button"
+                aria-label="Close delete confirmation"
+                disabled={deleting}
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setFormError("");
+                }}
+                className="rounded p-1 text-[#24364d] hover:bg-white/40 disabled:opacity-50"
+              >
+                <MdClose size={19} />
+              </button>
+            </div>
+            <div className="space-y-4 p-4">
+              <p className="text-[13px] text-[#405066]">
+                Do you want to delete Airline No.{" "}
+                <span className="font-semibold text-[#24364d]">{deleteTarget.no}</span>?
+              </p>
+              {formError && <p role="alert" className="text-[13px] text-red-600">{formError}</p>}
+              <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                  className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => {
+                    setDeleteTarget(null);
+                    setFormError("");
+                  }}
+                  className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddModal && (
         <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => {
           if (event.target === event.currentTarget && !adding && !deleting) {
             setShowAddModal(false);
-            setDeleteTarget(null);
           }
         }}>
           <div role="dialog" aria-modal="true" aria-labelledby="airline-modal-title" className="w-full max-w-150 overflow-hidden rounded-md border border-[#91a7bb] bg-white shadow-xl">
             <div className="flex h-9.5 items-center justify-between bg-[#9fdfbc] px-3">
-              <h2 id="airline-modal-title" className="text-[14px] font-semibold text-[#24364d]">{deleteTarget ? "Airline - Delete " : editingTarget ? "Airline - Modify " : "Add Airline"}</h2>
+              <h2 id="airline-modal-title" className="text-[14px] font-semibold text-[#24364d]">{editingTarget ? "Airline - Modify " : "Add Airline"}</h2>
               <button type="button" aria-label="Close airline form" disabled={adding || deleting} onClick={() => {
                 setShowAddModal(false);
-                setDeleteTarget(null);
               }} className="rounded p-1 text-[#24364d] hover:bg-white/40">
                 <MdClose size={19} />
               </button>
@@ -464,17 +529,17 @@ const CoID = (
             <form onSubmit={(event) => void handleModalSubmit(event)} className="space-y-3 p-4">
               <div className="grid grid-cols-[150px_minmax(0,1fr)] items-center gap-3">
                 <label htmlFor="add-airline-no" className="text-[13px] text-[#405066]">Airline No. <span className="text-red-600">*</span></label>
-                <input id="add-airline-no" autoFocus maxLength={3} required readOnly={Boolean(deleteTarget)} value={txtAirlineNo} onChange={(event) => txtsetAirlineNo(event.target.value.toUpperCase())} className="h-7.5 w-[30%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995] read-only:bg-gray-100" />
+                <input id="add-airline-no" autoFocus maxLength={3} required value={txtAirlineNo} onChange={(event) => txtsetAirlineNo(event.target.value.toUpperCase())} className="h-7.5 w-[30%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995]" />
 
                 <label htmlFor="add-airline-name" className="text-[13px] text-[#405066]">Airline Name <span className="text-red-600">*</span></label>
-                <input id="add-airline-name" maxLength={50} required readOnly={Boolean(deleteTarget)} value={txtAirlineName} onChange={(event) => txtsetAirlineName(event.target.value)} className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995] read-only:bg-gray-100" />
+                <input id="add-airline-name" maxLength={50} required value={txtAirlineName} onChange={(event) => txtsetAirlineName(event.target.value)} className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995]" />
 
                 <label htmlFor="add-airline-code" className="text-[13px] text-[#405066]">Airline Code  <span className="text-red-600">*</span></label>
-                <input id="add-airline-code" maxLength={3} readOnly={Boolean(deleteTarget)} value={txtAirlineCode} onChange={(event) => txtsetAirlineCode(event.target.value.toUpperCase())} className="h-7.5 w-[30%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995] read-only:bg-gray-100" />
+                <input id="add-airline-code" maxLength={3} value={txtAirlineCode} onChange={(event) => txtsetAirlineCode(event.target.value.toUpperCase())} className="h-7.5 w-[30%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995]" />
 
                 <span className="text-[13px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
                 <label className="flex items-center gap-2 text-[13px] text-[#24364d]">
-                  <input type="checkbox" checked={chkVatOnCommision} disabled={Boolean(deleteTarget)} onChange={(event) => txtsetVatOnCommission(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
+                  <input type="checkbox" checked={chkVatOnCommision} onChange={(event) => txtsetVatOnCommission(event.target.checked)} className="h-4 w-4 accent-[#64d96e]" />
                   
                 </label>
               </div>
@@ -482,19 +547,10 @@ const CoID = (
               {formError && <p role="alert" className="text-[13px] text-red-600">{formError}</p>}
 
               <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
-                {editingTarget || deleteTarget ? (
+                {editingTarget ? (
                   <>
-                    <button type="submit" disabled={adding || deleting || Boolean(deleteTarget)} className="btn-style disabled:cursor-not-allowed disabled:opacity-60">
+                    <button type="submit" disabled={adding || deleting} className="btn-style disabled:cursor-not-allowed disabled:opacity-60">
                       {adding ? "Modifying..." : "Modify"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={adding || deleting || !deleteTarget}
-                      onClick={() => void handleDelete()}
-                      className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                     
-                      {deleting ? "Deleting..." : "Delete"}
                     </button>
                   </>
                 ) : (

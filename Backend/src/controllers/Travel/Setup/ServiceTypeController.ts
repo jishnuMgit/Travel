@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import pool from "../../../DB/db";
+import { UserAudit } from "../../../utils/UserAudit";
 
 /**
  * Common stored procedure executor
@@ -109,6 +110,13 @@ export const GetData = async (req: Request, res: Response) => {
  */
 export const DeleteData = async (req: Request, res: Response) => {
   const PstrCoID = String(req.query.PstrCoID ?? "").trim();
+// const {PstrYear}=req.body
+
+  console.log("Request Body:", req.body);
+
+  const { PstrYear, PstrUserID } = req.body;
+
+ 
 
   const StrServiceTypeID = String(
     req.query.txtServiceTypeID ?? ""
@@ -133,6 +141,8 @@ export const DeleteData = async (req: Request, res: Response) => {
         message: "Service type was not found.",
       });
     }
+     await UserAudit(PstrCoID, PstrYear, "", "", StrServiceTypeID, "Service Type Page", "D",PstrUserID , `Deleted Service Type ID ${StrServiceTypeID}`);
+    
 
     return res.json(
       result

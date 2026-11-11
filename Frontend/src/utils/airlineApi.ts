@@ -66,8 +66,10 @@ export const updateAirline = (
     body: JSON.stringify(payload),
   });
 
-export const deleteAirline = (PstrCoID : string, StrAirlineNo: string) =>
+export const deleteAirline = (PstrCoID : string, StrAirlineNo: string,PstrYear: string,PstrUserID:String) =>
   request<{ message: string }>(
-    `/airlines/${encode(PstrCoID )}/${encode(StrAirlineNo)}`,
-    { method: "DELETE" },
+    `/airlines/${encode(PstrCoID )}/${encode(StrAirlineNo)}/${encode(PstrYear)}`,
+    { method: "DELETE", 
+      body: JSON.stringify({ PstrUserID }),
+    },
   );

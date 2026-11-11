@@ -297,18 +297,36 @@ const ServiceTypePage: React.FC = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const PstrCoID = localStorage.getItem("PstrCoID");
+    const PstrYear=localStorage.getItem("PstrYear")||""
+    const PstrUserID=localStorage.getItem("PstrUserID") ||""
     if (!PstrCoID) {
       setFormError("Company ID (PstrCoID) was not found in localStorage.");
       return;
     }
-
+    if(!PstrYear){
+      setFormError("Year (PstrYear) was not found in localStorage");
+      return;
+    }
+if(!PstrUserID){
+  setFormError("User ID (PstrUserID) was not found in localStorage");
+  return;
+}
     try {
       setDeleting(true);
       setFormError("");
-      const response = await fetch(
-        `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}&txtServiceTypeID=${encodeURIComponent(deleteTarget.persistedTxtServiceTypeID)}`,
-        { method: "DELETE" }
-      );
+     const response = await fetch(
+  `${API_URL}?PstrCoID=${encodeURIComponent(PstrCoID)}&txtServiceTypeID=${encodeURIComponent(deleteTarget.persistedTxtServiceTypeID)}`,
+  {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      PstrYear,
+      PstrUserID,
+    }),
+  }
+);
       const result = (await response.json()) as { message?: string };
       if (!response.ok) {
         throw new Error(result.message || "Failed to delete service type.");
@@ -429,9 +447,9 @@ const ServiceTypePage: React.FC = () => {
                                 title="Delete service type"
                                 disabled={saving || deleting}
                                 onClick={() => openDeleteModal(row)}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                <FiTrash2 aria-hidden="true" size={17} />
+                                <MdClose   size={15} />
                               </button>
                             </td>
                           </tr>
@@ -457,7 +475,76 @@ const ServiceTypePage: React.FC = () => {
         </main>
       </div>
 
-      {(showModal || deleteTarget) && (
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deleting) {
+              setDeleteTarget(null);
+              resetForm();
+            }
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="service-type-delete-title"
+            className="w-full max-w-105 rounded-md border border-[#91a7bb] bg-white shadow-xl"
+          >
+            <div className="flex h-9.5 items-center justify-between rounded-t-md bg-[#9fdfbc] px-3">
+              <h2 id="service-type-delete-title" className="text-[14px] font-semibold text-[#24364d]">
+                Service Type - Delete
+              </h2>
+              <button
+                type="button"
+                aria-label="Close delete confirmation"
+                disabled={deleting}
+                onClick={() => {
+                  setDeleteTarget(null);
+                  resetForm();
+                }}
+                className="rounded p-1 text-[#24364d] hover:bg-white/40 disabled:opacity-50"
+              >
+                <MdClose size={19} />
+              </button>
+            </div>
+            <div className="space-y-4 p-4">
+              <p className="text-[13px] text-[#405066]">
+                Do you want to delete the service type{" "}
+                <span className="font-semibold text-[#24364d]">{deleteTarget.txtServiceTypeID}</span>?
+              </p>
+              {formError && (
+                <p role="alert" className="text-[13px] text-red-600">
+                  {formError}
+                </p>
+              )}
+              <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => void handleDelete()}
+                  className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => {
+                    setDeleteTarget(null);
+                    resetForm();
+                  }}
+                  className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal && (
         <div
           className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
           onMouseDown={(event) => {
@@ -476,7 +563,7 @@ const ServiceTypePage: React.FC = () => {
           >
             <div className="flex h-9.5 items-center justify-between rounded-t-md bg-[#9fdfbc] px-3">
               <h2 id="service-type-modal-title" className="text-[14px] font-semibold text-[#24364d]">
-                {deleteTarget ? "Delete - Service Type" : editingTarget ? "Modify - Service Type" : "Add Service Type"}
+                {editingTarget ? "Modify - Service Type" : "Add Service Type"}
               </h2>
               <button
                 type="button"
@@ -507,7 +594,6 @@ const ServiceTypePage: React.FC = () => {
                   options={serviceGroupOptions}
                   value={formGroup}
                   onChange={(option) => setFormGroup(option)}
-                  isDisabled={Boolean(deleteTarget)}
                   getOptionLabel={(option) => option.label}
                   formatOptionLabel={(option, { context }) =>
                     context === "value" ? (
@@ -569,7 +655,6 @@ const ServiceTypePage: React.FC = () => {
                   autoFocus
                   required
                   maxLength={4}
-                  readOnly={Boolean(deleteTarget)}
                   value={formServiceTypeID}
                   onChange={(event) => setFormServiceTypeID(event.target.value)}
                   className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995] read-only:bg-gray-100"
@@ -582,7 +667,6 @@ const ServiceTypePage: React.FC = () => {
                   id="service-type-name"
                   required
                   maxLength={50}
-                  readOnly={Boolean(deleteTarget)}
                   value={formServiceTypeName}
                   onChange={(event) => setFormServiceTypeName(event.target.value)}
                   className="h-7.5 w-[70%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995] read-only:bg-gray-100"
@@ -595,7 +679,6 @@ const ServiceTypePage: React.FC = () => {
                   id="service-type-position"
                   type="number"
                   step="1"
-                  readOnly={Boolean(deleteTarget)}
                   value={formPositionNo}
                   onChange={(event) => setFormPositionNo(event.target.value)}
                   className="h-7.5 w-[40%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] text-[#24364d] outline-none focus:border-[#64c995] read-only:bg-gray-100"
@@ -609,22 +692,14 @@ const ServiceTypePage: React.FC = () => {
               )}
 
               <div className="flex justify-center gap-2 border-t border-[#E5E7EB] pt-3">
-                {editingTarget || deleteTarget ? (
+                {editingTarget ? (
                   <>
                     <button
                       type="submit"
-                      disabled={saving || deleting || Boolean(deleteTarget)}
+                      disabled={saving || deleting}
                       className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {saving ? "Modifying..." : "Modify"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={saving || deleting || !deleteTarget}
-                      onClick={() => void handleDelete()}
-                      className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {deleting ? "Deleting..." : "Delete"}
                     </button>
                   </>
                 ) : (

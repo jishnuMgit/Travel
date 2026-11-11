@@ -13,6 +13,6 @@ AirlineRouter.get("/:PstrCoID", getAirlines);
 AirlineRouter.get("/:PstrCoID/:StrAirlineNo", getAirline);
 AirlineRouter.post("/", createAirline);
 AirlineRouter.put("/:PstrCoID/:oldStrAirlineNo", updateAirline);
-AirlineRouter.delete("/:PstrCoID/:StrAirlineNo", deleteAirline);
+AirlineRouter.delete("/:PstrCoID/:StrAirlineNo/:PstrYear", deleteAirline);
  
 export default AirlineRouter;

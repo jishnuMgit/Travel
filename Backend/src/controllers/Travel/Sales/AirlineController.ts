@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import pool from "../../../DB/db";
-
+import {UserAudit} from "../../../utils/UserAudit";
 type AirlineBody = {
   PstrCoID?: unknown;
   StrAirlineNo?: unknown;
@@ -271,7 +271,8 @@ export const deleteAirline = async (
 ) => {
   const PstrCoID = getRouteParam(req.params.PstrCoID);
   const StrAirlineNo = getRouteParam(req.params.StrAirlineNo);
-
+  const PstrYear=getRouteParam(req.params.PstrYear)
+const PstrUserID=req.body.PstrUserID
   try {
     const responseData = await executeAirlinePageSP(
       "D",
@@ -286,7 +287,7 @@ export const deleteAirline = async (
       });
       return;
     }
-
+ await UserAudit(PstrCoID, PstrYear, "", "", StrAirlineNo, "AirlinePage", "D",PstrUserID , `Deleted airline ${StrAirlineNo}`);
     res.status(200).json(responseData);
 
   } catch (error) {
