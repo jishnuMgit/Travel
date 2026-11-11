@@ -408,7 +408,7 @@ export const getTicketSalesAirlines = async (req: Request, res: Response) => {
   }
 
   try {
-    const query = `SELECT fcoid, fairlineno, fairlinename, fairlinecode AS fairlineid
+    const query = `SELECT fcoid, fairlineno, fairlinename, fairlinecode
          FROM dbo.tblairline
         WHERE fcoid = $1
         ORDER BY fairlineno`;

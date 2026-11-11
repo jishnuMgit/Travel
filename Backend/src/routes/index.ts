@@ -4,7 +4,7 @@ import companyRouter from "./CompanyRouter";
 import menuRouter from "./MenuRouter";
 import yearRouter from "./YearRouter";
 import ServiceTypeRouter from "./Travel/Setup/ServiceTypeRouter";
-import AirlineRouter from "./Travel/Sales/airlineRoutes";
+import AirlineRouter from "./Travel/Sales/AirlineRoutes";
 import TicketSalesRouter from "./Travel/Sales/TicketSalesRoutes";
 
 const router = Router();

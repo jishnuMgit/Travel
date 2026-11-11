@@ -2,8 +2,8 @@ import React, { useState } from "react";
 
 import CustomLinkedPairSelect, {
   type PairSelectOption,
-} from "../../../components/comman/CustomLinkedPairSelect";
-import Header from "../../../components/comman/Header";
+} from "../../../components/common/CustomLinkedPairSelect";
+import Header from "../../../components/common/Header";
 
 
 type DivisionRow = {

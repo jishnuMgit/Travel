@@ -5,10 +5,10 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../comman/Header";
-import { Combo, PairCombo, type Option } from "../../comman/Combo";
-import selectComponents from "../../comman/selectComponents";
-import TicketLinesFields from "../../comman/TicketLinesFields";
+import Header from "../../common/Header";
+import { Combo, PairCombo, type Option } from "../../common/Combo";
+import selectComponents from "../../common/selectComponents";
+import TicketLinesFields from "../../common/TicketLinesFields";
 import HotelActions, { type HotelActionName } from "./HotelAction";
 import { FaPlus } from "react-icons/fa";
 

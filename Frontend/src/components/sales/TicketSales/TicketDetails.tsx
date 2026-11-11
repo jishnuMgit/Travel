@@ -5,9 +5,9 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import { Combo, PairCombo, type Option } from "../../comman/Combo";
-import TicketLinesPage from "../../comman/TicketLinesPage";
-import Header from "../../comman/Header";
+import { Combo, PairCombo, type Option } from "../../common/Combo";
+import TicketLinesPage from "../../common/TicketLinesPage";
+import Header from "../../common/Header";
 import {
   getTicketSalesAirlines,
   getTicketSalesBranches,
@@ -1740,7 +1740,7 @@ console.log(onClose);
   }, []);
 
   /* Airline lookup: value = fairlineno (unique key),
-     ID combo shows fairlineid, Name combo shows fairlinename. */
+     ID combo shows fairlinecode, Name combo shows fairlinename. */
   const [airlineIdOptions, setAirlineIdOptions] = useState<Option[]>([]);
   const [airlineNameOptions, setAirlineNameOptions] = useState<Option[]>([]);
 
@@ -1753,7 +1753,7 @@ console.log(onClose);
         setAirlineIdOptions(
           rows.map((r) => ({
             value: r.fairlineno,
-            label: r.fairlineid || r.fairlineno,
+            label: r.fairlinecode || r.fairlineno,
             secondLabel: r.fairlinename, // the ID list shows "ID | Name"
           })),
         );
@@ -1761,7 +1761,7 @@ console.log(onClose);
           rows.map((r) => ({
             value: r.fairlineno,
             label: r.fairlinename,
-            secondLabel: r.fairlineid || r.fairlineno, // list reads "Name | ID"
+            secondLabel: r.fairlinecode || r.fairlineno, // list reads "Name | ID"
           })),
         );
         const first = rows[0];

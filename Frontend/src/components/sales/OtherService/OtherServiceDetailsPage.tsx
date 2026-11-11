@@ -5,10 +5,10 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
-import Header from "../../comman/Header";
-import { Combo, PairCombo, type Option } from "../../comman/Combo";
-import selectComponents from "../../comman/selectComponents";
-import TicketLinesPage from "../../comman/TicketLinesPage";
+import Header from "../../common/Header";
+import { Combo, PairCombo, type Option } from "../../common/Combo";
+import selectComponents from "../../common/selectComponents";
+import TicketLinesPage from "./OtherServerBottom";
 
 dayjs.extend(customParseFormat);
 
@@ -762,7 +762,7 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           className={inputClass}
         />
       </Field>
-      <Field label="Service :" labelClassName={LR1} className="lg:col-span-3">
+      <Field label="Service Type :" labelClassName={LR1} className="lg:col-span-3">
         <Combo
           id="lkpService"
           options={serviceOptions}
@@ -771,7 +771,7 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           className="w-18 shrink-0"
         />
       </Field>
-      <Field label="Service CP :" labelClassName={LR2} className="lg:col-span-3">
+      <Field label="Service Policy :" labelClassName={LR2} className="lg:col-span-3">
         <Combo
           id="lkpServiceCp"
           options={serviceCpOptions}

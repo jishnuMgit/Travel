@@ -20,6 +20,7 @@ import ServiceChargePolicy from "../pages/Travel/Setup/ServiceChargePolicy";
 import ServiceTypePage from "../pages/Travel/Setup/ServiceTypePage";
 import LoginPage from "../pages/Auth/LoginPage";
 import CustomerDivisionPage from "../pages/Travel/Setup/Customerdivisionpage";
+import BudgetPage from "../pages/Travel/Sales/Budgetpage";
 
 const AppRoutes = () => (
   <Routes>
@@ -67,6 +68,7 @@ const AppRoutes = () => (
     />
     <Route path="/Setup/ServiceType" element={<ServiceTypePage />} />
     <Route path="/Setup/Customerdivision" element={<CustomerDivisionPage />} />
+    <Route path="/dev/BudgetPage" element={<BudgetPage />} />
   </Routes>
 );
 
