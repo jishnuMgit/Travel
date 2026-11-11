@@ -535,7 +535,7 @@ const CoID = (
                 <input id="add-airline-name" maxLength={50} required value={txtAirlineName} onChange={(event) => txtsetAirlineName(event.target.value)} className="h-7.5 rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995]" />
 
                 <label htmlFor="add-airline-code" className="text-[13px] text-[#405066]">Airline Code  <span className="text-red-600">*</span></label>
-                <input id="add-airline-code" maxLength={3} value={txtAirlineCode} onChange={(event) => txtsetAirlineCode(event.target.value.toUpperCase())} className="h-7.5 w-[30%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995]" />
+                <input id="add-airline-code" maxLength={2} value={txtAirlineCode} onChange={(event) => txtsetAirlineCode(event.target.value.toUpperCase())} className="h-7.5 w-[30%] rounded-sm border border-[#B7C7D7] px-2 text-[13px] outline-none focus:border-[#64c995]" />
 
                 <span className="text-[13px] text-[#405066] whitespace-nowrap">VAT On Commission</span>
                 <label className="flex items-center gap-2 text-[13px] text-[#24364d]">
