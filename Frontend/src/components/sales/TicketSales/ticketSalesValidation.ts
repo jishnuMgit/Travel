@@ -35,6 +35,7 @@ export type HeaderInput = {
   staff: string | null;
   trip: string | null;
   route: string;
+  destination: string;
   gds: string | null;
   fop: string | null;
   ccType: string | null;
@@ -68,14 +69,18 @@ const dateNumber = (d: { day: number; month: number; year: number }) => d.year *
 const isBspType = (type: string | null) => type === "B" || type === "BS" || type === "M";
 const isCardFop = (fop: string | null) => fop === "CC" || fop === "CASH+CC";
 
-/* Route: only "3 characters, a space, 3 characters" (COK BEH), upper case. The space is put in while typing:
-   "cok beh" -> "COK BEH", "cokbeh" -> "COK BEH". (The old txtRoute allowed up to 5 codes; raise ROUTE_MAX_CODES for that.) */
-export const ROUTE_MAX_CODES = 2;
+/* Route: airport codes of 3 characters with a space between them (COK BEH, BHK SAU COK), up to 3 codes, upper case.
+   The space is put in while typing: "cok beh" -> "COK BEH", "bhksaucok" -> "BHK SAU COK". */
+export const ROUTE_MAX_CODES = 3;
 export const ROUTE_MAX_LENGTH = ROUTE_MAX_CODES * 4 - 1;
 export const formatRoute = (value: string): string => {
   const letters = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, ROUTE_MAX_CODES * 3);
   return (letters.match(/.{1,3}/g) ?? []).join(" ");
 };
+
+/* Destination (the old txtDestID: upper case, 3 characters): an airport code, capital letters whatever is typed. */
+export const formatAirportCode = (value: string): string =>
+  value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
 export type HeaderResult = { error?: Issue; warnings: string[] };
 
@@ -152,9 +157,14 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
     if (i.ticketType !== "X" && i.route.trim() === "") return fail("Please input 'Route'", "txtRoute");
   }
 
-  // the Route is exactly 3 characters, a space, 3 characters (COK BEH)
-  if (i.route.trim() !== "" && !/^[A-Z0-9]{3} [A-Z0-9]{3}$/.test(i.route.trim().toUpperCase())) {
-    return fail("'Route' should be 3 characters, a space and 3 characters, like COK BEH", "txtRoute");
+  // the Destination is an airport code of 3 characters (BHA)
+  if (i.destination.trim() !== "" && i.destination.trim().length !== 3) {
+    return fail("'Destination' should be 3 characters, like BHA", "txtDestination");
+  }
+
+  // the Route is 2 or 3 airport codes of 3 characters (COK BEH, BHK SAU COK)
+  if (i.route.trim() !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,2}$/.test(i.route.trim().toUpperCase())) {
+    return fail("'Route' should be 2 or 3 airport codes of 3 characters with a space between them, like BHK SAU COK", "txtRoute");
   }
 
   // ---- payment

@@ -22,6 +22,7 @@ import {
   getTicketSalesStaffs,
   getTicketSalesSuppliers,
   getTicketSales,
+  getTicketSalesSlNos,
   getTicketSalesTktTypes,
   deleteTicketSales,
   getTicketSalesVat,
@@ -33,7 +34,7 @@ import {
   type TicketLinePayload,
   type TktTypeRecord,
 } from "../../../utils/airlineApi";
-import { formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
+import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
 
@@ -549,6 +550,8 @@ const TicketTopBar: React.FC<
     airlineNameOptions: Option[];
     ticketTypeOptions: Option[];
     onTicketTypeChange: (fticketTypeid: string | null) => void;
+    keyLocked: boolean; // a saved ticket is shown (Modify): its Ticket Type and Ticket No. cannot be changed
+    onSlNoLeave: () => void; // leaving the Sl. No. box: loads that Sl. No., or shows the next free one when it is empty
     branchIdOptions: Option[];
     branchNameOptions: Option[];
     iataIdOptions: Option[];
@@ -568,6 +571,8 @@ const TicketTopBar: React.FC<
   iataNameOptions,
   ticketTypeOptions,
   onTicketTypeChange,
+  keyLocked,
+  onSlNoLeave,
 }) => {
   // The ticket type list is as wide as the prefix box + the ticket number box.
   const [ticketNoWrapRef, ticketNoWrapWidth] = useElementWidth<HTMLDivElement>();
@@ -589,6 +594,7 @@ const TicketTopBar: React.FC<
           value={form.ticketPrefix}
           onChange={onTicketTypeChange}
           className="w-16.25 shrink-0"
+          disabled={keyLocked}
           isSearchable
         />
 
@@ -596,6 +602,8 @@ const TicketTopBar: React.FC<
           ref={ticketNoRef}
           id="txtTktSLNo"
           value={form.ticketNo}
+          readOnly={keyLocked}
+          maxLength={10} // the old txtTktSlNo: 10 characters at most
           onChange={(event) => set("ticketNo", event.target.value)}
           onBlur={onTicketNoLeave}
           onKeyDown={(event) => {
@@ -603,7 +611,7 @@ const TicketTopBar: React.FC<
               onSearch();
             }
           }}
-          className="input-style w-full min-w-[104px]" // room for 10 digits
+          className={`input-style w-full min-w-[104px] ${keyLocked ? "!bg-[#eef1f4]" : ""}`} // room for 10 digits
         />
 
         {/* Sl. No. (fSlNo): 1 to start with */}
@@ -614,6 +622,7 @@ const TicketTopBar: React.FC<
           maxLength={3}
           value={form.slNo}
           onFocus={(event) => event.target.select()}
+          onBlur={onSlNoLeave}
           onChange={(event) => {
             if (/^\d{0,3}$/.test(event.target.value)) set("slNo", event.target.value);
           }}
@@ -698,6 +707,7 @@ const TicketTopBar: React.FC<
           nameFirstHeader="IATA"
           nameSecondHeader="IATA Code"
           isSearchable
+          disabled={form.ticketPrefix === "X"} // an XO ticket is saved with IATA NA only
           containerClassName="flex flex-1 gap-2"
         />
       </div>
@@ -1095,7 +1105,9 @@ const TicketRoutePanel: React.FC<
           <input
             id="txtDestination"
             value={form.destination}
-            onChange={(e) => set("destination", e.target.value)}
+            maxLength={3}
+            autoCapitalize="characters"
+            onChange={(e) => set("destination", formatAirportCode(e.target.value))}
             className={`${inputClassforTicketRoutePanel} flex-1`}
           />
           <Field label="CNJ. :" className="shrink-0">
@@ -1425,10 +1437,19 @@ console.log(onClose);
   const handleTicketTypeChange = (fticketTypeid: string | null) => {
     const row = tktTypes.find((r) => r.ftickettypeid === fticketTypeid);
     setError("");
+    // an XO ticket has no IATA: "NA" (not applicable); leaving XO takes the first real IATA back
+    const naIata = iataIdOptions.find((option) => option.value === "NA");
+    const realIata = iataIdOptions.find((option) => option.value !== "NA");
     setForm((prev) => ({
       ...prev,
       ticketPrefix: fticketTypeid,
       tktName: row?.ftickttypename ?? "",
+      iata:
+        fticketTypeid === "X" && naIata
+          ? naIata.value
+          : prev.ticketPrefix === "X" && prev.iata === "NA" && realIata
+            ? realIata.value
+            : prev.iata,
     }));
     autoLoad(fticketTypeid, form.ticketNo); // the number was typed first, then the type
   };
@@ -1919,9 +1940,10 @@ console.log(onClose);
   const computed = calcAmounts(form, vat);
 
   /* Save or Modify: the Save button is Modify while the ticket of the Ticket Type + Ticket No. boxes is a saved one
-     (it was loaded, or it was just saved), as in the old form. Another ticket no. is a new ticket again. */
+     (it was loaded, or it was just saved), as in the old form. Another ticket no. is a new ticket again, and so is another
+     Sl. No.: a Ticket No. has a row for each Sl. No. (both tables), the Sl. No. box starts at 1. */
   const [savedKey, setSavedKey] = useState("");
-  const ticketKey = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}`;
+  const ticketKey = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}|${form.slNo.trim()}`;
   const isModify = savedKey !== "" && savedKey === ticketKey;
 
   /* The rules of the old form (ValidateMe) before a save: the form, the fares panel, the ticket type and the D/I.
@@ -1946,6 +1968,7 @@ console.log(onClose);
       staff: form.staff,
       trip: form.trip,
       route: form.route,
+      destination: form.destination,
       gds: form.gds,
       fop: form.fop,
       ccType: form.ccType,
@@ -2064,7 +2087,7 @@ console.log(onClose);
   const [loaded, setLoaded] = useState<{ version: number; ticket: LoadedTicket } | undefined>(undefined);
 
   // silent = the automatic load: a ticket number that does not exist is a NEW ticket, so no message for it
-  const loadTicket = async (type: string | null, no: string, silent: boolean) => {
+  const loadTicket = async (type: string | null, no: string, slNo: string, silent: boolean) => {
     const ticketNo = no.trim();
     if (!type) {
       if (!silent) toast.error("Please select 'Ticket Type'");
@@ -2082,13 +2105,14 @@ console.log(onClose);
         lkpTktType: type,
         txtTktSLNo: ticketNo,
         lkpBranch: form.branch,
+        txtSlNo: slNo,
       });
 
       const tktName = tktTypes.find((r) => r.ftickettypeid === ticket.lkpTktType)?.ftickttypename ?? "";
       setError("");
       setForm((prev) => ({ ...prev, ...formFromTicket(ticket, tktName) }));
       setLoaded({ version: Date.now(), ticket });
-      setSavedKey(`${ticket.lkpTktType}|${ticket.txtTktSLNo.trim()}`); // a saved ticket: the button is Modify
+      setSavedKey(`${ticket.lkpTktType}|${ticket.txtTktSLNo.trim()}|${ticket.txtSlNo}`); // a saved ticket: the button is Modify
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load the ticket.";
       if (silent && /not found$/i.test(message)) return;
@@ -2137,6 +2161,7 @@ console.log(onClose);
         lkpTktType: form.ticketPrefix,
         txtTktSLNo: form.ticketNo.trim(),
         lkpBranch: form.branch,
+        txtSlNo: form.slNo.trim() || null, // only this Sl. No.: the other Sl. Nos of the Ticket No. stay
       });
       toast.success(result.message || "Deleted successfully");
       clearScreen();
@@ -2147,18 +2172,45 @@ console.log(onClose);
 
   // Enter in Ticket No. or the Search button: always loads (and says when the ticket is not found)
   const handleSearch = () => {
-    lastAutoKey.current = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}`;
-    void loadTicket(form.ticketPrefix, form.ticketNo, false);
+    lastAutoKey.current = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}|${form.slNo.trim()}`;
+    void loadTicket(form.ticketPrefix, form.ticketNo, form.slNo.trim(), false);
   };
 
   // Automatic load: when the Ticket Type and Ticket No. are given and you leave the Ticket No. box (or pick the type
   // after typing the number). The same ticket is not loaded twice by itself, so what you typed is never overwritten.
   const lastAutoKey = useRef("");
-  const autoLoad = (type: string | null, no: string) => {
-    const key = `${type ?? ""}|${no.trim()}`;
+  const autoLoad = (type: string | null, no: string, slNo: string = form.slNo.trim()) => {
+    const key = `${type ?? ""}|${no.trim()}|${slNo}`;
     if (!type || no.trim() === "" || key === lastAutoKey.current) return;
     lastAutoKey.current = key;
-    void loadTicket(type, no, true);
+    void loadTicket(type, no, slNo, true);
+  };
+
+  /* Leaving the Sl. No. box (a Ticket No. has a row for each Sl. No., both tables):
+       - a Sl. No. that is saved shows its data (Modify);
+       - a Sl. No. that is not saved yet is a new row: what is on the screen stays and Save inserts it as that Sl. No.;
+       - an empty box shows the next free Sl. No. (2 when Sl. No. 1 is saved, 1 when the Ticket No. is not saved yet). */
+  const handleSlNoLeave = async () => {
+    if (!form.ticketPrefix || form.ticketNo.trim() === "") return;
+
+    const typed = form.slNo.trim();
+    if (typed !== "" && Number(typed) >= 1) {
+      autoLoad(form.ticketPrefix, form.ticketNo, typed);
+      return;
+    }
+
+    try {
+      const { next } = await getTicketSalesSlNos({
+        PstrCoID,
+        PstrYear,
+        lkpTktType: form.ticketPrefix,
+        txtTktSLNo: form.ticketNo.trim(),
+      });
+      set("slNo", String(next));
+      lastAutoKey.current = `${form.ticketPrefix}|${form.ticketNo.trim()}|${next}`; // a free number: nothing to load
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to get the next Sl. No.");
+    }
   };
 
   
@@ -2183,6 +2235,8 @@ console.log(onClose);
               airlineNameOptions={airlineNameOptions}
               ticketTypeOptions={ticketTypeOptions}
               onTicketTypeChange={handleTicketTypeChange}
+              keyLocked={isModify}
+              onSlNoLeave={handleSlNoLeave}
               branchIdOptions={branchIdOptions}
               branchNameOptions={branchNameOptions}
               iataIdOptions={iataIdOptions}
@@ -2234,6 +2288,7 @@ console.log(onClose);
             loaded={loaded}
             onAction={(name) => {
               if (name === "search") handleSearch();
+              if (name === "cancel") clearScreen(); // the header too, so the Ticket Type / No. are open for another ticket
             }}
             context={{
               sFare: toNumber(form.sFare),

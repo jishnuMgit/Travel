@@ -33,6 +33,7 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsalesb
     IN    p_pstryear          varchar(4),
     IN    p_lkptkttype        varchar(4),
     IN    p_txttktslno        varchar(12),
+    IN    p_txtslno           smallint      DEFAULT 1,
     IN    p_txtrevno          smallint      DEFAULT 1,
     IN    p_lkpbranch         varchar(3)    DEFAULT NULL,
     IN    p_dtpdate           date          DEFAULT NULL,
@@ -82,7 +83,7 @@ BEGIN
            AND b.fyear = p_pstryear
            AND b.fbrid = p_lkpbranch
            AND b.ftickettypeid = p_lkptkttype
-           AND b.fticketslno = p_txttktslno
+           AND b.fticketslno = p_txttktslno AND b.fslno = p_txtslno
            AND b.frevno = p_txtrevno;
 
     -- --------------------------------------------------------------- SAVE
@@ -100,7 +101,7 @@ BEGIN
            AND t.fyear = p_pstryear
            AND t.fbrid = p_lkpbranch
            AND t.ftickettypeid = p_lkptkttype
-           AND t.fticketslno = p_txttktslno
+           AND t.fticketslno = p_txttktslno AND t.fslno = p_txtslno
            AND t.frevno = p_txtrevno;
 
         IF NOT FOUND THEN
@@ -109,7 +110,7 @@ BEGIN
 
         IF EXISTS (SELECT 1 FROM dbo.tblticketsalesb
                     WHERE fcoid = p_pstrcoid AND fyear = p_pstryear AND fbrid = p_lkpbranch
-                      AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND frevno = p_txtrevno) THEN
+                      AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND fslno = p_txtslno AND frevno = p_txtrevno) THEN
             RAISE EXCEPTION 'Only one customer line can be saved for a ticket';
         END IF;
 
@@ -118,7 +119,7 @@ BEGIN
                 fcustomerid, fdivid, fbusinesstypeid, ftotfare, ftaxamt, fagencycharge, fvatamt, fscvatamt,
                 fbillingamt, fvatper, fh_agencycharge, fh_scvatamt, fmf, fmfwovat, fmfvatamt, fservicechargetype,
                 fservicechargeper, frefno, frefno2, frefno3, frefno4, fcuserid, fcuserdate)
-        VALUES (p_pstrcoid, p_pstryear, p_lkptkttype, p_txttktslno, 1, p_txtrevno, p_lkpbranch,
+        VALUES (p_pstrcoid, p_pstryear, p_lkptkttype, p_txttktslno, COALESCE(p_txtslno, 1), p_txtrevno, p_lkpbranch,
                 COALESCE(v_group, 'TKT'), p_dtpdate, BTRIM(p_lkplinecustomer), NULLIF(BTRIM(p_lkplinedivision), ''),
                 NULLIF(BTRIM(p_txtlinebtype), ''), p_txtlinefare, p_txtlinetax, p_txtlineschg, p_txtlinevatamt,
                 p_txtlineschgv, p_txtlineinvamt, p_txtlinevatper, p_txtlinehcharge, p_txtlinehscvatamt, p_txtlinemf,
@@ -135,7 +136,7 @@ BEGIN
 
         IF NOT EXISTS (SELECT 1 FROM dbo.tblticketsalesb
                         WHERE fcoid = p_pstrcoid AND fyear = p_pstryear AND fbrid = p_lkpbranch
-                          AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND frevno = p_txtrevno) THEN
+                          AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND fslno = p_txtslno AND frevno = p_txtrevno) THEN
             RAISE EXCEPTION 'The customer line of ticket ''%-%'' was changed or removed by someone else. Cancel and try again',
                             p_lkptkttype, p_txttktslno;
         END IF;
@@ -169,7 +170,7 @@ BEGIN
            AND fyear = p_pstryear
            AND fbrid = p_lkpbranch
            AND ftickettypeid = p_lkptkttype
-           AND fticketslno = p_txttktslno
+           AND fticketslno = p_txttktslno AND fslno = p_txtslno
            AND frevno = p_txtrevno;
 
     -- ------------------------------------------------------------- DELETE
@@ -180,7 +181,7 @@ BEGIN
            AND fyear = p_pstryear
            AND fbrid = p_lkpbranch
            AND ftickettypeid = p_lkptkttype
-           AND fticketslno = p_txttktslno
+           AND fticketslno = p_txttktslno AND fslno = p_txtslno
            AND frevno = p_txtrevno;
 
     ELSE

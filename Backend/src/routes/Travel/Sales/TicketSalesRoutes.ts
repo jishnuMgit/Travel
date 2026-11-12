@@ -14,6 +14,7 @@ import {
   getTicketSalesPaxTypes,
   getTicketSalesServiceChargePolicies,
   getTicketSalesServiceTypes,
+  getTicketSalesSlNos,
   getTicketSalesStaffs,
   getTicketSalesSuppliers,
   getTicketSalesTktTypes,
@@ -55,6 +56,12 @@ TicketSalesRouter.get(
   "/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo",
   requireAuthentication,
   loadTicketSales,
+);
+// The Sl. Nos saved for a Ticket No. and the next free one.
+TicketSalesRouter.get(
+  "/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo/sl-nos",
+  requireAuthentication,
+  getTicketSalesSlNos,
 );
 TicketSalesRouter.post("/", requireAuthentication, saveTicketSales);
 // Modify a saved ticket (the Save button is Modify while a saved ticket is loaded).

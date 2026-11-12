@@ -105,6 +105,14 @@ export const modifyTicketSales = (payload: SaveTicketPayload) =>
     body: JSON.stringify(payload),
   });
 
+// ?lkpBranch=JD&txtSlNo=2 (only what is given)
+const ticketQuery = (p: { lkpBranch?: string | null; txtSlNo?: string | number | null }) => {
+  const parts: string[] = [];
+  if (p.lkpBranch) parts.push(`lkpBranch=${encode(p.lkpBranch)}`);
+  if (p.txtSlNo !== undefined && p.txtSlNo !== null && String(p.txtSlNo).trim() !== "") parts.push(`txtSlNo=${encode(String(p.txtSlNo).trim())}`);
+  return parts.length > 0 ? `?${parts.join("&")}` : "";
+};
+
 /* Delete a saved ticket and its customer line. */
 export const deleteTicketSales = (p: {
   PstrCoID: string;
@@ -112,11 +120,10 @@ export const deleteTicketSales = (p: {
   lkpTktType: string;
   txtTktSLNo: string;
   lkpBranch?: string | null;
+  txtSlNo?: string | number | null; // the Sl. No. to delete (a Ticket No. has a row for each Sl. No.)
 }) =>
   request<{ success: boolean; message: string }>(
-    `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${
-      p.lkpBranch ? `?lkpBranch=${encode(p.lkpBranch)}` : ""
-    }`,
+    `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${ticketQuery(p)}`,
     { method: "DELETE" },
   );
 
@@ -214,11 +221,21 @@ export const getTicketSales = (p: {
   lkpTktType: string;
   txtTktSLNo: string;
   lkpBranch?: string | null;
+  txtSlNo?: string | number | null; // the Sl. No. to show: empty = the first one saved
 }) =>
   request<{ success: boolean; ticket: LoadedTicket }>(
-    `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${
-      p.lkpBranch ? `?lkpBranch=${encode(p.lkpBranch)}` : ""
-    }`,
+    `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${ticketQuery(p)}`,
+  );
+
+/* The Sl. Nos saved for a Ticket No. and the next free one (1 when it is not saved yet). */
+export const getTicketSalesSlNos = (p: {
+  PstrCoID: string;
+  PstrYear: string;
+  lkpTktType: string;
+  txtTktSLNo: string;
+}) =>
+  request<{ success: boolean; slNos: number[]; next: number }>(
+    `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}/sl-nos`,
   );
 
 export type ComTypeRecord = {

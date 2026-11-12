@@ -38,9 +38,11 @@ import {
                 TicketLinesFields (Ref. 1-4, Post No., KB., notes),
                 TicketLinesActions (button bar)
    4. TicketLinesPage : owns the state and renders the parts in one place
-
-   Type and MF are removed (columns and totals boxes), as requested.
    ===================================================================== */
+
+/* The MF column and its total box of the grid are hidden. MF is still worked out from the customer's policy, added to
+   Inv. Amt. and saved (fmf, fmfwovat, fmfvatamt); set this to true to show the column again. */
+const SHOW_MF_COLUMN = false;
 
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
@@ -459,7 +461,7 @@ const TicketLinesGrid: React.FC<{
           <col className="w-21" /> {/* S. Chg. */}
           <col className="w-21" /> {/* VAT Amt. */}
           <col className="w-21" /> {/* S. Chg. V. */}
-          {calculated && <col className="w-21" />} {/* MF */}
+          {calculated && SHOW_MF_COLUMN && <col className="w-21" />} {/* MF */}
           <col className="w-21" /> {/* Inv. Amt. */}
           <col className="w-25" /> {/* Inv. No. */}
         </colgroup>
@@ -477,7 +479,7 @@ const TicketLinesGrid: React.FC<{
             <th className={`${th} text-right`}>S. Chg.</th>
             <th className={`${th} text-right`}>VAT Amt.</th>
             <th className={`${th} text-right`}>S. Chg. V.</th>
-            {calculated && <th className={`${th} text-right`}>MF</th>}
+            {calculated && SHOW_MF_COLUMN && <th className={`${th} text-right`}>MF</th>}
             <th className={`${th} text-right`}>Inv. Amt.</th>
             <th className={`${th} text-left`}>Inv. No.</th>
           </tr>
@@ -680,7 +682,7 @@ const TicketLinesGrid: React.FC<{
                             )}
                       </td>
                       {/* MF (the merchant fee of the customer's policy, with its VAT) sits between S. Chg. V. and Inv. Amt. */}
-                      {field === "sChgV" && (
+                      {field === "sChgV" && SHOW_MF_COLUMN && (
                         <td className={`${td} bg-[#eef1f4] text-right`}>
                           {isEmptyLine(row) ? "" : formatMoney(row.mf)}
                         </td>
@@ -726,7 +728,7 @@ const TicketLinesGrid: React.FC<{
             {totalBox("txtTotalSChg", sum("sChg"))}
             {totalBox("txtTotalVatAmt", vatTotal)}
             {totalBox("txtTotalSChgV", calculated ? sum("sChg") + sum("sChgV") : sum("sChgV"))}
-            {calculated && totalBox("txtTotalMF", rows.reduce((total, row) => total + row.mf, 0))}
+            {calculated && SHOW_MF_COLUMN && totalBox("txtTotalMF", rows.reduce((total, row) => total + row.mf, 0))}
             {totalBox("txtTotalInvAmt", sum("invAmt"))}
 
             <td className="border border-[#B7ECD0] bg-[#eef1f4]" />
@@ -1416,6 +1418,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         setRows(padLines([]));
         setActiveKey(null);
         setDetail(initialDetail());
+        onAction?.(name); // the screen clears its own boxes too
         break;
 
       case "close":

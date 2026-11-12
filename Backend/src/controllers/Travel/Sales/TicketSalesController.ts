@@ -5,6 +5,7 @@ import {
   ApiError,
   deleteTicketSales as deleteTicketSalesRecord,
   fetchTicketSales as fetchTicketSalesRecord,
+  fetchTicketSalesSlNos as fetchTicketSalesSlNosRecord,
   fetchTicketSalesVat,
   modifyTicketSales as modifyTicketSalesRecord,
   saveTicketSales as saveTicketSalesRecord,
@@ -496,7 +497,7 @@ export const getTicketSalesVat = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/ticket-sales/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo?lkpBranch=JD
+// GET /api/ticket-sales/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo?lkpBranch=JD&txtSlNo=2  (no txtSlNo = the first Sl. No. saved)
 // Load a saved ticket (the ticket and its customer line) into the Ticket Sales screen: the keys of the answer are the
 // element ids of the form. The ticket is searched in the branch of the screen first, else in the branch it was saved in.
 export const loadTicketSales = async (req: Request, res: Response) => {
@@ -509,6 +510,7 @@ export const loadTicketSales = async (req: Request, res: Response) => {
       lkpTktType: param(req.params.lkpTktType),
       txtTktSLNo: param(req.params.txtTktSLNo),
       lkpBranch: param(req.query.lkpBranch) || null,
+      txtSlNo: param(req.query.txtSlNo) || null,
     });
 
     if (!ticket) {
@@ -530,6 +532,35 @@ export const loadTicketSales = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "Internal server error while loading the ticket.",
+    });
+  }
+};
+
+// GET /api/ticket-sales/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo/sl-nos
+// The Sl. Nos saved for a Ticket No. and the next free one (1 when it is not saved yet): the Sl. No. box shows the next one
+// when it is cleared.
+export const getTicketSalesSlNos = async (req: Request, res: Response) => {
+  const param = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+
+  try {
+    const result = await fetchTicketSalesSlNosRecord({
+      PstrCoID: param(req.params.PstrCoID),
+      PstrYear: param(req.params.PstrYear),
+      lkpTktType: param(req.params.lkpTktType),
+      txtTktSLNo: param(req.params.txtTktSLNo),
+    });
+
+    res.status(200).json({ success: true, ...result });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      res.status(error.status).json({ success: false, message: error.message });
+      return;
+    }
+
+    console.error("Ticket sales Sl. No. lookup error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while loading the Sl. Nos.",
     });
   }
 };
@@ -593,6 +624,7 @@ export const deleteTicketSales = async (req: AuthenticatedRequest, res: Response
       lkpTktType: param(req.params.lkpTktType),
       txtTktSLNo: param(req.params.txtTktSLNo),
       lkpBranch: param(req.query.lkpBranch) || null,
+      txtSlNo: param(req.query.txtSlNo) || null,
       },
       PstrUserID,
     );

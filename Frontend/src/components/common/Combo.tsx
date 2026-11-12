@@ -338,6 +338,8 @@ type PairComboProps = {
    */
   fitMenuToPair?: boolean;
   isSearchable?: boolean;
+  /** both boxes are locked (the value cannot be changed) */
+  disabled?: boolean;
   containerClassName?: string;
 };
 
@@ -362,6 +364,7 @@ export const PairCombo: React.FC<PairComboProps> = ({
   nameSecondHeader,
   fitMenuToPair = false,
   isSearchable = true,
+  disabled = false,
   containerClassName,
 }) => {
   const pairRef = React.useRef<HTMLDivElement>(null);
@@ -392,6 +395,7 @@ export const PairCombo: React.FC<PairComboProps> = ({
         onChange={onChange}
         className={`${idWidth} shrink-0`}
         isSearchable={isSearchable}
+        disabled={disabled}
       />
 
       <Combo
@@ -407,6 +411,7 @@ export const PairCombo: React.FC<PairComboProps> = ({
         onChange={onChange}
         className={nameWidth}
         isSearchable={isSearchable}
+        disabled={disabled}
       />
     </>
   );

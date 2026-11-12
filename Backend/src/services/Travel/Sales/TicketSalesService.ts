@@ -54,6 +54,7 @@ type TicketSalesKey = {
   txtTktSLNo: string | null;
   lkpBranch: string | null;
   txtRevNo?: number;
+  txtSlNo?: number; // Sl. No.: one Ticket No. has a row for each Sl. No. (both tables), so it is part of the key
 };
 
 // the values of the ticket (sp_pageticketsales), in the order of the screen
@@ -322,7 +323,8 @@ async function callSpTicketSalesBPage(
       p_txtref3          => $28::varchar,
       p_txtref4          => $29::varchar,
       p_pstruserid       => $30::varchar,
-      p_result_cursor    => $31::refcursor
+      p_result_cursor    => $31::refcursor,
+      p_txtslno          => $32::smallint
     )
     `,
     [
@@ -357,6 +359,7 @@ async function callSpTicketSalesBPage(
       p.txtRef4 ?? null,
       p.PstrUserID ?? null,
       p.cursorName ?? newCursorName("cur_ticketsalesb"),
+      p.txtSlNo ?? 1,
     ],
   );
 }
@@ -434,6 +437,7 @@ const cleanTicketSales = (payload: SaveTicketSalesPayload) => {
   if (!Number.isInteger(txtSlNo) || txtSlNo < 1 || txtSlNo > 255) {
     throw new ApiError(400, "Sl. No. must be a whole number from 1 to 255");
   }
+  key.txtSlNo = txtSlNo;
 
   const ticket: TicketSalesValues = {
     txtSlNo,
@@ -533,6 +537,7 @@ const loadKeyOf = (key: TicketSalesKey) => ({
   lkpTktType: key.lkpTktType ?? "",
   txtTktSLNo: key.txtTktSLNo ?? "",
   lkpBranch: key.lkpBranch,
+  txtSlNo: key.txtSlNo,
 });
 
 /* ---------------------------------------------------------------- SAVE */
@@ -647,6 +652,16 @@ export type LoadTicketSalesKey = {
   lkpTktType: string;
   txtTktSLNo: string;
   lkpBranch?: string | null; // the branch of the screen: when the ticket was saved in another branch, that branch is used
+  txtSlNo?: number | string | null; // the Sl. No. to show / delete: empty = the first one saved
+};
+
+// Sl. No. of a load / delete: empty = null (the first one), else a whole number from 1 to 255
+const slNoOrNull = (value: unknown): number | null => {
+  const t = text(value === null || value === undefined ? "" : String(value));
+  if (t === "") return null;
+  const n = Number(t);
+  if (!Number.isInteger(n) || n < 1 || n > 255) throw new ApiError(400, "Sl. No. must be a whole number from 1 to 255");
+  return n;
 };
 
 const toText = (value: unknown): string =>
@@ -778,23 +793,27 @@ export const fetchTicketSalesWith = async (
   const lkpTktType = textOrNull(key.lkpTktType, 4, "Ticket Type");
   const txtTktSLNo = textOrNull(key.txtTktSLNo, 12, "Ticket No.");
   const given = textOrNull(key.lkpBranch, 3, "Branch");
+  const givenSlNo = slNoOrNull(key.txtSlNo);
 
   if (!lkpTktType) throw new ApiError(400, "Please select 'Ticket Type'");
   if (!txtTktSLNo) throw new ApiError(400, "Please enter 'Ticket No.'");
 
-  // the ticket can be in any branch: the branch of the screen first, else the branch it was saved in
+  // the ticket can be in any branch: the branch of the screen first, else the branch it was saved in;
+  // a Ticket No. can have several Sl. Nos: the one asked for, else the first one saved
   const found = await db.query(
-    `SELECT fbrid
+    `SELECT fbrid, fslno
        FROM dbo.tblticketsales
       WHERE fcoid = $1 AND fyear = $2 AND ftickettypeid = $3 AND fticketslno = $4
-      ORDER BY fbrid`,
-    [PstrCoID, PstrYear, lkpTktType, txtTktSLNo],
+        AND ($5::smallint IS NULL OR fslno = $5::smallint)
+      ORDER BY fslno, fbrid`,
+    [PstrCoID, PstrYear, lkpTktType, txtTktSLNo, givenSlNo],
   );
   if (found.rows.length === 0) return null;
 
-  const branches = found.rows.map((row) => String(row.fbrid));
+  const txtSlNo = Number(found.rows[0].fslno);
+  const branches = found.rows.filter((row) => Number(row.fslno) === txtSlNo).map((row) => String(row.fbrid));
   const lkpBranch = given && branches.includes(given) ? given : branches[0];
-  const k = { PstrCoID, PstrYear, lkpTktType, txtTktSLNo, lkpBranch };
+  const k = { PstrCoID, PstrYear, lkpTktType, txtTktSLNo, lkpBranch, txtSlNo };
 
   const ticketCursor = newCursorName("cur_ticketsales");
   await callSpTicketSalesPage(db, { strmode: "G", ...k, cursorName: ticketCursor });
@@ -857,29 +876,34 @@ export const deleteTicketSalesWith = async (
   const lkpTktType = textOrNull(key.lkpTktType, 4, "Ticket Type");
   const txtTktSLNo = textOrNull(key.txtTktSLNo, 12, "Ticket No.");
   const given = textOrNull(key.lkpBranch, 3, "Branch");
+  const givenSlNo = slNoOrNull(key.txtSlNo);
 
   if (!lkpTktType) throw new ApiError(400, "Please select a 'Ticket Type'");
   if (!txtTktSLNo) throw new ApiError(400, "Please input 'Ticket No.'");
 
   const found = await db.query(
-    `SELECT t.fbrid,
+    `SELECT t.fbrid, t.fslno,
             COALESCE(t.fpost, false) AS fpost,
             COALESCE((SELECT bool_or(COALESCE(b.finvoiced, false))
                         FROM dbo.tblticketsalesb AS b
                        WHERE b.fcoid = t.fcoid AND b.fyear = t.fyear AND b.fbrid = t.fbrid
-                         AND b.ftickettypeid = t.ftickettypeid AND b.fticketslno = t.fticketslno
+                         AND b.ftickettypeid = t.ftickettypeid AND b.fticketslno = t.fticketslno AND b.fslno = t.fslno
                          AND b.frevno = t.frevno), false) AS finvoiced
        FROM dbo.tblticketsales AS t
       WHERE t.fcoid = $1 AND t.fyear = $2 AND t.ftickettypeid = $3 AND t.fticketslno = $4
-      ORDER BY t.fbrid`,
-    [PstrCoID, PstrYear, lkpTktType, txtTktSLNo],
+        AND ($5::smallint IS NULL OR t.fslno = $5::smallint)
+      ORDER BY t.fslno, t.fbrid`,
+    [PstrCoID, PstrYear, lkpTktType, txtTktSLNo, givenSlNo],
   );
   if (found.rows.length === 0) {
-    throw new ApiError(404, `Ticket ${lkpTktType}-${txtTktSLNo} not found`);
+    throw new ApiError(404, `Ticket ${lkpTktType}-${txtTktSLNo}${givenSlNo ? ` Sl. No. ${givenSlNo}` : ""} not found`);
   }
 
-  const row = found.rows.find((r) => String(r.fbrid) === given) ?? found.rows[0];
+  // the Sl. No. asked for, else the first one; then the branch of the screen first, else the branch it was saved in
+  const slNoRows = found.rows.filter((r) => Number(r.fslno) === Number(found.rows[0].fslno));
+  const row = slNoRows.find((r) => String(r.fbrid) === given) ?? slNoRows[0];
   const lkpBranch = String(row.fbrid);
+  const txtSlNo = Number(row.fslno);
 
   if (row.finvoiced === true) {
     throw new ApiError(400, `Ticket ${lkpTktType}-${txtTktSLNo} is invoiced and cannot be deleted`);
@@ -888,7 +912,7 @@ export const deleteTicketSalesWith = async (
     throw new ApiError(400, `Ticket ${lkpTktType}-${txtTktSLNo} is posted and cannot be deleted`);
   }
 
-  const k = { PstrCoID, PstrYear, lkpTktType, txtTktSLNo, lkpBranch };
+  const k = { PstrCoID, PstrYear, lkpTktType, txtTktSLNo, lkpBranch, txtSlNo };
 
   // the ticket as it was, for the audit note
   const before = await fetchTicketSalesWith(db, k);
@@ -954,7 +978,7 @@ const AUDIT_LABELS: Record<string, string> = {
 
 // what a save / delete note lists (the main boxes), in the order of the screen
 const AUDIT_SUMMARY_KEYS = [
-  "lkpTktType", "txtTktSLNo", "lkpBranch", "lkpAirlineNo", "dtpDate", "lkpSupplier", "txtPaxName", "lkpDI",
+  "lkpTktType", "txtTktSLNo", "txtSlNo", "lkpBranch", "lkpAirlineNo", "dtpDate", "lkpSupplier", "txtPaxName", "lkpDI",
   "txtGFare", "txtSFare", "txtTax", "txtK7", "txtSupplierAmt", "lkpLineCustomer", "txtLineInvAmt",
 ];
 
@@ -1006,6 +1030,36 @@ const writeTicketAudit = (
     PstrUserID,
     note,
   });
+
+/* ---------------------------------------------------------- SL. NOS */
+
+// The Sl. Nos saved for a Ticket No. (in any branch) and the next free one: 1 when the ticket is not saved yet, else the
+// biggest + 1. The screen shows the next one when the Sl. No. box is cleared.
+export type TicketSalesSlNos = { slNos: number[]; next: number };
+
+export const fetchTicketSalesSlNosWith = async (db: Db, key: Partial<LoadTicketSalesKey>): Promise<TicketSalesSlNos> => {
+  const PstrCoID = text(key.PstrCoID);
+  const PstrYear = text(key.PstrYear);
+  const lkpTktType = textOrNull(key.lkpTktType, 4, "Ticket Type");
+  const txtTktSLNo = textOrNull(key.txtTktSLNo, 12, "Ticket No.");
+
+  if (!PstrCoID) throw new ApiError(400, "Company not found");
+  if (!PstrYear) throw new ApiError(400, "Year not found");
+  if (!lkpTktType) throw new ApiError(400, "Please select 'Ticket Type'");
+  if (!txtTktSLNo) throw new ApiError(400, "Please enter 'Ticket No.'");
+
+  const { rows } = await db.query(
+    `SELECT DISTINCT fslno
+       FROM dbo.tblticketsales
+      WHERE fcoid = $1 AND fyear = $2 AND ftickettypeid = $3 AND fticketslno = $4
+      ORDER BY fslno`,
+    [PstrCoID, PstrYear, lkpTktType, txtTktSLNo],
+  );
+  const slNos = rows.map((row) => Number(row.fslno));
+  return { slNos, next: slNos.length === 0 ? 1 : Math.max(...slNos) + 1 };
+};
+
+export const fetchTicketSalesSlNos = (key: Partial<LoadTicketSalesKey>) => fetchTicketSalesSlNosWith(pool, key);
 
 /* ----------------------------------------------------------------- VAT */
 

@@ -18,7 +18,8 @@
 --
 -- K7 (txtK7) is the purchase VAT amount of the supplier (the old txtTotPVATAmt, column fpvatamt).
 --
--- The table (dbo.tblticketsales): key = fcoid, fyear, fbrid, ftickettypeid, fticketslno, frevno;
+-- The table (dbo.tblticketsales): key = fcoid, fyear, fbrid, ftickettypeid, fticketslno, fslno (Sl. No.), frevno;
+-- one Ticket No. can have several Sl. Nos (1, 2, ...): each is its own row here and in dbo.tblticketsalesb;
 -- fcuserid / fcuserdate = created by, fmuserid / fmuserdate = modified by.
 --
 -- Parameter names follow the screen: p_<element id of the form, in lower case>. p_pstr... are the logged-in values.
@@ -130,7 +131,7 @@ BEGIN
            AND t.fyear = p_pstryear
            AND t.fbrid = p_lkpbranch
            AND t.ftickettypeid = p_lkptkttype
-           AND t.fticketslno = p_txttktslno
+           AND t.fticketslno = p_txttktslno AND t.fslno = p_txtslno
            AND t.frevno = p_txtrevno;
 
     -- ------------------------------------------------------ SAVE / MODIFY
@@ -172,8 +173,8 @@ BEGIN
 
             IF EXISTS (SELECT 1 FROM dbo.tblticketsales
                         WHERE fcoid = p_pstrcoid AND fyear = p_pstryear AND fbrid = p_lkpbranch
-                          AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND frevno = p_txtrevno) THEN
-                RAISE EXCEPTION 'Ticket ''%-%'' already exists', p_lkptkttype, p_txttktslno;
+                          AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND fslno = p_txtslno AND frevno = p_txtrevno) THEN
+                RAISE EXCEPTION 'Ticket ''%-%'' Sl. No. % already exists', p_lkptkttype, p_txttktslno, p_txtslno;
             END IF;
 
             INSERT INTO dbo.tblticketsales
@@ -208,7 +209,7 @@ BEGIN
 
             IF NOT EXISTS (SELECT 1 FROM dbo.tblticketsales
                             WHERE fcoid = p_pstrcoid AND fyear = p_pstryear AND fbrid = p_lkpbranch
-                              AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND frevno = p_txtrevno) THEN
+                              AND ftickettypeid = p_lkptkttype AND fticketslno = p_txttktslno AND fslno = p_txtslno AND frevno = p_txtrevno) THEN
                 RAISE EXCEPTION 'Ticket ''%-%'' was changed or removed by someone else. Cancel and try again',
                                 p_lkptkttype, p_txttktslno;
             END IF;
@@ -273,7 +274,7 @@ BEGIN
                AND fyear = p_pstryear
                AND fbrid = p_lkpbranch
                AND ftickettypeid = p_lkptkttype
-               AND fticketslno = p_txttktslno
+               AND fticketslno = p_txttktslno AND fslno = p_txtslno
                AND frevno = p_txtrevno;
 
         END IF;
@@ -286,7 +287,7 @@ BEGIN
            AND fyear = p_pstryear
            AND fbrid = p_lkpbranch
            AND ftickettypeid = p_lkptkttype
-           AND fticketslno = p_txttktslno
+           AND fticketslno = p_txttktslno AND fslno = p_txtslno
            AND frevno = p_txtrevno;
 
     ELSE
