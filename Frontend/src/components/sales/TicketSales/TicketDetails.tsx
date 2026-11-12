@@ -3,10 +3,40 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
+import { toast } from "react-toastify";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { Combo, PairCombo, type Option } from "../../common/Combo";
 import TicketLinesPage from "../../common/TicketLinesPage";
 import Header from "../../common/Header";
+import {
+  getTicketSalesAirlines,
+  getTicketSalesBranches,
+  getTicketSalesFop,
+  getTicketSalesGds,
+  getTicketSalesComTypes,
+  getTicketSalesDi,
+  getTicketSalesIatas,
+  getTicketSalesMerchants,
+  getTicketSalesPaxTypes,
+  getTicketSalesServiceTypes,
+  getTicketSalesStaffs,
+  getTicketSalesSuppliers,
+  getTicketSales,
+  getTicketSalesSlNos,
+  getTicketSalesTktTypes,
+  deleteTicketSales,
+  getTicketSalesVat,
+  modifyTicketSales,
+  saveTicketSales,
+  type LoadedTicket,
+  type TicketSalesVat,
+  type TicketDetailPayload,
+  type TicketLinePayload,
+  type TktTypeRecord,
+} from "../../../utils/airlineApi";
+import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
 
 dayjs.extend(customParseFormat);
 
@@ -29,70 +59,18 @@ const TODAY = dayjs().format(DATE_FORMAT);
 const toOptions = (values: string[]): Option[] =>
   values.map((v) => ({ value: v, label: v }));
 
-const ticketPrefixOptions = toOptions(["B", "T", "R"]);
-const airlineIdOptions: Option[] = [
-  { value: "SV", label: "SV" },
-  { value: "EK", label: "EK" },
-  { value: "QR", label: "QR" },
-];
-const airlineNameOptions: Option[] = [
-  { value: "SV", label: "SAUDIA" },
-  { value: "EK", label: "EMIRATES" },
-  { value: "QR", label: "QATAR AIRWAYS" },
-];
-const branchIdOptions: Option[] = [
-  { value: "JD", label: "JD" },
-  { value: "RY", label: "RY" },
-];
-const branchNameOptions: Option[] = [
-  { value: "JD", label: "JEDDAH" },
-  { value: "RY", label: "RIYADH" },
-];
-const iataIdOptions: Option[] = [
-  { value: "I1", label: "I1" },
-  { value: "I2", label: "I2" },
-];
-const iataNameOptions: Option[] = [
-  { value: "I1", label: "IATA ONE" },
-  { value: "I2", label: "IATA TWO" },
-];
-const supplierIdOptions: Option[] = [
-  { value: "S01", label: "S01" },
-  { value: "S02", label: "S02" },
-];
-const supplierNameOptions: Option[] = [
-  { value: "S01", label: "SUPPLIER ONE" },
-  { value: "S02", label: "SUPPLIER TWO" },
-];
-const supPaymentIdOptions: Option[] = [
-  { value: "CASH", label: "CASH" },
-  { value: "CRD", label: "CRD" },
-];
-const supPaymentNameOptions: Option[] = [
-  { value: "CASH", label: "CASH PAYMENT" },
-  { value: "CRD", label: "CREDIT PAYMENT" },
-];
-const staffIdOptions: Option[] = [
-  { value: "ST1", label: "ST1" },
-  { value: "ST2", label: "ST2" },
-];
-const staffNameOptions: Option[] = [
-  { value: "ST1", label: "STAFF ONE" },
-  { value: "ST2", label: "STAFF TWO" },
-];
-const gdsOptions = toOptions(["AMADEUS", "SABRE", "GALILEO"]);
-const diOptions = toOptions(["D", "I"]);
 const yesNoOptions = toOptions(["No", "Yes"]);
-const paxTypeOptions = toOptions(["Adult", "Child", "Infant"]);
-const serviceOptions = toOptions(["TKT", "EMD", "MCO"]);
-const tripOptions = toOptions(["One Way", "Round Trip"]);
-const fopOptions = toOptions(["CASH", "CREDIT", "CC", "EP"]);
-const merchantOptions = toOptions(["NA", "MERCHANT 1", "MERCHANT 2"]);
-const alComTypeOptions = toOptions(["P", "A"]); // P = percent, A = amount
+// Trip: the list shows One Way / Round Trip, the value that is saved is OW / RT
+const tripOptions: Option[] = [
+  { value: "OW", label: "One Way" },
+  { value: "RT", label: "Round Trip" },
+];
 
 type FormState = {
-  ticketPrefix: string | null;
+  ticketPrefix: string | null; // fticketTypeid
+  tktName: string; // ftickttypename of the selected ticket type
   ticketNo: string;
+  slNo: string; // fSlNo (txtSlNo): starts at 1
   airline: string | null;
   branch: string | null;
   iata: string | null;
@@ -108,10 +86,12 @@ type FormState = {
 
   pax: string;
   staff: string | null;
+  bookingGdsLogin: string;
 
   mobile: string;
   paxType: string | null;
   service: string | null;
+  salesGdsLogin: string;
   pnrNo: string;
 
   email: string;
@@ -140,7 +120,8 @@ type FormState = {
   k7: string;
   supFee: string;
   alComType: string | null;
-  alCom: string;
+  alCom: string; // A/L Com. % (typed when the type is P)
+  alComAmt: string; // A/L Com. Amt. (typed when the type is A)
 };
 
 type SetField = <K extends keyof FormState>(
@@ -154,17 +135,89 @@ type PartProps = { form: FormState; set: SetField };
 type Computed = {
   feeVat: number;
   supCom: number;
+  alComPer: number;
   alComAmt: number;
   alCVat: number;
   supplierAmt: number;
   net: number;
 };
 
+/* ---------------------------------------------------------------------
+   The calculated amounts of the fares panel (the old frmTktSales):
+     A/L Com. Amt. = CalcCommAmt        S.Fare x A/L Com. % x 0.01 (type P), the typed amount (type A)
+     Sup. Com.     = CalcSalesCommAmt   G.Fare - S.Fare, only for BSP tickets (B / BS) without a tour code
+     A/L C. VAT    = CalcCommVATAmt     (Sup. Com. + A/L Com. Amt.) x the commission VAT % x 0.01
+     Fee VAT       = CalcXOCommVATAmt   Sup. Fee x the service charge VAT % x 0.01
+     Supplier Amt. = CalcSupplierAmt    (S.Fare - A/L Com. Amt.) + Tax + K7 + Sup. Fee + Fee VAT
+     Net           = CalcTotalCost      Supplier Amt. - A/L C. VAT   (the old txtSupplierAmtLCVAT)
+   They are worked out from the form on every render, so they follow every change.
+
+   The VAT percentages come from the database (dbo.getvatper, dbo.getcommvatper,
+   dbo.getvatoncommission, by the date, D/I and airline of the ticket).
+   Fee VAT also needs the flag of the paid supplier (old fCalcSupFeeVAT), which is
+   not in the database yet: until it is given the flag below stays false.
+   --------------------------------------------------------------------- */
+const SUPPLIER_CALC_FEE_VAT = false; // the paid supplier calculates VAT on the fee (old fCalcSupFeeVAT)
+
+const noVat: TicketSalesVat = {
+  txtSCVATPer: 0,
+  txtCommVATPer: 0,
+  chkVATOnCommission: false,
+};
+
+const toNumber = (value: string) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+const calcAmounts = (form: FormState, vat: TicketSalesVat): Computed => {
+  const gFare = toNumber(form.gFare);
+  const sFare = toNumber(form.sFare);
+  const tax = toNumber(form.tax);
+  const k7 = toNumber(form.k7);
+  const supFee = toNumber(form.supFee);
+
+  // A/L Com. (the old CalcCommAmt / CalcCommPer): type P = the % is typed and the amount is
+  // worked out; type A = the amount is typed and the % is worked out.
+  const alComPer =
+    form.alComType === "P"
+      ? toNumber(form.alCom)
+      : sFare !== 0
+        ? round2((toNumber(form.alComAmt) / sFare) * 100)
+        : 0;
+  const alComAmt =
+    form.alComType === "P"
+      ? round2(sFare * toNumber(form.alCom) * 0.01)
+      : round2(toNumber(form.alComAmt));
+
+  const isBspTicket = form.ticketPrefix === "B" || form.ticketPrefix === "BS";
+  const supCom = isBspTicket && form.tourCode.trim() === "" ? round2(gFare - sFare) : 0;
+
+  const vatOnCommission = form.di === "D" || vat.chkVATOnCommission;
+  const alCVat = vatOnCommission
+    ? round2((supCom + alComAmt) * vat.txtCommVATPer * 0.01)
+    : 0;
+
+  const feeVat =
+    SUPPLIER_CALC_FEE_VAT && form.supPayment
+      ? round2(supFee * vat.txtSCVATPer * 0.01)
+      : 0;
+
+  const supplierAmt = round2(sFare - alComAmt + tax + k7 + supFee + feeVat);
+  const net = round2(supplierAmt - alCVat);
+
+  return { feeVat, supCom, alComPer, alComAmt, alCVat, supplierAmt, net };
+};
+
 const initialForm = (): FormState => ({
-  ticketPrefix: "B",
+  ticketPrefix: null,
+  tktName: "",
   ticketNo: "",
+  slNo: "1",
   airline: null,
-  branch: "JD",
+  branch: null,
   iata: null,
 
   date: TODAY,
@@ -178,10 +231,12 @@ const initialForm = (): FormState => ({
 
   pax: "",
   staff: null,
+  bookingGdsLogin: "",
 
   mobile: "",
-  paxType: "Adult",
+  paxType: "A", // Adult (fpid of tbltlparam PXTP)
   service: "TKT",
+  salesGdsLogin: "",
   pnrNo: "",
 
   email: "",
@@ -211,6 +266,66 @@ const initialForm = (): FormState => ({
   supFee: "0.00",
   alComType: "P",
   alCom: "0.00",
+  alComAmt: "0.00",
+});
+
+/* A saved ticket (from the server, the keys are the element ids) -> the values of the form. The calculated boxes
+   (Fee VAT, Sup. Com., A/L C. VAT, Supplier Amt., Net) are worked out again from these values. */
+const money2 = (value: number) => value.toFixed(2);
+const orNull = (value: string) => (value === "" ? null : value);
+
+const formFromTicket = (t: LoadedTicket, tktName: string): Partial<FormState> => ({
+  ticketPrefix: t.lkpTktType,
+  tktName,
+  ticketNo: t.txtTktSLNo,
+  slNo: String(t.txtSlNo),
+  airline: orNull(t.lkpAirlineNo),
+  branch: orNull(t.lkpBranch),
+  iata: orNull(t.lkpIATA),
+
+  date: t.dtpDate,
+  bspDate: t.dtpBSPDate,
+  flightDate: t.dtpFlightDate,
+  returnDate: t.dtpReturnDate,
+  pnrNo: t.txtPNRNo,
+  di: orNull(t.lkpDI),
+  supplier: orNull(t.lkpSupplier),
+  supPayment: orNull(t.lkpPaySupplierID),
+  pax: t.txtPaxName,
+  staff: orNull(t.lkpStaffID),
+  bookingGdsLogin: t.txtBookingGDSLogin ?? "",
+  paxType: orNull(t.lkpPaxType),
+  paxId: t.txtPaxNameId,
+  voidFlag: t.lkpVoid,
+  service: orNull(t.lkpService),
+  salesGdsLogin: t.txtSalesGDSLogin ?? "",
+  mobile: t.txtMobile,
+  email: t.txtEmail,
+  trip: orNull(t.lkpTrip),
+  tourCode: t.txtTourCode,
+
+  route: t.txtRoute,
+  travelClass: t.txtClass,
+  destination: t.txtDestination,
+  cnj: t.lkpCNJ,
+  gds: orNull(t.lkpGDS),
+  ccType: orNull(t.lkpCCType),
+  carrier: t.txtCarrier,
+  fareBasis: t.txtFareBasis,
+  merchant: orNull(t.lkpMerchant),
+
+  fop: orNull(t.lkpFOP),
+  gFare: money2(t.txtGFare),
+  supFee: money2(t.txtSupFee),
+  fopCash: money2(t.txtFopCash),
+  sFare: money2(t.txtSFare),
+  alComType: orNull(t.lkpALCom),
+  alCom: money2(t.txtALCom),
+  fopCc: money2(t.txtFopCc),
+  tax: money2(t.txtTax),
+  alComAmt: money2(t.txtALComAmt),
+  fopEp: money2(t.txtFopEp),
+  k7: money2(t.txtK7),
 });
 
 /* Label widths. Every row uses the same widths per column, so the controls
@@ -219,7 +334,6 @@ const LA = "w-[64px]"; // Date, Supplier, Pax., Mobile, E-mail
 const LB = "w-[72px]"; // BSP Date, Pax Type, Pax ID
 const LC = "w-[92px]"; // Flight Date, Sup. Payment, Staff, Service, Trip
 const LD = "w-[92px]"; // D/I, Orig. Tkt.No., Return Date
-const DI = "w-[150px]";
 const LE = "w-[72px]"; // Void, PNR No., Tour Code
 const Lx = "w-[72px]"; 
 /* ---------------------------------------------------------------------
@@ -229,8 +343,6 @@ const inputClass =
   " w-full min-w-0 input-style";
 
 const readOnlyClass =
-  "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
-const readOnlyClass1 =
   "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
 
 const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3 shadow-sm";
@@ -409,15 +521,64 @@ const AppDatePicker: React.FC<{
    3. FORM PARTS
    --------------------------------------------------------------------- */
 
+/** width (px) of an element, kept up to date when it resizes */
+const useElementWidth = <T extends HTMLElement>() => {
+  const ref = useRef<T>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(el.getBoundingClientRect().width);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width] as const;
+};
+
 /* 3a. Top bar: ticket no, airline, branch, IATA ------------------------ */
 
 const TicketTopBar: React.FC<
   PartProps & {
     ticketNoRef: React.RefObject<HTMLInputElement | null>;
     onSearch: () => void;
+    onTicketNoLeave: () => void; // leaving the Ticket No. box loads the ticket when it is saved
+    airlineIdOptions: Option[];
+    airlineNameOptions: Option[];
+    ticketTypeOptions: Option[];
+    onTicketTypeChange: (fticketTypeid: string | null) => void;
+    keyLocked: boolean; // a saved ticket is shown (Modify): its Ticket Type and Ticket No. cannot be changed
+    onSlNoLeave: () => void; // leaving the Sl. No. box: loads that Sl. No., or shows the next free one when it is empty
+    branchIdOptions: Option[];
+    branchNameOptions: Option[];
+    iataIdOptions: Option[];
+    iataNameOptions: Option[];
   }
-> = ({ form, set, ticketNoRef, onSearch }) => (
-  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[1.2fr_1.5fr_1.3fr_1.5fr]">
+> = ({
+  form,
+  set,
+  ticketNoRef,
+  onSearch,
+  onTicketNoLeave,
+  airlineIdOptions,
+  airlineNameOptions,
+  branchIdOptions,
+  branchNameOptions,
+  iataIdOptions,
+  iataNameOptions,
+  ticketTypeOptions,
+  onTicketTypeChange,
+  keyLocked,
+  onSlNoLeave,
+}) => {
+  // The ticket type list is as wide as the prefix box + the ticket number box.
+  const [ticketNoWrapRef, ticketNoWrapWidth] = useElementWidth<HTMLDivElement>();
+
+  return (
+  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(300px,1.4fr)_1.5fr_1.3fr_1.5fr]">
 
     {/* Ticket No */}
     <Field
@@ -425,13 +586,15 @@ const TicketTopBar: React.FC<
       htmlFor="txtTktSLNo"
       className="w-full min-w-0"
     >
-      <div className="flex w-full min-w-0 items-center gap-2">
+      <div ref={ticketNoWrapRef} className="flex w-full min-w-0 items-center gap-2">
         <Combo
           id="lkpTktType"
-          options={ticketPrefixOptions}
+          menuWidth={ticketNoWrapWidth || undefined}
+          options={ticketTypeOptions}
           value={form.ticketPrefix}
-          onChange={(v) => set("ticketPrefix", v)}
+          onChange={onTicketTypeChange}
           className="w-16.25 shrink-0"
+          disabled={keyLocked}
           isSearchable
         />
 
@@ -439,13 +602,31 @@ const TicketTopBar: React.FC<
           ref={ticketNoRef}
           id="txtTktSLNo"
           value={form.ticketNo}
+          readOnly={keyLocked}
+          maxLength={10} // the old txtTktSlNo: 10 characters at most
           onChange={(event) => set("ticketNo", event.target.value)}
+          onBlur={onTicketNoLeave}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               onSearch();
             }
           }}
-          className={`${inputClass} w-full min-w-0`}
+          className={`input-style w-full min-w-[104px] ${keyLocked ? "!bg-[#eef1f4]" : ""}`} // room for 10 digits
+        />
+
+        {/* Sl. No. (fSlNo): 1 to start with */}
+        <input
+          id="txtSlNo"
+          aria-label="Sl. No."
+          inputMode="numeric"
+          maxLength={3}
+          value={form.slNo}
+          onFocus={(event) => event.target.select()}
+          onBlur={onSlNoLeave}
+          onChange={(event) => {
+            if (/^\d{0,3}$/.test(event.target.value)) set("slNo", event.target.value);
+          }}
+          className="input-style w-9 shrink-0 text-center"
         />
       </div>
     </Field>
@@ -458,12 +639,20 @@ const TicketTopBar: React.FC<
       <div className="w-full min-w-0  ml-[2%]">
         <PairCombo
           idId="lkpAirlineNo"
+          idFirstHeader="A/L No."
+          idSecondHeader="Name"
           nameId="lkpAirlineName"
           idOptions={airlineIdOptions}
           nameOptions={airlineNameOptions}
           value={form.airline}
           onChange={(v) => set("airline", v)}
           idWidth="w-[80px] shrink-0"
+          fitMenuToPair
+          idMenuWidth={260}
+          nameMenuWidth={250}
+          nameSecondColumnExtra={84}
+          nameFirstHeader="Name"
+          nameSecondHeader="A/L No."
           nameWidth="min-w-0 flex-1"
           isSearchable
           containerClassName="flex flex-1 gap-2"
@@ -478,7 +667,7 @@ const TicketTopBar: React.FC<
     >
       <div className="w-full min-w-0">
         <PairCombo
-          idId="lkpBranchID"
+          idId="lkpBranch"
           nameId="lkpBranchName"
           idOptions={branchIdOptions}
           nameOptions={branchNameOptions}
@@ -486,6 +675,10 @@ const TicketTopBar: React.FC<
           onChange={(v) => set("branch", v)}
           idWidth="w-[55px] shrink-0"
           nameWidth="min-w-0 flex-1"
+          fitMenuToPair
+          nameSecondColumnExtra={50}
+          nameFirstHeader="Name"
+          nameSecondHeader="ID"
           isSearchable
           containerClassName="flex flex-1 gap-2"
         />
@@ -499,28 +692,56 @@ const TicketTopBar: React.FC<
     >
       <div className="w-full min-w-0">
         <PairCombo
-          idId="lkpIATACode"
-          nameId="lkpIATABranchName"
+          idId="lkpIATA"
+          idFirstHeader="IATA Code"
+          idSecondHeader="IATA"
+          nameId="lkpIATAName"
           idOptions={iataIdOptions}
           nameOptions={iataNameOptions}
           value={form.iata}
           onChange={(v) => set("iata", v)}
           idWidth="w-[110px] shrink-0"
           nameWidth="min-w-0 flex-1"
+          fitMenuToPair
+          nameSecondColumnExtra={88}
+          nameFirstHeader="IATA"
+          nameSecondHeader="IATA Code"
           isSearchable
+          disabled={form.ticketPrefix === "X"} // an XO ticket is saved with IATA NA only
           containerClassName="flex flex-1 gap-2"
         />
       </div>
     </Field>
 
   </div>
-);
+  );
+};
 
 /* 3b. Ticket details box ------------------------------------------------
    12-column grid with five column groups on every row:
    A = 3 cols, B = 3 cols, C = 2 cols, D = 2 cols, E = 2 cols
    (wide fields span several groups, e.g. Supplier = A+B).              */
-const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
+const TicketDetailsFields: React.FC<
+  PartProps & {
+    staffIdOptions: Option[];
+    staffNameOptions: Option[];
+    supplierIdOptions: Option[];
+    supplierNameOptions: Option[];
+    serviceOptions: Option[];
+    diOptions: Option[];
+    paxTypeOptions: Option[];
+  }
+> = ({
+  form,
+  set,
+  staffIdOptions,
+  staffNameOptions,
+  supplierIdOptions,
+  supplierNameOptions,
+  serviceOptions,
+  diOptions,
+  paxTypeOptions,
+}) => (
   <div
     className={`${panelClass} grid grid-cols-1 items-center md:grid-cols-2 lg:grid-cols-12`}
   >
@@ -538,7 +759,7 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     <Field label="BSP Date :" labelClassName={LB} className="min-w-0 lg:col-span-2 mb-2">
       <div className="w-35 min-w-0">
         <AppDatePicker
-        id="dtpBspDate"
+        id="dtpBSPDate"
         label="BSP Date"
         value={form.bspDate}
         onChange={(v) => set("bspDate", v)}
@@ -568,21 +789,24 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     </Field>
     <Field
       label="PNR :"
-      htmlFor="txtPnrNo"
+      htmlFor="txtPNRNo"
       labelClassName={Lx}
-      className=" min-w-0 lg:col-span-2 lg:ml-[10%] w-87.5 z-1 mb-2"
+      className="min-w-0 lg:col-span-2 mb-2"
     >
       <input
-        id="txtPnrNo"
+        id="txtPNRNo"
         value={form.pnrNo}
         onChange={(event) => set("pnrNo", event.target.value)}
-        className={`${inputClass} w-[85%]! min-w-0`}
+        className={`${inputClass} min-w-0`}
       />
     </Field>
 
-    <Field label="D/I :" labelClassName={DI} className="min-w-0 lg:col-span-2 float-end mb-2">
+    <Field label="D/I :" labelClassName={LA} className="min-w-0 lg:col-span-2 mb-2">
       <Combo
         id="lkpDI"
+        firstHeader="Name"
+        secondHeader="ID"
+        secondColumnExtra={44}
         options={diOptions}
         value={form.di}
         onChange={(v) => set("di", v)}
@@ -599,14 +823,23 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       className="min-w-0 md:col-span-2 lg:col-span-6 -pt-2"
     >
       <PairCombo
-        idId="lkpSupplierID"
+        idId="lkpSupplier"
         nameId="lkpSupplierName"
         idOptions={supplierIdOptions}
         nameOptions={supplierNameOptions}
         value={form.supplier}
-        onChange={(v) => set("supplier", v)}
+        onChange={(v) => {
+          set("supplier", v);
+          if (form.supPayment === null || form.supPayment === form.supplier) {
+            set("supPayment", v);
+          }
+        }}
         idWidth="w-[110px]"
         nameWidth="flex-1"
+        fitMenuToPair
+        nameSecondColumnExtra={84}
+        nameFirstHeader="Name"
+        nameSecondHeader="ID"
         isSearchable
         containerClassName="flex flex-1 gap-2"
       />
@@ -617,14 +850,18 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       className="min-w-0 md:col-span-2 lg:col-span-6"
     >
       <PairCombo
-        idId="lkpSupPaymentID"
-        nameId="lkpSupPaymentName"
-        idOptions={supPaymentIdOptions}
-        nameOptions={supPaymentNameOptions}
+        idId="lkpPaySupplierID"
+        nameId="lkpPaySupplierName"
+        idOptions={supplierIdOptions}
+        nameOptions={supplierNameOptions}
         value={form.supPayment}
         onChange={(v) => set("supPayment", v)}
         idWidth="w-[110px]"
         nameWidth="flex-1"
+        fitMenuToPair
+        nameSecondColumnExtra={84}
+        nameFirstHeader="Name"
+        nameSecondHeader="ID"
         isSearchable
         containerClassName="flex flex-1 gap-2"
       />
@@ -657,6 +894,10 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
         value={form.staff}
         onChange={(v) => set("staff", v)}
         idWidth="w-[72px]"
+        fitMenuToPair
+        nameSecondColumnExtra={88}
+        nameFirstHeader="Name"
+        nameSecondHeader="ID"
         isSearchable
         containerClassName="flex flex-1 gap-2"
       />
@@ -667,10 +908,10 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     >
       <input
         id="txtBookingGDSLogin"
-        readOnly
-        tabIndex={-1}
-        value={form.staff ?? ""}
-        className={readOnlyClass1}
+        maxLength={6}
+        value={form.bookingGdsLogin}
+        onChange={(e) => set("bookingGdsLogin", e.target.value)}
+        className={inputClass}
       />
     </Field>
 
@@ -678,6 +919,9 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     <Field label="Pax Type :" labelClassName={LB} className="min-w-0 w-[80%] lg:col-span-2 lg:-ml-2 mb-2">
       <Combo
         id="lkpPaxType"
+        secondColumnExtra={44}
+        firstHeader="Name"
+        secondHeader="ID"
         options={paxTypeOptions}
         value={form.paxType}
         onChange={(v) => set("paxType", v)}
@@ -709,26 +953,11 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
       />
     </Field>
     
-    
-    
-   
-    {/* <Field
-      label="PNR No. :"
-      htmlFor="txtPnrNo"
-      labelClassName={LE}
-      className="min-w-0 lg:col-span-2"
-    >
-      <input
-        id="txtPnrNo"
-        value={form.pnrNo}
-        onChange={(event) => set("pnrNo", event.target.value)}
-        className={inputClass}
-      />
-    </Field> */}
     <Field label="Void :" labelClassName={LE} className="min-w-0 lg:col-span-2 ml-5 mb-2">
       <div className="w-full min-w-0">
         <Combo
         id="lkpVoid"
+        fitMenuToBox
         options={yesNoOptions}
         value={form.voidFlag}
         onChange={(v) => set("voidFlag", v)}
@@ -738,7 +967,8 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     </Field>
     <Field label="Service Type :" labelClassName={LC} className="min-w-0 lg:col-span-2 mb-2">
       <Combo
-        id="lkpServiceType"
+        id="lkpService"
+        menuWidth={240}
         options={serviceOptions}
         value={form.service}
         onChange={(v) => set("service", v)}
@@ -752,10 +982,10 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
     >
       <input
         id="txtSalesGDSLogin"
-        readOnly
-        tabIndex={-1}
-        value={form.staff ?? ""}
-        className={`${readOnlyClass1} `}
+        maxLength={6}
+        value={form.salesGdsLogin}
+        onChange={(e) => set("salesGdsLogin", e.target.value)}
+        className={inputClass}
       />
     </Field>
 
@@ -816,377 +1046,350 @@ const TicketDetailsFields: React.FC<PartProps> = ({ form, set }) => (
 );
 
 /* 3c. Route / payment panel (left) --------------------------------------
-   12-column grid, every row split 5 | 3 | 4 so the columns line up.     */
+   Responsive to the width of the page content (container queries), so it
+   stays correct when the side menu opens or closes. */
 
-/* Route and Fare Details Panel */
-
-// Label widths: every row in a column uses the same width, so the boxes line up.
-/* 3c. Route / payment panel ------------------------------------------ */
-
-// Fixed label widths to match the original WinForms layout
-const L1 = "w-[68px] shrink-0 ";
-const L2 = "w-[72px] shrink-0";
-const L3 = "w-[64px] shrink-0";
+const L1 = "w-[78px] shrink-0";
 
 // Text input
-const inputClassforTicketRoutePanel =
-  "w-full min-w-0 input-style";
+const inputClassforTicketRoutePanel = "w-full min-w-0 input-style";
 
 // Small read-only box next to GDS
 const greyBoxClass =
   "h-[30px] w-[30px] shrink-0 rounded-[2px] border border-[#cbd2dc] bg-[#e5e7eb]";
 
-/* Three fixed columns matching the WinForms screen */
-const TicketRoutePanel: React.FC<PartProps> = ({ form, set }) => (
-  <div
-    className={`${panelClass} grid grid-cols-1 items-center   md:grid-cols-2`}
-  >
-    {/* Route and payment fields use two aligned columns. */}
-
-    <Field
-      label="Route :"
-      htmlFor="txtRoute"
-      labelClassName={L1}
-      className="min-w-0 w-[120%] "
+const TicketRoutePanel: React.FC<
+  PartProps & { gdsOptions: Option[]; merchantOptions: Option[] }
+> = ({ form, set, gdsOptions, merchantOptions }) => (
+  <div className="@container min-w-0">
+    <div
+      className={`${panelClass} grid h-full grid-cols-1 items-center gap-x-4 gap-y-2 @md:grid-cols-2`}
     >
-      <input
-        id="txtRoute"
-        value={form.route}
-        onChange={(e) => set("route", e.target.value)}
-        className={inputClassforTicketRoutePanel}
-      />
-    </Field>
-
-    <Field
-      label="Class :"
-      htmlFor="txtClass"
-      labelClassName={L2}
-      className="min-w-0 ml-10 w-[80%] "
-    >
-      <input
-        id="txtClass"
-        value={form.travelClass}
-        onChange={(e) => set("travelClass", e.target.value)}
-        className={inputClassforTicketRoutePanel}
-      />
-    </Field>
-
-    <Field
-      label="Destination :"
-      htmlFor="txtDestination"
-      labelClassName={L1}
-      className="min-w-0 w-[120%]  mt-1"
-    >
-      <div className="flex w-full min-w-0 items-center gap-2">
+      <Field
+        label="Route :"
+        htmlFor="txtRoute"
+        labelClassName={L1}
+        className="min-w-0"
+      >
         <input
-        id="txtDestination"
-        value={form.destination}
-        onChange={(e) => set("destination", e.target.value)}
-        className={`${inputClassforTicketRoutePanel} flex-1`}
-      />
-       <Field label="CNJ. :" className="w-29 shrink-0 lg:-mr-4  ">
-        <Combo
-          id="lkpCNJ"
-          options={yesNoOptions}
-          value={form.cnj}
-          onChange={(v) => set("cnj", v)}
-          className="w-14.5 min-w-0"
-          isSearchable
+          id="txtRoute"
+          value={form.route}
+          maxLength={ROUTE_MAX_LENGTH}
+          autoCapitalize="characters"
+          onChange={(e) => set("route", formatRoute(e.target.value))}
+          className={inputClassforTicketRoutePanel}
         />
       </Field>
-      </div>
-    </Field>
 
-    <div className="flex min-w-0 items-center gap-2  mb-1">
-     
+      <Field
+        label="Class :"
+        htmlFor="txtClass"
+        labelClassName={L1}
+        className="min-w-0"
+      >
+        <input
+          id="txtClass"
+          value={form.travelClass}
+          onChange={(e) => set("travelClass", e.target.value)}
+          className={inputClassforTicketRoutePanel}
+        />
+      </Field>
 
-      <Field label="GDS :" className="min-w-0 flex-1 ml-20 mt-1">
-        <div className="flex min-w-0 items-center gap-1">
+      <Field
+        label="Destination :"
+        htmlFor="txtDestination"
+        labelClassName={L1}
+        className="min-w-0"
+      >
+        <div className="flex w-full min-w-0 items-center gap-2">
+          <input
+            id="txtDestination"
+            value={form.destination}
+            maxLength={3}
+            autoCapitalize="characters"
+            onChange={(e) => set("destination", formatAirportCode(e.target.value))}
+            className={`${inputClassforTicketRoutePanel} flex-1`}
+          />
+          <Field label="CNJ. :" className="shrink-0">
+            <Combo
+              id="lkpCNJ"
+              fitMenuToBox
+              options={yesNoOptions}
+              value={form.cnj}
+              onChange={(v) => set("cnj", v)}
+              className="w-14.5 min-w-0"
+              isSearchable
+            />
+          </Field>
+        </div>
+      </Field>
+
+      <Field label="GDS :" labelClassName={L1} className="min-w-0">
+        <div className="flex w-full min-w-0 items-center gap-1">
           <Combo
             id="lkpGDS"
+            secondColumnExtra={48}
+            firstHeader="Name"
+            secondHeader="ID"
             options={gdsOptions}
             value={form.gds}
             onChange={(v) => set("gds", v)}
-            className="min-w-0 flex-1 w-20"
+            className="min-w-0 flex-1"
             isSearchable
           />
-
           <input
             id="txtGdsCode"
             readOnly
             tabIndex={-1}
             aria-label="GDS code"
             value=""
-            className={`${greyBoxClass}`}
+            className={greyBoxClass}
           />
         </div>
       </Field>
+
+      <Field
+        label="Carrier :"
+        htmlFor="txtCarrier"
+        labelClassName={L1}
+        className="min-w-0"
+      >
+        <input
+          id="txtCarrier"
+          value={form.carrier}
+          onChange={(e) => set("carrier", e.target.value)}
+          className={inputClassforTicketRoutePanel}
+        />
+      </Field>
+
+      <Field label="Merchant :" labelClassName={L1} className="min-w-0">
+        <Combo
+          id="lkpMerchant"
+          secondColumnExtra={56}
+          firstHeader="Name"
+          secondHeader="ID"
+          options={merchantOptions}
+          value={form.merchant}
+          onChange={(v) => set("merchant", v)}
+          className="w-full min-w-0"
+          isSearchable
+        />
+      </Field>
     </div>
-
-    <Field
-      label="Carrier :"
-      htmlFor="txtCarrier"
-      labelClassName={L1}
-      className="min-w-0 w-[120%]"
-    >
-      <input
-        id="txtCarrier"
-        value={form.carrier}
-        onChange={(e) => set("carrier", e.target.value)}
-        className={inputClassforTicketRoutePanel}
-      />
-    </Field>
-
-
-    <Field label="Merchant :" labelClassName={L3} className="min-w-0 w-[80%] ml-12">
-      <Combo
-        id="lkpMerchant"
-        options={merchantOptions}
-        value={form.merchant}
-        onChange={(v) => set("merchant", v)}
-        className="w-full min-w-0"
-        isSearchable
-      />
-    </Field>
-    <Field
-  label="Merchant :"
-  labelClassName={L3}
-  className="invisible min-w-0 ml-12 w-[80%]"
->
-  <Combo
-    id="lkpMerchantHidden"
-    options={merchantOptions}
-    value={form.merchant}
-    onChange={(v) => set("merchant", v)}
-    className="w-full min-w-0"
-    isSearchable
-  />
-</Field>
-
   </div>
 );
-/* 3d. Fares and commissions panel ---------------------------------- */
-const R1 = "w-[90px] shrink-0";
-const R2 = "w-[120px] shrink-0";
-const R3 = "w-[78px] shrink-0";
-const amountFieldClass =
-  "min-w-0 md:flex-col md:items-stretch md:gap-0.5 lg:flex-row lg:items-center lg:gap-2";
 
-const TicketAmountsPanel: React.FC<PartProps & { computed: Computed }> = ({
-  form,
-  set,
-  computed,
-}) => (
-  <div
-    className={`${panelClass} grid grid-cols-1 items-center gap-x-2 gap-y-2 sm:grid-cols-2 md:grid-cols-4`}
-  >
-    {/* Row 1 */}
-    <Field label="FOP :" labelClassName={L3} className={amountFieldClass}>
-      <Combo
-        id="lkpFOP"
-        options={fopOptions}
-        value={form.fop}
-        onChange={(v) => set("fop", v)}
-        className="w-[75%] min-w-0"
-        isSearchable
-      />
-    </Field>
+/* 3d. Fares and commissions panel ----------------------------------
+   Columns: 1 = FOP, 2 = fares, 3 = supplier / A/L, 4 = VAT / net.
+   Labels are fixed width, inputs fill the rest of the column.
+   1 column on small, 2 on medium, 4 on wide (by panel width).          */
+const A1 = "w-[90px] shrink-0 @2xl:w-[60px]";
+const A2 = "w-[90px] shrink-0 @2xl:w-[52px]";
+const A3 = "w-[90px] shrink-0";
+const A4 = "w-[90px] shrink-0 @2xl:w-[64px]";
 
-    <Field
-      label="G. Fare :"
-      htmlFor="txtGFare"
-      labelClassName={R1}
-      className={`${amountFieldClass} -ml-9 w-50 `}
+const TicketAmountsPanel: React.FC<
+  PartProps & {
+    computed: Computed;
+    fopOptions: Option[];
+    alComTypeOptions: Option[];
+  }
+> = ({ form, set, computed, fopOptions, alComTypeOptions }) => (
+  <div className="@container min-w-0">
+    <div
+      className={`${panelClass} grid h-full grid-cols-1 items-center gap-x-3 gap-y-2 @md:grid-cols-2 @2xl:grid-cols-[1.35fr_1fr_1.5fr_1fr]`}
     >
-      <FareMoneyInput
-        id="txtGFare"
-        
-        value={form.gFare}
-        onChange={(v) => set("gFare", v)}
-      />
-    </Field>
+      {/* Row 1 */}
+      <Field label="FOP :" labelClassName={A1} className="min-w-0">
+        <Combo
+          id="lkpFOP"
+          options={fopOptions}
+          value={form.fop}
+          onChange={(v) => set("fop", v)}
+          className="w-full min-w-0"
+          isSearchable
+        />
+      </Field>
 
-    <Field
-      label="Sup. Fee. :"
-      htmlFor="txtSupFee"
-      labelClassName={R2}
-      className={`${amountFieldClass} -ml-10 `}
-    >
-      <div className="w-full min-w-0 lg:w-30">
+      <Field
+        label="G. Fare :"
+        htmlFor="txtGFare"
+        labelClassName={A2}
+        className="min-w-0"
+      >
+        <FareMoneyInput
+          id="txtGFare"
+          value={form.gFare}
+          onChange={(v) => {
+            set("gFare", v);
+            // a changed G. Fare also fills S. Fare (a new ticket); a blur that only
+            // formats the same value does not overwrite what was typed in S. Fare
+            if (v !== form.gFare) set("sFare", v);
+          }}
+        />
+      </Field>
+
+      <Field
+        label="Sup. Fee. :"
+        htmlFor="txtSupFee"
+        labelClassName={A3}
+        className="min-w-0"
+      >
         <MoneyInput
           id="txtSupFee"
           value={form.supFee}
           onChange={(v) => set("supFee", v)}
         />
-      </div>
-    </Field>
+      </Field>
 
-   <div className="w-50 ml-5">
-     <Field label="Fee VAT :" labelClassName={R3} className={amountFieldClass}>
-      <MoneyReadOnly id="txtFeeVat" value={computed.feeVat} />
-    </Field>
-   </div>
+      <Field label="Fee VAT :" labelClassName={A4} className="min-w-0">
+        <MoneyReadOnly id="txtFeeVat" value={computed.feeVat} />
+      </Field>
 
-    {/* Row 2 */}
-    <Field
-      label="FOP Cash :"
-      htmlFor="txtFopCash"
-      labelClassName={L1}
-      className={`${amountFieldClass} -ml-1 w-47.5`}
-    >
-      <MoneyInput
-        id="txtFopCash"
-        value={form.fopCash}
-        onChange={(v) => set("fopCash", v)}
-      />
-    </Field>
+      {/* Row 2 */}
+      <Field
+        label="FOP Cash :"
+        htmlFor="txtFopCash"
+        labelClassName={A1}
+        className="min-w-0"
+      >
+        <MoneyInput
+          id="txtFopCash"
+          value={form.fopCash}
+          onChange={(v) => set("fopCash", v)}
+        />
+      </Field>
 
-    <Field
-      label="S. Fare :"
-      htmlFor="txtSFare"
-      labelClassName={R1}
-      className={`${amountFieldClass} -ml-9 w-50 `}
-    >
-      <FareMoneyInput
-        id="txtSFare"
-        value={form.sFare}
-        onChange={(v) => set("sFare", v)}
-      />
-    </Field>
+      <Field
+        label="S. Fare :"
+        htmlFor="txtSFare"
+        labelClassName={A2}
+        className="min-w-0"
+      >
+        <FareMoneyInput
+          id="txtSFare"
+          value={form.sFare}
+          onChange={(v) => set("sFare", v)}
+        />
+      </Field>
 
-    <Field
-      label="A/L Com. :"
-      labelClassName={R2}
-      className={`${amountFieldClass} -ml-10  `}
-    >
-      <div className="flex min-w-0 items-center gap-1">
-        <div className="w-15 shrink-0">
-          <Combo
-            id="lkpALComType"
-            options={alComTypeOptions}
-            value={form.alComType}
-            onChange={(v) => set("alComType", v)}
-            className="w-full"
-            isSearchable
-          />
+      <Field label="A/L Com. :" labelClassName={A3} className="min-w-0">
+        <div className="flex w-full min-w-0 items-center gap-1">
+          <div className="w-[48px] shrink-0">
+            <Combo
+              id="lkpALCom"
+              fitMenuToBox
+              options={alComTypeOptions}
+              value={form.alComType}
+              onChange={(v) => {
+                set("alComType", v);
+                // a new type clears the A/L Com. % and amount (the old lkpCommType_EditValueChanged)
+                set("alCom", "0.00");
+                set("alComAmt", "0.00");
+              }}
+              className="w-full"
+              isSearchable
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            {form.alComType === "P" ? (
+              <MoneyInput
+                id="txtALCom"
+                value={form.alCom}
+                onChange={(v) => set("alCom", v)}
+              />
+            ) : (
+              <MoneyReadOnly id="txtALCom" value={computed.alComPer} />
+            )}
+          </div>
         </div>
+      </Field>
 
-        <div className="w-14 shrink-0">
+      <Field label="Sup. Com. :" labelClassName={A4} className="min-w-0">
+        <MoneyReadOnly id="txtSupCom" value={computed.supCom} />
+      </Field>
+
+      {/* Row 3 */}
+      <Field
+        label="FOP CC :"
+        htmlFor="txtFopCc"
+        labelClassName={A1}
+        className="min-w-0"
+      >
+        <MoneyInput
+          id="txtFopCc"
+          value={form.fopCc}
+          onChange={(v) => set("fopCc", v)}
+        />
+      </Field>
+
+      <Field
+        label="Tax :"
+        htmlFor="txtTax"
+        labelClassName={A2}
+        className="min-w-0"
+      >
+        <FareMoneyInput
+          id="txtTax"
+          value={form.tax}
+          onChange={(v) => set("tax", v)}
+        />
+      </Field>
+
+      <Field label="A/L Com. Amt. :" labelClassName={A3} className="min-w-0">
+        {form.alComType === "A" ? (
           <MoneyInput
-            id="txtALCom"
-            value={form.alCom}
-            onChange={(v) => set("alCom", v)}
+            id="txtALComAmt"
+            value={form.alComAmt}
+            onChange={(v) => set("alComAmt", v)}
           />
-        </div>
-      </div>
-    </Field>
+        ) : (
+          <MoneyReadOnly id="txtALComAmt" value={computed.alComAmt} />
+        )}
+      </Field>
 
-<div className="w-50 ml-5">
- <Field label="Sup. Com. :" labelClassName={R3} className={amountFieldClass}>
-      <MoneyReadOnly id="txtSupCom" value={computed.supCom} />
-    </Field>
-</div>
-   
+      <Field label="A/L C. VAT :" labelClassName={A4} className="min-w-0">
+        <MoneyReadOnly id="txtALCVat" value={computed.alCVat} />
+      </Field>
 
-    {/* Row 3 */}
-    <Field
-      label="FOP CC :"
-      htmlFor="txtFopCc"
-      labelClassName={L2}
-      className={`${amountFieldClass} -ml-2 w-48.75`}
-    >
-      <MoneyInput
-        id="txtFopCc"
-        value={form.fopCc}
-        onChange={(v) => set("fopCc", v)}
-      />
-    </Field>
-
-    <Field
-      label="Tax :"
-      htmlFor="txtTax"
-      labelClassName={R1}
-      className={`${amountFieldClass} -ml-9 w-50 `}
-    >
-      <FareMoneyInput
-        id="txtTax"
-        value={form.tax}
-        onChange={(v) => set("tax", v)}
-      />
-    </Field>
-
-    <Field
-      label="A/L Com. Amt. :"
-      labelClassName={R2}
-       className={`${amountFieldClass} -ml-10 `}
-    >
-      <div className="w-full min-w-0 lg:w-30">
-        <MoneyReadOnly
-          id="txtALComAmt"
-          value={computed.alComAmt}
+      {/* Row 4 */}
+      <Field
+        label="FOP EP :"
+        htmlFor="txtFopEp"
+        labelClassName={A1}
+        className="min-w-0"
+      >
+        <MoneyInput
+          id="txtFopEp"
+          value={form.fopEp}
+          onChange={(v) => set("fopEp", v)}
         />
-      </div>
-    </Field>
-    <div className="w-50 ml-5">
- <Field label="A/L C. VAT :" labelClassName={R3} className={amountFieldClass}>
-      <MoneyReadOnly id="txtALCVat" value={computed.alCVat} />
-    </Field>
-    </div>
+      </Field>
 
-   
-
-    {/* Row 4 */}
-    <Field
-      label="FOP EP :"
-      htmlFor="txtFopEp"
-      labelClassName={L3}
-      className={`${amountFieldClass}  w-46.75`}
-    >
-      <MoneyInput
-        id="txtFopEp"
-        value={form.fopEp}
-        onChange={(v) => set("fopEp", v)}
-      />
-    </Field>
-
-    <Field
-      label="K7 :"
-      htmlFor="txtK7"
-      labelClassName={R1}
-      className={`${amountFieldClass} -ml-9 w-50 `}
-    >
-      <FareMoneyInput
-        id="txtK7"
-        value={form.k7}
-        onChange={(v) => set("k7", v)}
-      />
-    </Field>
-
-    <Field
-      label="Supplier Amt. :"
-      labelClassName={R2}
-       className={`${amountFieldClass} -ml-10 `}
-    >
-      <div className="w-full min-w-0 lg:w-30">
-        <MoneyReadOnly
-          id="txtSupplierAmt"
-          value={computed.supplierAmt}
+      <Field
+        label="K7 :"
+        htmlFor="txtK7"
+        labelClassName={A2}
+        className="min-w-0"
+      >
+        <FareMoneyInput
+          id="txtK7"
+          value={form.k7}
+          onChange={(v) => set("k7", v)}
         />
-      </div>
-    </Field>
+      </Field>
 
-    <div className="w-50 ml-5">
-      <Field label="Net :" labelClassName={R3} className={amountFieldClass}>
-      <MoneyReadOnly
-        id="txtNet"
-        value={computed.net}
-        alwaysRed
-      />
-    </Field>
+      <Field label="Supplier Amt. :" labelClassName={A3} className="min-w-0">
+        <MoneyReadOnly id="txtSupplierAmt" value={computed.supplierAmt} />
+      </Field>
+
+      <Field label="Net :" labelClassName={A4} className="min-w-0">
+        <MoneyReadOnly id="txtNet" value={computed.net} alwaysRed />
+      </Field>
     </div>
-    
   </div>
 );
+
 /* 3e. Action buttons ----------------------------------------------------- */
 
 
@@ -1198,7 +1401,16 @@ type TicketDetailsProps = {
 };
 
 const TicketDetails: React.FC<TicketDetailsProps> = ({ onClose }) => {
+  // Same names as LoginPage.tsx; the login stores them in localStorage.
+  const PstrCoID = localStorage.getItem("PstrCoID") ?? "";
+  const PstrYear = localStorage.getItem("PstrYear") ?? "";
+  const PstrUserID = localStorage.getItem("PstrUserID") ?? "";
+
   const [form, setForm] = useState<FormState>(initialForm);
+
+  // Enter moves to the next box (as Tab), and the delete question is the confirm dialog of STOCK
+  const handleEnterAsTab = useEnterAsTab();
+  const { confirm, dialog } = useConfirmModal();
   const [error, setError] = useState("");
   const ticketNoRef = useRef<HTMLInputElement>(null);
 console.log(onClose);
@@ -1212,61 +1424,851 @@ console.log(onClose);
     ticketNoRef.current?.focus();
   }, []);
 
+  /* Ticket type lookup (tbltickettype): the box shows fticketTypeid;
+     ftickttypename is kept in the form for the selected row. */
+  const [tktTypes, setTktTypes] = useState<TktTypeRecord[]>([]);
+
+  const ticketTypeOptions: Option[] = tktTypes.map((r) => ({
+    value: r.ftickettypeid,
+    label: r.ftickettypeid,
+    secondLabel: r.ftickttypename ?? "",
+  }));
+
+  const handleTicketTypeChange = (fticketTypeid: string | null) => {
+    const row = tktTypes.find((r) => r.ftickettypeid === fticketTypeid);
+    setError("");
+    // an XO ticket has no IATA: "NA" (not applicable); leaving XO takes the first real IATA back
+    const naIata = iataIdOptions.find((option) => option.value === "NA");
+    const realIata = iataIdOptions.find((option) => option.value !== "NA");
+    setForm((prev) => ({
+      ...prev,
+      ticketPrefix: fticketTypeid,
+      tktName: row?.ftickttypename ?? "",
+      iata:
+        fticketTypeid === "X" && naIata
+          ? naIata.value
+          : prev.ticketPrefix === "X" && prev.iata === "NA" && realIata
+            ? realIata.value
+            : prev.iata,
+    }));
+    autoLoad(fticketTypeid, form.ticketNo); // the number was typed first, then the type
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesTktTypes(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setTktTypes(rows);
+        const first = rows[0];
+        if (first) {
+          setForm((prev) =>
+            prev.ticketPrefix
+              ? prev
+              : {
+                  ...prev,
+                  ticketPrefix: first.ftickettypeid,
+                  tktName: first.ftickttypename ?? "",
+                },
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load ticket types.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Form of payment lookup (tblfop): value = ffop (CASH, INV, CC, CASH+CC).
+     The box shows the id; the list shows "Name | ID". */
+  const [fopOptions, setFopOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesFop(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setFopOptions(
+          rows.map((r) => ({
+            value: r.ffop,
+            label: r.ffop, // the box and the list show only the FOP id
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load form of payment.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* A/L Com. type lookup (tbltlparam, fptype = COMTP): value = fpid (P, A).
+     A plain list of the ids; P = Percentage, A = Amount. */
+  const [alComTypeOptions, setAlComTypeOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesComTypes()
+      .then((rows) => {
+        if (cancelled) return;
+        setAlComTypeOptions(
+          rows.map((r) => ({ value: r.fpid, label: r.fpid })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load commission types.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Pax type lookup (tbltlparam, fptype = PXTP): value = fpid (A, C, I). The box
+     shows the name; the list reads "Name | ID". */
+  const [paxTypeOptions, setPaxTypeOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesPaxTypes()
+      .then((rows) => {
+        if (cancelled) return;
+        setPaxTypeOptions(
+          rows.map((r) => ({
+            value: r.fpid,
+            label: r.fpname ?? r.fpid, // the box shows the name
+            secondLabel: r.fpid, // the list reads "Name | ID"
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load pax types.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* D/I lookup (tbltlparam, fptype = DITP): value = fpid (D, I). The box shows
+     the id; the list reads "Name | ID". */
+  const [diOptions, setDiOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesDi()
+      .then((rows) => {
+        if (cancelled) return;
+        setDiOptions(
+          rows.map((r) => ({
+            value: r.fpid,
+            label: r.fpid, // the box shows the id
+            listFirst: r.fpname ?? r.fpid, // the list reads "Name | ID"
+            secondLabel: r.fpid,
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load D/I.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Merchant lookup (tbltlparam, fptype = MERC): value = fpid. The box shows the
+     name; the list reads "Name | ID". */
+  const [merchantOptions, setMerchantOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesMerchants()
+      .then((rows) => {
+        if (cancelled) return;
+        setMerchantOptions(
+          rows.map((r) => ({
+            value: r.fpid,
+            label: r.fpname ?? r.fpid, // the box shows the name
+            secondLabel: r.fpid, // the list reads "Name | ID"
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load merchants.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* GDS lookup (tblgds, active): value = fgdsid. The box shows the GDS name,
+     the grey box next to it stays empty, and the list shows "Name | ID". */
+  const [gdsOptions, setGdsOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesGds(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setGdsOptions(
+          rows.map((r) => ({
+            value: r.fgdsid,
+            label: r.fgdsname ?? r.fgdsid,
+            secondLabel: r.fgdsid, // list reads "Name | ID"
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load GDS.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Service type lookup (tblservicetype, ticket group): value = fservicetypeid.
+     The box shows the id; the list shows "ID | Name". The ID column is as wide
+     as the box (divider at the end of the box), then the Name column. */
+  const [serviceOptions, setServiceOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesServiceTypes(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setServiceOptions(
+          rows.map((r) => ({
+            value: r.fservicetypeid,
+            label: r.fservicetypeid, // the box shows the id
+            secondLabel: r.fservicetypename ?? "", // list: ID | Name
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load service types.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Supplier lookup (tblaccountcs where fcs = 'S'): value = fcsaccountid,
+     ID combo shows fcsaccountid, Name combo shows fcsaccountname. */
+  const [supplierIdOptions, setSupplierIdOptions] = useState<Option[]>([]);
+  const [supplierNameOptions, setSupplierNameOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesSuppliers(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setSupplierIdOptions(
+          rows.map((r) => ({
+            value: r.fcsaccountid,
+            label: r.fcsaccountid,
+            secondLabel: r.fcsaccountname ?? "", // the ID list shows "ID | Name"
+          })),
+        );
+        setSupplierNameOptions(
+          rows.map((r) => ({
+            value: r.fcsaccountid,
+            label: r.fcsaccountname ?? r.fcsaccountid,
+            secondLabel: r.fcsaccountid, // the Name list shows "Name | ID"
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load suppliers.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Staff lookup (tblstaff): value = fstaffid,
+     ID combo shows fstaffid, Name combo shows fstaffname. */
+  const [staffIdOptions, setStaffIdOptions] = useState<Option[]>([]);
+  const [staffNameOptions, setStaffNameOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesStaffs(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setStaffIdOptions(
+          rows.map((r) => ({
+            value: r.fstaffid,
+            label: r.fstaffid,
+            secondLabel: r.fstaffname ?? "", // the ID list shows "ID | Name"
+          })),
+        );
+        setStaffNameOptions(
+          rows.map((r) => ({
+            value: r.fstaffid,
+            label: r.fstaffname ?? r.fstaffid,
+            secondLabel: r.fstaffid, // the Name list shows "Name | ID"
+          })),
+        );
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load staff.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* IATA lookup (tbliata): value = fiatacode,
+     ID combo shows fiatacode, Name combo shows fiataname. */
+  const [iataBspAccounts, setIataBspAccounts] = useState<Record<string, string>>({});
+  const [iataIdOptions, setIataIdOptions] = useState<Option[]>([]);
+  const [iataNameOptions, setIataNameOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesIatas(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        // the IATA codes that have a BSP account (the supplier of a BSP ticket must be it)
+        setIataBspAccounts(
+          Object.fromEntries(
+            rows
+              .filter((r) => (r.fbsppurchase_csaccountid ?? "").trim() !== "")
+              .map((r) => [r.fiatacode, (r.fbsppurchase_csaccountid ?? "").trim()]),
+          ),
+        );
+        setIataIdOptions(
+          rows.map((r) => ({
+            value: r.fiatacode,
+            label: r.fiatacode,
+            secondLabel: r.fiataname ?? "", // the ID list shows "ID | Name"
+          })),
+        );
+        setIataNameOptions(
+          rows.map((r) => ({
+            value: r.fiatacode,
+            label: r.fiataname ?? r.fiatacode,
+            secondLabel: r.fiatacode, // the Name list shows "Name | ID"
+          })),
+        );
+        const first = rows[0];
+        if (first) {
+          setForm((prev) =>
+            prev.iata ? prev : { ...prev, iata: first.fiatacode },
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load IATA codes.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Branch lookup (tblbranch): value = fbrid,
+     ID combo shows fbrid, Name combo shows fbrname. */
+  const [branchIdOptions, setBranchIdOptions] = useState<Option[]>([]);
+  const [branchNameOptions, setBranchNameOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesBranches(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setBranchIdOptions(
+          rows.map((r) => ({
+            value: r.fbrid,
+            label: r.fbrid,
+            secondLabel: r.fbrname ?? r.fbrid, // the ID list shows "ID | Name"
+          })),
+        );
+        setBranchNameOptions(
+          rows.map((r) => ({
+            value: r.fbrid,
+            label: r.fbrname ?? r.fbrid,
+            secondLabel: r.fbrid, // the Name list shows "Name | ID"
+          })),
+        );
+        const first = rows[0];
+        if (first) {
+          setForm((prev) =>
+            prev.branch ? prev : { ...prev, branch: first.fbrid },
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load branches.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Airline lookup: value = fairlineno (unique key),
+     ID combo shows fairlineno, Name combo shows fairlinename. */
+  const [airlineIdOptions, setAirlineIdOptions] = useState<Option[]>([]);
+  const [airlineNameOptions, setAirlineNameOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesAirlines(PstrCoID)
+      .then((rows) => {
+        if (cancelled) return;
+        setAirlineIdOptions(
+          rows.map((r) => ({
+            value: r.fairlineno,
+            label: r.fairlineno, // the box shows the airline no.
+            secondLabel: r.fairlinename, // the ID list shows "ID | Name"
+          })),
+        );
+        setAirlineNameOptions(
+          rows.map((r) => ({
+            value: r.fairlineno,
+            label: r.fairlinename,
+            secondLabel: r.fairlineno, // list reads "Name | No."
+          })),
+        );
+        const first = rows[0];
+        if (first) {
+          setForm((prev) =>
+            prev.airline ? prev : { ...prev, airline: first.fairlineno },
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load airlines.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   /* Calculated (read-only) amounts. Fill these from your pricing rules;
      they stay at 0.00 because the rules are not shown in the screenshot. */
-  const computed: Computed = {
-    feeVat: 0,
-    supCom: 0,
-    alComAmt: 0,
-    alCVat: 0,
-    supplierAmt: 0,
-    net: 0,
+  /* The VAT percentages (by the date, D/I and airline of the ticket). The old form
+     took D/I as "D" when K7 (the purchase VAT) is entered, otherwise the D/I box. */
+  const [vat, setVat] = useState<TicketSalesVat>(noVat);
+  const vatDorI: "D" | "I" = form.di === "D" || toNumber(form.k7) !== 0 ? "D" : "I";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesVat(PstrCoID, {
+      lkpDI: vatDorI,
+      dtpDate: form.date,
+      lkpAirlineNo: form.airline ?? "",
+    })
+      .then((data) => {
+        if (!cancelled) setVat(data);
+      })
+      .catch((err: unknown) => {
+        // without them the VAT amounts stay 0
+        console.error("Failed to load the VAT percentages:", err);
+        if (!cancelled) setVat(noVat);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [vatDorI, form.date, form.airline]);
+
+  const computed = calcAmounts(form, vat);
+
+  /* Save or Modify: the Save button is Modify while the ticket of the Ticket Type + Ticket No. boxes is a saved one
+     (it was loaded, or it was just saved), as in the old form. Another ticket no. is a new ticket again, and so is another
+     Sl. No.: a Ticket No. has a row for each Sl. No. (both tables), the Sl. No. box starts at 1. */
+  const [savedKey, setSavedKey] = useState("");
+  const ticketKey = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}|${form.slNo.trim()}`;
+  const isModify = savedKey !== "" && savedKey === ticketKey;
+
+  /* The rules of the old form (ValidateMe) before a save: the form, the fares panel, the ticket type and the D/I.
+     The first rule that fails stops the save: its message is shown and the cursor goes to its box. The rules that
+     only warn are shown and the save goes on. The customer lines have their own rules in the grid. */
+  const validateForm = (lines: TicketLinePayload[], detail: TicketDetailPayload): boolean => {
+    const result = validateTicketHeader({
+      loginYear: PstrYear,
+      ticketType: form.ticketPrefix,
+      ticketNo: form.ticketNo,
+      airline: form.airline,
+      branch: form.branch,
+      iata: form.iata,
+      date: form.date,
+      bspDate: form.bspDate,
+      flightDate: form.flightDate,
+      di: form.di,
+      isVoid: form.voidFlag === "Yes",
+      supplier: form.supplier,
+      supPayment: form.supPayment,
+      pax: form.pax,
+      staff: form.staff,
+      trip: form.trip,
+      route: form.route,
+      destination: form.destination,
+      gds: form.gds,
+      fop: form.fop,
+      ccType: form.ccType,
+      merchant: form.merchant,
+      alComType: form.alComType,
+      sFare: toNumber(form.sFare),
+      tax: toNumber(form.tax),
+      supFee: toNumber(form.supFee),
+      k7: toNumber(form.k7),
+      supplierAmt: computed.supplierAmt,
+      kbAmt: detail.txtKbAmt,
+      kbAccount: detail.lkpKbAccount,
+      vatPer: vat.txtSCVATPer,
+      iataBspAccounts,
+      lines: lines.map((line) => ({
+        customer: line.lkpLineCustomer,
+        fare: line.txtLineFare,
+        tax: line.txtLineTax,
+        invAmt: line.txtLineInvAmt,
+      })),
+    });
+
+    if (result.error) {
+      toast.error(result.error.message);
+      if (result.error.focusId) document.getElementById(result.error.focusId)?.focus();
+      return false;
+    }
+
+    result.warnings.forEach((message) => toast.warn(message));
+    return true;
   };
 
+  /* Save a new ticket: the form (header) + the customer grid lines + the
+     detail fields go to the server, which inserts tblticketsales and
+     tblticketsalesb in one transaction. */
+  const handleSave = async (
+    lines: TicketLinePayload[],
+    detail: TicketDetailPayload,
+  ) => {
+    try {
+      // a saved ticket is loaded (or was just saved) and its Ticket Type + Ticket No. are still in the boxes: Modify
+      const result = await (isModify ? modifyTicketSales : saveTicketSales)({
+        PstrCoID,
+        PstrYear,
+        PstrUserID,
+        // the keys are the element ids of this screen
+        lkpTktType: form.ticketPrefix,
+        txtTktSLNo: form.ticketNo,
+        txtSlNo: form.slNo,
+        lkpAirlineNo: form.airline,
+        lkpBranch: form.branch,
+        lkpIATA: form.iata,
+        dtpDate: form.date,
+        dtpBSPDate: form.bspDate,
+        dtpFlightDate: form.flightDate,
+        dtpReturnDate: form.returnDate,
+        txtPNRNo: form.pnrNo,
+        lkpDI: form.di,
+        lkpSupplier: form.supplier,
+        lkpPaySupplierID: form.supPayment,
+        txtPaxName: form.pax,
+        lkpStaffID: form.staff,
+        txtBookingGDSLogin: form.bookingGdsLogin,
+        lkpPaxType: form.paxType,
+        txtPaxNameId: form.paxId,
+        lkpVoid: form.voidFlag,
+        lkpService: form.service,
+        txtSalesGDSLogin: form.salesGdsLogin,
+        txtMobile: form.mobile,
+        txtEmail: form.email,
+        lkpTrip: form.trip,
+        txtTourCode: form.tourCode,
+        txtRoute: form.route,
+        txtClass: form.travelClass,
+        txtDestination: form.destination,
+        lkpCNJ: form.cnj,
+        lkpGDS: form.gds,
+        lkpCCType: form.ccType,
+        txtCarrier: form.carrier,
+        txtFareBasis: form.fareBasis,
+        lkpMerchant: form.merchant,
+        lkpFOP: form.fop,
+        txtGFare: form.gFare,
+        txtSupFee: form.supFee,
+        txtFeeVat: computed.feeVat,
+        txtFopCash: form.fopCash,
+        txtSFare: form.sFare,
+        lkpALCom: form.alComType,
+        txtALCom: computed.alComPer,
+        txtSupCom: computed.supCom,
+        txtFopCc: form.fopCc,
+        txtTax: form.tax,
+        txtALComAmt: computed.alComAmt,
+        txtALCVat: computed.alCVat,
+        txtFopEp: form.fopEp,
+        txtK7: form.k7,
+        txtSupplierAmt: computed.supplierAmt,
+        lines,
+        ...detail,
+      });
+      toast.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
+      setSavedKey(ticketKey); // the ticket exists now: the button is Modify from here
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : isModify
+            ? "Failed to modify the ticket."
+            : "Failed to save the ticket.",
+      );
+    }
+  };
+
+  /* Load a saved ticket (Enter in Ticket No. or the Search button): the form and the customer grid are filled
+     from the ticket and its customer line. */
+  const [loaded, setLoaded] = useState<{ version: number; ticket: LoadedTicket } | undefined>(undefined);
+
+  // silent = the automatic load: a ticket number that does not exist is a NEW ticket, so no message for it
+  const loadTicket = async (type: string | null, no: string, slNo: string, silent: boolean) => {
+    const ticketNo = no.trim();
+    if (!type) {
+      if (!silent) toast.error("Please select 'Ticket Type'");
+      return;
+    }
+    if (ticketNo === "") {
+      if (!silent) toast.error("Please enter 'Ticket No.'");
+      return;
+    }
+
+    try {
+      const { ticket } = await getTicketSales({
+        PstrCoID,
+        PstrYear,
+        lkpTktType: type,
+        txtTktSLNo: ticketNo,
+        lkpBranch: form.branch,
+        txtSlNo: slNo,
+      });
+
+      const tktName = tktTypes.find((r) => r.ftickettypeid === ticket.lkpTktType)?.ftickttypename ?? "";
+      setError("");
+      setForm((prev) => ({ ...prev, ...formFromTicket(ticket, tktName) }));
+      setLoaded({ version: Date.now(), ticket });
+      setSavedKey(`${ticket.lkpTktType}|${ticket.txtTktSLNo.trim()}|${ticket.txtSlNo}`); // a saved ticket: the button is Modify
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load the ticket.";
+      if (silent && /not found$/i.test(message)) return;
+      toast.error(message);
+    }
+  };
+
+  /* Delete the saved ticket of the Ticket Type + Ticket No. boxes (the old cmdDelete_Click): the type and the number are
+     checked, it asks "Do you want to Delete ?", deletes the ticket and its customer line, and clears the screen. */
+  const [clearVersion, setClearVersion] = useState(0);
+
+  const clearScreen = () => {
+    const firstType = tktTypes[0];
+    setForm({
+      ...initialForm(),
+      ticketPrefix: firstType?.ftickettypeid ?? null,
+      tktName: firstType?.ftickttypename ?? "",
+      branch: branchIdOptions[0]?.value ?? null,
+      iata: iataIdOptions[0]?.value ?? null,
+      airline: airlineIdOptions[0]?.value ?? null,
+    });
+    setSavedKey("");
+    setLoaded(undefined);
+    lastAutoKey.current = "";
+    setClearVersion((v) => v + 1);
+    ticketNoRef.current?.focus();
+  };
+
+  const handleDelete = async () => {
+    if (!form.ticketPrefix) {
+      toast.error("Please select a 'Ticket Type'");
+      document.getElementById("lkpTktType")?.focus();
+      return;
+    }
+    if (form.ticketNo.trim() === "") {
+      toast.error("Please input 'Ticket No.'");
+      document.getElementById("txtTktSLNo")?.focus();
+      return;
+    }
+    if (!(await confirm({ message: "Do you want to delete?" }))) return;
+
+    try {
+      const result = await deleteTicketSales({
+        PstrCoID,
+        PstrYear,
+        lkpTktType: form.ticketPrefix,
+        txtTktSLNo: form.ticketNo.trim(),
+        lkpBranch: form.branch,
+        txtSlNo: form.slNo.trim() || null, // only this Sl. No.: the other Sl. Nos of the Ticket No. stay
+      });
+      toast.success(result.message || "Deleted successfully");
+      clearScreen();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Not deleted, try again");
+    }
+  };
+
+  // Enter in Ticket No. or the Search button: always loads (and says when the ticket is not found)
   const handleSearch = () => {
-    console.log("search ticket", `${form.ticketPrefix ?? ""}${form.ticketNo}`);
+    lastAutoKey.current = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}|${form.slNo.trim()}`;
+    void loadTicket(form.ticketPrefix, form.ticketNo, form.slNo.trim(), false);
   };
 
-  // const handleSave = () => {
-  //   if (!form.ticketNo.trim()) {
-  //     setError("Enter the ticket number.");
-  //     ticketNoRef.current?.focus();
-  //     return;
-  //   }
-  //   setError("");
-  //   console.log(form);
-  // };
+  // Automatic load: when the Ticket Type and Ticket No. are given and you leave the Ticket No. box (or pick the type
+  // after typing the number). The same ticket is not loaded twice by itself, so what you typed is never overwritten.
+  const lastAutoKey = useRef("");
+  const autoLoad = (type: string | null, no: string, slNo: string = form.slNo.trim()) => {
+    const key = `${type ?? ""}|${no.trim()}|${slNo}`;
+    if (!type || no.trim() === "" || key === lastAutoKey.current) return;
+    lastAutoKey.current = key;
+    void loadTicket(type, no, slNo, true);
+  };
 
-  // const handleCancel = () => {
-  //   setForm(initialForm());
-  //   setError("");
-  //   ticketNoRef.current?.focus();
-  // };
+  /* Leaving the Sl. No. box (a Ticket No. has a row for each Sl. No., both tables):
+       - a Sl. No. that is saved shows its data (Modify);
+       - a Sl. No. that is not saved yet is a new row: what is on the screen stays and Save inserts it as that Sl. No.;
+       - an empty box shows the next free Sl. No. (2 when Sl. No. 1 is saved, 1 when the Ticket No. is not saved yet). */
+  const handleSlNoLeave = async () => {
+    if (!form.ticketPrefix || form.ticketNo.trim() === "") return;
 
-  // const handleClose = () => {
-  //   handleCancel();
-  //   onClose?.();
-  // };
+    const typed = form.slNo.trim();
+    if (typed !== "" && Number(typed) >= 1) {
+      autoLoad(form.ticketPrefix, form.ticketNo, typed);
+      return;
+    }
+
+    try {
+      const { next } = await getTicketSalesSlNos({
+        PstrCoID,
+        PstrYear,
+        lkpTktType: form.ticketPrefix,
+        txtTktSLNo: form.ticketNo.trim(),
+      });
+      set("slNo", String(next));
+      lastAutoKey.current = `${form.ticketPrefix}|${form.ticketNo.trim()}|${next}`; // a free number: nothing to load
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to get the next Sl. No.");
+    }
+  };
+
+  
 
   return (
-    <div className="flex min-h-full w-full items-start justify-center bg-white px-2 py-2 sm:px-4 sm:py-4">
+    <div
+      className="flex min-h-full w-full items-start justify-center bg-white px-2 py-2 sm:px-4 sm:py-4"
+      onKeyDown={handleEnterAsTab}
+    >
       <div className="min-h-fit w-full max-w-375 bg-white p-0">
         <main className="h-fit w-full overflow-hidden border border-gray-400 ">
           <Header Name="Ticket Sales"/>
 
-          <section className="flex flex-col gap-3 px-2 pb-6 pt-3 sm:px-3.5">
+          <section className="@container flex flex-col gap-3 px-2 pb-6 pt-3 sm:pl-3.5 sm:pr-14">
             <TicketTopBar
               form={form}
               set={set}
               ticketNoRef={ticketNoRef}
               onSearch={handleSearch}
+              onTicketNoLeave={() => autoLoad(form.ticketPrefix, form.ticketNo)}
+              airlineIdOptions={airlineIdOptions}
+              airlineNameOptions={airlineNameOptions}
+              ticketTypeOptions={ticketTypeOptions}
+              onTicketTypeChange={handleTicketTypeChange}
+              keyLocked={isModify}
+              onSlNoLeave={handleSlNoLeave}
+              branchIdOptions={branchIdOptions}
+              branchNameOptions={branchNameOptions}
+              iataIdOptions={iataIdOptions}
+              iataNameOptions={iataNameOptions}
             />
 
-            <TicketDetailsFields form={form} set={set} />
+            <TicketDetailsFields
+              form={form}
+              set={set}
+              staffIdOptions={staffIdOptions}
+              staffNameOptions={staffNameOptions}
+              supplierIdOptions={supplierIdOptions}
+              supplierNameOptions={supplierNameOptions}
+              serviceOptions={serviceOptions}
+              diOptions={diOptions}
+              paxTypeOptions={paxTypeOptions}
+            />
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_2fr]">
-              <TicketRoutePanel form={form} set={set} />
-              <TicketAmountsPanel form={form} set={set} computed={computed} />
+            <div className="grid grid-cols-1 gap-3 @4xl:grid-cols-[1fr_2fr]">
+              <TicketRoutePanel
+                form={form}
+                set={set}
+                gdsOptions={gdsOptions}
+                merchantOptions={merchantOptions}
+              />
+              <TicketAmountsPanel
+                form={form}
+                set={set}
+                computed={computed}
+                fopOptions={fopOptions}
+                alComTypeOptions={alComTypeOptions}
+              />
             </div>
 
             {error && (
@@ -1277,9 +2279,34 @@ console.log(onClose);
 
           
           </section>
-           <TicketLinesPage/>
+           <TicketLinesPage
+            onSave={handleSave}
+            onValidate={validateForm}
+            saveLabel={isModify ? "Modify" : "Save"}
+            onDeleteTicket={handleDelete}
+            clearVersion={clearVersion}
+            loaded={loaded}
+            onAction={(name) => {
+              if (name === "search") handleSearch();
+              if (name === "cancel") clearScreen(); // the header too, so the Ticket Type / No. are open for another ticket
+            }}
+            context={{
+              sFare: toNumber(form.sFare),
+              supFee: toNumber(form.supFee),
+              tax: toNumber(form.tax),
+              dorI: vatDorI,
+              boxDorI: form.di === "D" ? "D" : "I",
+              vatPer: vat.txtSCVATPer,
+              serviceId: form.service ?? "",
+              merchantIsAirline: form.merchant === "A",
+              isVoid: form.voidFlag === "Yes",
+              supplierAmt: computed.supplierAmt,
+              feeVat: computed.feeVat,
+              k7: toNumber(form.k7),
+            }}
+          />
         </main>
-       
+        {dialog}
       </div>
     </div>
   );

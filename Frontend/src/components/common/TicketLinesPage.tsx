@@ -1,8 +1,34 @@
-import React, { useState } from "react";
-import Select from "react-select";
+import React, { useEffect, useRef, useState } from "react";
+import Select, {
+  components,
+  type MenuListProps,
+} from "react-select";
+import { toast } from "react-toastify";
+import { useAltShortcuts } from "../../hooks/useAltShortcuts";
+import { useConfirmModal } from "../../hooks/useConfirmModal";
+import { GRID_CELL_FOCUS_CLASS } from "../../hooks/useGridCellFocus";
 import selectComponents from "./selectComponents";
+import { validateTicketLines } from "../sales/TicketSales/ticketSalesValidation";
 import TicketLinesFields from "./TicketLinesFields";
 import { fieldSelectProps } from "./Combo";
+import {
+  calcLineAmounts,
+  calcPolicyCharge,
+  calcProfitAmt,
+  round2,
+  type TicketLinesContext,
+} from "./ticketLinesCalc";
+import {
+  getTicketSalesCustomerDivisions,
+  getTicketSalesCustomers,
+  getTicketSalesServiceChargePolicies,
+  type CustomerDivisionRecord,
+  type CustomerRecord,
+  type LoadedTicket,
+  type ServiceChargePolicyRecord,
+  type TicketDetailPayload,
+  type TicketLinePayload,
+} from "../../utils/airlineApi";
 
 /* =====================================================================
    FILE MAP
@@ -12,30 +38,91 @@ import { fieldSelectProps } from "./Combo";
                 TicketLinesFields (Ref. 1-4, Post No., KB., notes),
                 TicketLinesActions (button bar)
    4. TicketLinesPage : owns the state and renders the parts in one place
-
-   Type and MF are removed (columns and totals boxes), as requested.
    ===================================================================== */
+
+/* The MF column and its total box of the grid are hidden. MF is still worked out from the customer's policy, added to
+   Inv. Amt. and saved (fmf, fmfwovat, fmfvatamt); set this to true to show the column again. */
+const SHOW_MF_COLUMN = false;
 
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-type Option = { value: string; label: string };
-
-/* Sample customers. Replace with data from your API. */
-const customerIdOptions: Option[] = [
-  { value: "C001", label: "C001" },
-  { value: "C002", label: "C002" },
-  { value: "C003", label: "C003" },
-];
-const customerNames: Record<string, string> = {
-  C001: "CUSTOMER ONE",
-  C002: "CUSTOMER TWO",
-  C003: "CUSTOMER THREE",
+/* Options of the customer and division lists: the cell shows `label`; the list
+   shows `first | second` (`first` defaults to `label`). */
+type PairOption = {
+  value: string;
+  label: string;
+  second: string;
+  first?: string;
 };
-const customerNameOptions: Option[] = customerIdOptions.map(({ value }) => ({
-  value,
-  label: customerNames[value],
-}));
+
+/* Column widths of a list. A column with no width fills the rest. The widths
+   are CSS variables that the grid sets on the list when it opens: the width of
+   the grid cells the list should line up with. */
+type Columns = { first?: string; second?: string };
+const customerIdColumns: Columns = { first: "var(--first-col, 100px)" };
+const customerNameColumns: Columns = { second: "var(--second-col, 84px)" };
+const divisionColumns: Columns = { first: "var(--first-col, 84px)" };
+
+const columnStyle = (width?: string) =>
+  width === undefined ? undefined : { width };
+const columnClass = (width?: string) =>
+  width === undefined ? "min-w-0 flex-1" : "shrink-0";
+
+/* Heading row on top of a list, same columns as the rows. */
+const makePairMenuList = (
+  firstHeader: string,
+  secondHeader: string,
+  columns: Columns,
+) => {
+  const PairMenuList = (props: MenuListProps<PairOption, false>) => (
+    <components.MenuList {...props}>
+      <div className="sticky top-0 z-10 flex w-full items-stretch border-b border-[#b8c4d0] bg-[#f3f5f7] font-semibold text-[#344054]">
+        <span
+          style={columnStyle(columns.first)}
+          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-[6px] py-[4px] text-[12px]`}
+        >
+          {firstHeader}
+        </span>
+        <span
+          style={columnStyle(columns.second)}
+          className={`${columnClass(columns.second)} truncate px-[8px] py-[4px] text-[12px]`}
+        >
+          {secondHeader}
+        </span>
+      </div>
+      {props.children}
+    </components.MenuList>
+  );
+  return PairMenuList;
+};
+
+const CustomerIdMenuList = makePairMenuList("ID", "Name", customerIdColumns);
+const CustomerNameMenuList = makePairMenuList("Name", "ID", customerNameColumns);
+const DivisionMenuList = makePairMenuList("ID", "Name", divisionColumns);
+
+/* A row of a list: two columns with a divider. */
+const pairOptionLabel =
+  (columns: Columns) =>
+  (option: PairOption, { context }: { context: "menu" | "value" }) =>
+    context === "menu" ? (
+      <div className="flex w-full items-stretch">
+        <span
+          style={columnStyle(columns.first)}
+          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-[6px] py-[4px]`}
+        >
+          {option.first ?? option.label}
+        </span>
+        <span
+          style={columnStyle(columns.second)}
+          className={`${columnClass(columns.second)} truncate px-[8px] py-[4px]`}
+        >
+          {option.second}
+        </span>
+      </div>
+    ) : (
+      option.label
+    );
 
 type MoneyField = "fare" | "tax" | "cdAmt" | "sChg" | "sChgV" | "invAmt";
 
@@ -51,6 +138,16 @@ type LineRow = {
   sChgV: string;
   invAmt: string;
   invNo: string; // read-only
+  // worked out by the calculations (when the form gives the grid its context)
+  vatAmt: number;
+  hCharge: number;
+  hScVat: number;
+  mf: number;
+  mfWoVat: number;
+  mfVat: number;
+  mfPer: number; // the merchant fee % of the customer's policy
+  scType: string; // the service charge type of the policy (A / P)
+  scPer: number; // the service charge % of the policy
 };
 
 type DetailForm = {
@@ -105,6 +202,15 @@ const emptyLine = (): LineRow => ({
   sChgV: "",
   invAmt: "",
   invNo: "",
+  vatAmt: 0,
+  hCharge: 0,
+  hScVat: 0,
+  mf: 0,
+  mfWoVat: 0,
+  mfVat: 0,
+  mfPer: 0,
+  scType: "",
+  scPer: 0,
 });
 
 const moneyFields: MoneyField[] = [
@@ -155,7 +261,6 @@ const formatMoney = (value: number) =>
   });
 
 /** VAT Amt. of a line. Fill this from your VAT rules; it is 0 until then. */
-const computeVatAmt = (_row: LineRow) => 0;
 
 /* ---------------------------------------------------------------------
    2. SHARED BUILDING BLOCKS
@@ -203,7 +308,7 @@ const MoneyCell: React.FC<{
     onBlur={() => {
       if (value !== "") onChange(toNumber(value).toFixed(2));
     }}
-    className="h-6.5 w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
+    className="h-6.5 w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none focus:bg-white"
   />
 );
 
@@ -221,28 +326,109 @@ const td = "h-[26px] border border-[#B7ECD0] px-2";
 
 const TicketLinesGrid: React.FC<{
   rows: LineRow[];
+  /** customers (tblaccountcs, fcs = C) */
+  customers: CustomerRecord[];
+  /** divisions (tblcustdivision) of each customer, loaded when it is picked */
+  divisionsByCustomer: Record<string, CustomerDivisionRecord[]>;
   activeKey: number | null;
   onActivate: (key: number) => void;
   onCustomerChange: (key: number, customerId: string | null) => void;
   onDivisionChange: (key: number, value: string) => void;
   onTypeChange: (key: number, value: string) => void;
   onMoneyChange: (key: number, field: MoneyField, value: string) => void;
+  /** true = VAT Amt., S. Chg. V. and Inv. Amt. are worked out (read-only) */
+  calculated: boolean;
 }> = ({
   rows,
+  customers,
+  divisionsByCustomer,
   activeKey,
   onActivate,
   onCustomerChange,
   onDivisionChange,
   onTypeChange,
   onMoneyChange,
+  calculated,
 }) => {
+  // Each list is as wide as the grid cells it should cover. The widths are
+  // measured when the list opens (cells of a row: 0 marker, 1 Customer ID,
+  // 2 Customer Name, 3 Division, 4 B.Type):
+  //   ID list       = Customer ID + Customer Name cells
+  //   Name list     = Customer Name + Division cells (ID column = Division cell)
+  //   Division list = Division + B.Type + Fare cells (ID column = Division cell)
+  type ListSize = { width: number; firstCol: number; secondCol: number };
+  const startSize: ListSize = { width: 320, firstCol: 100, secondCol: 84 };
+  const [idList, setIdList] = useState<ListSize>(startSize);
+  const [nameList, setNameList] = useState<ListSize>(startSize);
+  const [divisionList, setDivisionList] = useState<ListSize>(startSize);
+
+  const measureList = (
+    inputId: string,
+    from: number,
+    to: number,
+    save: (size: ListSize) => void,
+    secondColWidth?: number, // fixed ID column; the first column takes the rest
+    minWidth?: number, // the list is at least this wide
+  ) => {
+    const cells = document
+      .getElementById(inputId)
+      ?.closest("tr")
+      ?.querySelectorAll("td");
+    if (!cells || !cells[from] || !cells[to]) return;
+    const widthOf = (i: number) => cells[i].getBoundingClientRect().width;
+    let total = 0;
+    for (let i = from; i <= to; i++) total += widthOf(i);
+    save({
+      width: Math.max(total, minWidth ?? 0),
+      firstCol: widthOf(from),
+      secondCol: secondColWidth ?? widthOf(to),
+    });
+  };
+
+  const listMenuStyle = <T extends object>(base: T, size: ListSize) =>
+    ({
+      ...base,
+      width: size.width,
+      minWidth: size.width,
+      "--first-col": `${size.firstCol}px`,
+      "--second-col": `${size.secondCol}px`,
+    }) as T;
+
+  // ID list reads "ID | Name"; Name list reads "Name | ID"
+  const customerIdOptions: PairOption[] = customers.map((c) => ({
+    value: c.fcsaccountid,
+    label: c.fcsaccountid,
+    second: c.fcsaccountname ?? "",
+  }));
+  const customerNameOptions: PairOption[] = customers.map((c) => ({
+    value: c.fcsaccountid,
+    label: c.fcsaccountname ?? c.fcsaccountid,
+    second: c.fcsaccountid,
+  }));
+  const customerNames: Record<string, string> = Object.fromEntries(
+    customers.map((c) => [c.fcsaccountid, c.fcsaccountname ?? c.fcsaccountid]),
+  );
+  // keep the row padding off, so the divider runs the full row height
+  const pairClassNames = {
+    ...cellSelectProps.classNames,
+    // tall enough for the heading + the customers, no scrollbar for a short list
+    menuList: () => "!p-0 !max-h-[260px]",
+    option: ({
+      isFocused,
+      isSelected,
+    }: {
+      isFocused: boolean;
+      isSelected: boolean;
+    }) => `
+      !cursor-pointer !p-0 !text-[12px] !text-[#24364d]
+      ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
+    `,
+  };
+
   const sum = (field: MoneyField) =>
     rows.reduce((total, row) => total + toNumber(row[field]), 0);
 
-  const vatTotal = rows.reduce(
-    (total, row) => total + computeVatAmt(row),
-    0,
-  );
+  const vatTotal = rows.reduce((total, row) => total + row.vatAmt, 0);
 
   const totalBox = (id: string, value: number) => (
     <td
@@ -275,6 +461,7 @@ const TicketLinesGrid: React.FC<{
           <col className="w-21" /> {/* S. Chg. */}
           <col className="w-21" /> {/* VAT Amt. */}
           <col className="w-21" /> {/* S. Chg. V. */}
+          {calculated && SHOW_MF_COLUMN && <col className="w-21" />} {/* MF */}
           <col className="w-21" /> {/* Inv. Amt. */}
           <col className="w-25" /> {/* Inv. No. */}
         </colgroup>
@@ -292,6 +479,7 @@ const TicketLinesGrid: React.FC<{
             <th className={`${th} text-right`}>S. Chg.</th>
             <th className={`${th} text-right`}>VAT Amt.</th>
             <th className={`${th} text-right`}>S. Chg. V.</th>
+            {calculated && SHOW_MF_COLUMN && <th className={`${th} text-right`}>MF</th>}
             <th className={`${th} text-right`}>Inv. Amt.</th>
             <th className={`${th} text-left`}>Inv. No.</th>
           </tr>
@@ -301,10 +489,11 @@ const TicketLinesGrid: React.FC<{
           {rows.map((row) => {
             const active = row.key === activeKey;
 
-            const customerValue = row.customerId
+            const customerValue: PairOption | null = row.customerId
               ? {
                   value: row.customerId,
                   label: row.customerId,
+                  second: customerNames[row.customerId] ?? "",
                 }
               : null;
 
@@ -319,26 +508,37 @@ const TicketLinesGrid: React.FC<{
                   {active ? "▶" : ""}
                 </td>
 
-                {/* Customer ID */}
-                <td className="border border-[#B7ECD0] p-0">
-                  <Select
+                {/* Customer ID: list reads "ID | Name" over ID + Name cells */}
+                <td className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}>
+                  <Select<PairOption, false>
                     inputId={`lkpLineCustomer-${row.key}`}
                     instanceId={`lkpLineCustomer-${row.key}`}
                     aria-label="Customer ID"
                     options={customerIdOptions}
                     value={customerValue}
-                    components={selectComponents}
+                    components={{
+                      ...selectComponents,
+                      MenuList: CustomerIdMenuList,
+                    }}
                     onFocus={() => onActivate(row.key)}
                     onChange={(option) =>
                       onCustomerChange(row.key, option?.value ?? null)
                     }
+                    formatOptionLabel={pairOptionLabel(customerIdColumns)}
+                    onMenuOpen={() =>
+                      measureList(`lkpLineCustomer-${row.key}`, 1, 2, setIdList)
+                    }
+                    styles={{
+                      menu: (base) => listMenuStyle(base, idList),
+                    }}
                     {...cellSelectProps}
+                    classNames={pairClassNames}
                   />
                 </td>
 
-                {/* Customer Name */}
-                <td className="border border-[#B7ECD0] p-0">
-                  <Select
+                {/* Customer Name: list reads "Name | ID" over Name + Division cells */}
+                <td className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}>
+                  <Select<PairOption, false>
                     inputId={`lkpLineCustomerName-${row.key}`}
                     instanceId={`lkpLineCustomerName-${row.key}`}
                     aria-label="Customer Name"
@@ -348,41 +548,98 @@ const TicketLinesGrid: React.FC<{
                         ? {
                             value: row.customerId,
                             label: customerNames[row.customerId] ?? row.customerId,
+                            second: row.customerId,
                           }
                         : null
                     }
-                    components={selectComponents}
+                    components={{
+                      ...selectComponents,
+                      MenuList: CustomerNameMenuList,
+                    }}
                     onFocus={() => onActivate(row.key)}
                     onChange={(option) =>
                       onCustomerChange(row.key, option?.value ?? null)
                     }
+                    formatOptionLabel={pairOptionLabel(customerNameColumns)}
+                    onMenuOpen={() =>
+                      measureList(
+                        `lkpLineCustomerName-${row.key}`,
+                        2,
+                        3,
+                        setNameList,
+                      )
+                    }
+                    styles={{
+                      menu: (base) => listMenuStyle(base, nameList),
+                    }}
                     {...cellSelectProps}
+                    classNames={pairClassNames}
                   />
                 </td>
 
-                {/* Division */}
-                <td className="border border-[#B7ECD0] p-0">
-                  <input
-                    aria-label="Division"
-                    value={row.division}
-                    onFocus={() => onActivate(row.key)}
-                    onChange={(event) =>
-                      onDivisionChange(row.key, event.target.value)
-                    }
-                    className="h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
-                  />
+                {/* Division: list reads "ID | Name" over Division + B.Type + Fare cells */}
+                <td className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}>
+                  {(() => {
+                    const divisionOptions: PairOption[] = (
+                      (row.customerId && divisionsByCustomer[row.customerId]) ||
+                      []
+                    ).map((d) => ({
+                      value: d.fdivid,
+                      label: d.fdivid,
+                      second: d.fdivname ?? "",
+                    }));
+
+                    return (
+                      <Select<PairOption, false>
+                        inputId={`lkpLineDivision-${row.key}`}
+                        instanceId={`lkpLineDivision-${row.key}`}
+                        aria-label="Division"
+                        options={divisionOptions}
+                        value={
+                          divisionOptions.find((o) => o.value === row.division) ??
+                          null
+                        }
+                        components={{
+                          ...selectComponents,
+                          MenuList: DivisionMenuList,
+                        }}
+                        onFocus={() => onActivate(row.key)}
+                        onChange={(option) =>
+                          onDivisionChange(row.key, option?.value ?? "")
+                        }
+                        isDisabled={!row.customerId}
+                        formatOptionLabel={pairOptionLabel(divisionColumns)}
+                        onMenuOpen={() =>
+                          measureList(
+                            `lkpLineDivision-${row.key}`,
+                            3,
+                            5, // Division, B.Type and Fare cells
+                            setDivisionList,
+                          )
+                        }
+                        styles={{
+                          menu: (base) => listMenuStyle(base, divisionList),
+                        }}
+                        {...cellSelectProps}
+                        classNames={pairClassNames}
+                      />
+                    );
+                  })()}
                 </td>
 
                 {/* Type */}
-                <td className="border border-[#B7ECD0] p-0">
+                <td className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}>
                   <input
                     aria-label="Type"
                     value={row.type ?? ""}
-                    onFocus={() => onActivate(row.key)}
+                    onFocus={(event) => {
+                      onActivate(row.key);
+                      event.target.select();
+                    }}
                     onChange={(event) =>
                       onTypeChange(row.key, event.target.value)
                     }
-                    className="h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
+                    className="h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white"
                   />
                 </td>
 
@@ -391,7 +648,7 @@ const TicketLinesGrid: React.FC<{
                   (field) => (
                     <td
                       key={field}
-                      className="border border-[#B7ECD0] p-0"
+                      className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}
                     >
                       <MoneyCell
                         label={field}
@@ -407,27 +664,46 @@ const TicketLinesGrid: React.FC<{
 
                 {/* VAT Amt. — read-only */}
                 <td className={`${td} bg-[#eef1f4] text-right`}>
-                  {isEmptyLine(row)
-                    ? ""
-                    : formatMoney(computeVatAmt(row))}
+                  {isEmptyLine(row) ? "" : formatMoney(row.vatAmt)}
                 </td>
 
-                {/* S. Chg. V. and Inv. Amt. */}
-                {(["sChgV", "invAmt"] as MoneyField[]).map((field) => (
-                  <td
-                    key={field}
-                    className="border border-[#B7ECD0] p-0"
-                  >
-                    <MoneyCell
-                      label={field}
-                      value={row[field]}
-                      onFocus={() => onActivate(row.key)}
-                      onChange={(value) =>
-                        onMoneyChange(row.key, field, value)
-                      }
-                    />
-                  </td>
-                ))}
+                {/* S. Chg. V. and Inv. Amt. The old "S. Chg. V." column (fAgencyChargeWVAT) is the service charge WITH its
+                    VAT (S. Chg. + the VAT of it); the VAT alone (the hidden fSCVATAmt) is what is saved in fscvatamt. */}
+                {(["sChgV", "invAmt"] as MoneyField[]).map((field) =>
+                  calculated ? (
+                    <React.Fragment key={field}>
+                      <td className={`${td} bg-[#eef1f4] text-right`}>
+                        {isEmptyLine(row)
+                          ? ""
+                          : formatMoney(
+                              field === "sChgV"
+                                ? toNumber(row.sChg) + toNumber(row.sChgV)
+                                : toNumber(row[field]),
+                            )}
+                      </td>
+                      {/* MF (the merchant fee of the customer's policy, with its VAT) sits between S. Chg. V. and Inv. Amt. */}
+                      {field === "sChgV" && SHOW_MF_COLUMN && (
+                        <td className={`${td} bg-[#eef1f4] text-right`}>
+                          {isEmptyLine(row) ? "" : formatMoney(row.mf)}
+                        </td>
+                      )}
+                    </React.Fragment>
+                  ) : (
+                    <td
+                      key={field}
+                      className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}
+                    >
+                      <MoneyCell
+                        label={field}
+                        value={row[field]}
+                        onFocus={() => onActivate(row.key)}
+                        onChange={(value) =>
+                          onMoneyChange(row.key, field, value)
+                        }
+                      />
+                    </td>
+                  ),
+                )}
 
                 {/* Inv. No. — read-only */}
                 <td className={`${td} bg-[#eef1f4]`}>
@@ -451,7 +727,8 @@ const TicketLinesGrid: React.FC<{
             {totalBox("txtTotalCdAmt", sum("cdAmt"))}
             {totalBox("txtTotalSChg", sum("sChg"))}
             {totalBox("txtTotalVatAmt", vatTotal)}
-            {totalBox("txtTotalSChgV", sum("sChgV"))}
+            {totalBox("txtTotalSChgV", calculated ? sum("sChg") + sum("sChgV") : sum("sChgV"))}
+            {calculated && SHOW_MF_COLUMN && totalBox("txtTotalMF", rows.reduce((total, row) => total + row.mf, 0))}
             {totalBox("txtTotalInvAmt", sum("invAmt"))}
 
             <td className="border border-[#B7ECD0] bg-[#eef1f4]" />
@@ -473,6 +750,7 @@ type ActionButtonProps = {
   onClick: () => void;
   disabled?: boolean;
   compact?: boolean;
+  hotKey?: boolean; // underline the first letter: the Alt+letter shortcut
 };
 
 const ActionButton: React.FC<ActionButtonProps> = ({
@@ -481,6 +759,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   onClick,
   disabled = false,
   compact = false,
+  hotKey = false,
 }) => (
   <button
     id={id}
@@ -491,7 +770,14 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       compact ? "h-8.5! min-w-20!  px-2! text-[12px]!" : ""
     }`}
   >
-    {label}
+    {hotKey ? (
+      <>
+        <span className="underline">{label.charAt(0)}</span>
+        {label.slice(1)}
+      </>
+    ) : (
+      label
+    )}
   </button>
 );
 
@@ -499,7 +785,8 @@ const TicketLinesActions: React.FC<{
   onAction: (name: ActionName) => void;
   enabled: Record<"copy" | "cnj" | "cc" | "inv" | "ci", boolean>;
   variant: "ticket" | "otherService";
-}> = ({ onAction, enabled, variant }) => {
+  saveLabel: string;
+}> = ({ onAction, enabled, variant, saveLabel }) => {
   if (variant === "otherService") {
     return (
       <div className="flex min-w-0 items-center justify-between gap-1 overflow-x-auto   bg-white px-1 py-1">
@@ -515,7 +802,8 @@ const TicketLinesActions: React.FC<{
         <div className="flex shrink-0 gap-1">
           <ActionButton
             id="btnSave"
-            label="Save"
+            label={saveLabel}
+            hotKey
             compact
             onClick={() => onAction("save")}
           />
@@ -598,11 +886,12 @@ const TicketLinesActions: React.FC<{
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <ActionButton id="btnSave" label="Save" onClick={() => onAction("save")} />
+        <ActionButton id="btnSave" label={saveLabel} hotKey onClick={() => onAction("save")} />
         <ActionButton id="btnSearch" label="Search" onClick={() => onAction("search")} />
         <ActionButton
           id="btnDelete"
           label="Delete"
+          hotKey
           onClick={() => onAction("delete")}
         />
         <ActionButton
@@ -657,7 +946,7 @@ const TicketLinesActions: React.FC<{
   );
 };
 
-/* ---------------------------------------------------------------------
+/* --------------------------l -------------------------------------------
    4. MAIN PAGE : owns the state and renders the parts in one place
    --------------------------------------------------------------------- */
 type TicketLinesPageProps = {
@@ -666,6 +955,20 @@ type TicketLinesPageProps = {
   actionVariant?: "ticket" | "otherService";
   /** called for Fix, search, Delete, Print, Attach, Copy, CNJ, CC, INV, CI */
   onAction?: (name: ActionName) => void;
+  /** called by Save with the filled customer lines and the detail fields */
+  onSave?: (lines: TicketLinePayload[], detail: TicketDetailPayload) => void;
+  /** called by Save before onSave with the lines and the detail fields: false stops the save (the form's rules, the old ValidateMe) */
+  onValidate?: (lines: TicketLinePayload[], detail: TicketDetailPayload) => boolean;
+  /** the fares panel and header of the form: when given, the lines are worked out as the old form did */
+  context?: TicketLinesContext;
+  /** the Delete button deletes the saved ticket (the old form); without it Delete removes the highlighted line */
+  onDeleteTicket?: () => void;
+  /** a new number clears the grid and the lines' boxes (after a delete) */
+  clearVersion?: number;
+  /** the text of the Save button: "Modify" while a saved ticket is loaded (the old form did the same) */
+  saveLabel?: string;
+  /** a saved ticket to show: its customer line, Ref. 1-4, KB. Amt., KB. Account, INV. Note and Note (a new version loads it again) */
+  loaded?: { version: number; ticket: LoadedTicket };
   onClose?: () => void;
 };
 
@@ -673,9 +976,139 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   embedded = false,
   actionVariant = "ticket",
   onAction,
+  onSave,
+  onValidate,
+  saveLabel = "Save",
+  onDeleteTicket,
+  clearVersion,
+  context,
+  loaded,
   onClose,
 }) => {
   const [rows, setRows] = useState<LineRow[]>(() => padLines([]));
+
+  // the confirm dialog of STOCK (Yes / No, Esc, Y / N keys) instead of the browser's own
+  const { confirm, dialog } = useConfirmModal();
+
+  /* Customers (fcs = C) and, per customer, its divisions. The company is
+     the one chosen at login. */
+  const PstrCoID = localStorage.getItem("PstrCoID") ?? "";
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [divisionsByCustomer, setDivisionsByCustomer] = useState<
+    Record<string, CustomerDivisionRecord[]>
+  >({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getTicketSalesCustomers(PstrCoID)
+      .then((data) => {
+        if (!cancelled) setCustomers(data);
+      })
+      .catch((err: unknown) => console.error("Failed to load customers:", err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* The service charge policies (tblservicechargepolicy) of the customers. */
+  const [policies, setPolicies] = useState<ServiceChargePolicyRecord[]>([]);
+
+  useEffect(() => {
+    if (!context) return;
+    let cancelled = false;
+
+    getTicketSalesServiceChargePolicies(PstrCoID)
+      .then((data) => {
+        if (!cancelled) setPolicies(data);
+      })
+      .catch((err: unknown) =>
+        console.error("Failed to load the service charge policies:", err),
+      );
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* A line, worked out as the old form did (VAT Amt., S. Chg. V., CD. Amt. split, MF, Inv. Amt.).
+     applyPolicy: the S. Chg. of the customer's policy replaces the typed one (a new customer, a changed
+     Fare / Tax, or a changed D/I / service type); typing in S. Chg. keeps what was typed. */
+  const recalcRow = (row: LineRow, applyPolicy: boolean): LineRow => {
+    if (!context) return row;
+
+    let sChg = toNumber(row.sChg);
+    let { scType, scPer, mfPer } = row;
+    let sChgText = row.sChg;
+
+    if (applyPolicy) {
+      const customer = customers.find((c) => c.fcsaccountid === row.customerId);
+      const policy = customer?.fisservicechargepolicy
+        ? policies.find(
+            (p) =>
+              p.fcustomerid === row.customerId &&
+              p.fservicetypeid === context.serviceId,
+          )
+        : undefined;
+      const charge = calcPolicyCharge(
+        policy,
+        context.boxDorI,
+        toNumber(row.fare),
+        toNumber(row.tax),
+      );
+      scType = charge.type;
+      scPer = charge.per;
+      mfPer = policy ? toNumber(String(policy.fmf ?? "")) : 0;
+      if (charge.amount !== 0) {
+        sChg = charge.amount;
+        sChgText = charge.amount.toFixed(2);
+      }
+    }
+
+    let amounts = calcLineAmounts(
+      {
+        fare: toNumber(row.fare),
+        tax: toNumber(row.tax),
+        cdAmt: toNumber(row.cdAmt),
+        sChg,
+        prevVatAmt: row.vatAmt,
+        prevSChgV: toNumber(row.sChgV),
+        mfPer,
+      },
+      context,
+    );
+
+    // a loaded ticket keeps its saved merchant fee (only the amounts are saved, not the %)
+    if (!applyPolicy && mfPer === 0 && row.mf !== 0) {
+      const mfWoVat = round2((row.mf / (100 + context.vatPer)) * 100);
+      const mfVat = round2(row.mf - mfWoVat);
+      amounts = {
+        ...amounts,
+        mf: row.mf,
+        mfWoVat,
+        mfVat,
+        invAmt: round2(amounts.invAmt - amounts.mfWoVat - amounts.mfVat + mfWoVat + mfVat),
+      };
+    }
+
+    return {
+      ...row,
+      sChg: sChgText,
+      sChgV: amounts.sChgV.toFixed(2),
+      invAmt: amounts.invAmt.toFixed(2),
+      vatAmt: amounts.vatAmt,
+      hCharge: amounts.hCharge,
+      hScVat: amounts.hScVat,
+      mf: amounts.mf,
+      mfWoVat: amounts.mfWoVat,
+      mfVat: amounts.mfVat,
+      mfPer,
+      scType,
+      scPer,
+    };
+  };
+
   const [activeKey, setActiveKey] = useState<number | null>(() => null);
   const [detail, setDetail] = useState<DetailForm>(initialDetail);
 
@@ -687,35 +1120,293 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   const enabled = { copy: false, cnj: false, cc: false, inv: false, ci: false };
 
   /* Profit Amt. is calculated from your pricing rules; 0.00 until then. */
-  const profitAmt = 0;
+  const filledRows = rows.filter((row) => !isEmptyLine(row));
+  const sumRows = (pick: (row: LineRow) => number) =>
+    filledRows.reduce((total, row) => total + pick(row), 0);
 
-  const updateRow = (key: number, patch: Partial<LineRow>) =>
+  // the old CalcProfitAmt is worked out only when the grid has a customer line (else it stays 0)
+  const profitAmt = context && rows.some((row) => row.customerId)
+    ? calcProfitAmt({
+        invTotal: sumRows((row) => toNumber(row.invAmt)),
+        vatTotal: sumRows((row) => row.vatAmt),
+        feeVat: context.feeVat,
+        supplierAmt: context.supplierAmt,
+        kbAmt: toNumber(detail.kbAmt),
+        mfVatTotal: sumRows((row) => row.mfVat),
+        hScVatTotal: sumRows((row) => row.hScVat),
+        k7: context.k7,
+      })
+    : 0;
+
+  const updateRow = (
+    key: number,
+    patch: Partial<LineRow>,
+    applyPolicy = false,
+  ) =>
     setRows((prev) =>
-      padLines(prev.map((row) => (row.key === key ? { ...row, ...patch } : row))),
+      padLines(
+        prev.map((row) =>
+          row.key === key ? recalcRow({ ...row, ...patch }, applyPolicy) : row,
+        ),
+      ),
     );
 
-  const handleAction = (name: ActionName) => {
+  /* The fares panel: the first line's Fare = S. Fare + Sup. Fee and its Tax = Tax (the old
+     SetRowCellValue(0, ...)). Only when one of them changes, and only once the line has a
+     customer: the old grid has no row until a customer is chosen, so nothing was filled before. */
+  const panelKey = context ? `${context.sFare}|${context.supFee}|${context.tax}` : "";
+  const lastPanelKey = useRef(panelKey);
+
+  /* A saved ticket was loaded: its customer line is shown as it was saved, and it is not worked out again from the
+     customer's policy (the old form did not either) until the user changes the fares, the D/I or the service.
+     This effect is before the two below on purpose: it runs first and tells them to leave the loaded line alone. */
+  const loadedRef = useRef<{ box: string; service: string } | null>(null);
+
+  // the ticket was deleted: the grid and the boxes under it are empty again
+  useEffect(() => {
+    if (clearVersion === undefined || clearVersion === 0) return;
+    setRows(padLines([]));
+    setActiveKey(null);
+    setDetail(initialDetail());
+    loadedRef.current = null;
+  }, [clearVersion]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const { ticket } = loaded;
+    const money = (value: number) => value.toFixed(2);
+
+    setRows(
+      padLines(
+        ticket.lines.map((line) => ({
+          ...emptyLine(),
+          customerId: line.lkpLineCustomer || null,
+          division: line.lkpLineDivision,
+          type: line.txtLineBType,
+          fare: money(line.txtLineFare),
+          tax: money(line.txtLineTax),
+          cdAmt: line.txtLineCDAmt !== 0 ? money(line.txtLineCDAmt) : "",
+          sChg: line.txtLineSChg !== 0 ? money(line.txtLineSChg) : "",
+          sChgV: money(line.txtLineSChgV),
+          invAmt: money(line.txtLineInvAmt),
+          vatAmt: line.txtLineVATAmt,
+          hCharge: line.txtLineHCharge,
+          hScVat: line.txtLineHSCVATAmt,
+          mf: line.txtLineMF,
+          mfWoVat: line.txtLineMFWOVAT,
+          mfVat: line.txtLineMFVATAmt,
+          scType: line.txtLineSChgType,
+          scPer: line.txtLineSChgPer,
+        })),
+      ),
+    );
+    setDetail({
+      ...initialDetail(),
+      ref1: ticket.txtRef1,
+      ref2: ticket.txtRef2,
+      ref3: ticket.txtRef3,
+      ref4: ticket.txtRef4,
+      kbAmt: String(ticket.txtKbAmt),
+      kbAccount: ticket.lkpKbAccount || null,
+      invNote: ticket.txtInvNote,
+      note: ticket.txtNote,
+    });
+    setActiveKey(null);
+
+    loadedRef.current = context ? { box: context.boxDorI, service: context.serviceId } : null;
+    lastPanelKey.current = panelKey;
+
+    // the divisions of the loaded customers, for the Division list
+    ticket.lines.forEach((line) => {
+      const id = line.lkpLineCustomer;
+      if (!id) return;
+      getTicketSalesCustomerDivisions(PstrCoID, id)
+        .then((data) => setDivisionsByCustomer((prev) => ({ ...prev, [id]: data })))
+        .catch((err: unknown) => console.error("Failed to load divisions:", err));
+    });
+  }, [loaded?.version]);
+
+  useEffect(() => {
+    if (!context || lastPanelKey.current === panelKey) return;
+    lastPanelKey.current = panelKey;
+    loadedRef.current = null; // the fares changed: the old form worked the policy out again
+
+    setRows((prev) =>
+      padLines(
+        prev.map((row, index) =>
+          index === 0 && row.customerId
+            ? recalcRow(
+                {
+                  ...row,
+                  fare: (context.sFare + context.supFee).toFixed(2),
+                  tax: context.tax.toFixed(2),
+                },
+                true,
+              )
+            : row,
+        ),
+      ),
+    );
+  }, [panelKey]);
+
+  /* D/I, VAT %, service type, merchant, customers or policies changed: every line again. */
+  const settingsKey = context
+    ? `${context.dorI}|${context.boxDorI}|${context.vatPer}|${context.serviceId}|${context.merchantIsAirline}`
+    : "";
+
+  useEffect(() => {
+    if (!context) return;
+
+    // a loaded ticket keeps its saved service charge while the D/I box and the service are as they were saved
+    const keepSaved =
+      loadedRef.current !== null &&
+      loadedRef.current.box === context.boxDorI &&
+      loadedRef.current.service === context.serviceId;
+    if (!keepSaved) loadedRef.current = null;
+
+    setRows((prev) =>
+      prev.map((row) =>
+        row.customerId || !isEmptyLine(row) ? recalcRow(row, !keepSaved) : row,
+      ),
+    );
+  }, [settingsKey, customers, policies]);
+
+  /* Fills the division of a row with the customer's first division, when the
+     customer has one and the row still has no division. */
+  const prefillDivision = (
+    key: number,
+    customerId: string,
+    divisions: CustomerDivisionRecord[],
+  ) => {
+    const first = divisions[0];
+    if (!first) return;
+
+    setRows((prev) =>
+      padLines(
+        prev.map((row) =>
+          row.key === key && row.customerId === customerId && !row.division
+            ? { ...row, division: first.fdivid }
+            : row,
+        ),
+      ),
+    );
+  };
+
+  const handleCustomerChange = (key: number, customerId: string | null) => {
+    loadedRef.current = null; // another customer: its policy applies
+    // a new customer clears the division (it belonged to the old customer) and takes its policy
+    // the first line always carries the fares panel (old SetRowCellValue(0, ...)): a customer picked
+    // there takes the panel's Fare (S. Fare + Sup. Fee) and Tax when the line has none yet
+    const isFirstLine = rows[0]?.key === key;
+    const row = rows.find((r) => r.key === key);
+    const fromPanel =
+      context && customerId && isFirstLine && row && !row.fare && !row.tax
+        ? {
+            fare: (context.sFare + context.supFee).toFixed(2),
+            tax: context.tax.toFixed(2),
+          }
+        : {};
+
+    // B.Type is filled from the customer account (tblaccountcs.fbussinesstype); it can still be changed
+    const businessType =
+      customers.find((c) => c.fcsaccountid === customerId)?.fbussinesstype?.trim() ?? "";
+
+    updateRow(
+      key,
+      { customerId, division: "", type: businessType, ...fromPanel },
+      true,
+    );
+
+    if (!customerId) return;
+
+    // already loaded for this customer: fill the division straight away
+    const loaded = divisionsByCustomer[customerId];
+    if (loaded) {
+      prefillDivision(key, customerId, loaded);
+      return;
+    }
+
+    getTicketSalesCustomerDivisions(PstrCoID, customerId)
+      .then((data) => {
+        setDivisionsByCustomer((prev) => ({ ...prev, [customerId]: data }));
+        prefillDivision(key, customerId, data);
+      })
+      .catch((err: unknown) =>
+        console.error("Failed to load divisions:", err),
+      );
+  };
+
+  const handleAction = async (name: ActionName) => {
     switch (name) {
-      case "save":
-        console.log({
-          lines: rows
-            .filter((row) => !isEmptyLine(row))
-            .map((row) => ({
-              customerId: row.customerId,
-              division: row.division,
-              fare: toNumber(row.fare),
-              tax: toNumber(row.tax),
-              cdAmt: toNumber(row.cdAmt),
-              sChg: toNumber(row.sChg),
-              sChgV: toNumber(row.sChgV),
-              invAmt: toNumber(row.invAmt),
+      case "save": {
+        const lines: TicketLinePayload[] = rows
+          .filter((row) => !isEmptyLine(row))
+          .map((row) => ({
+            lkpLineCustomer: row.customerId,
+            lkpLineDivision: row.division,
+            txtLineBType: row.type,
+            txtLineFare: toNumber(row.fare),
+            txtLineTax: toNumber(row.tax),
+            txtLineCDAmt: toNumber(row.cdAmt),
+            txtLineSChg: toNumber(row.sChg),
+            txtLineVATAmt: row.vatAmt,
+            txtLineSChgV: toNumber(row.sChgV),
+            txtLineInvAmt: toNumber(row.invAmt),
+            txtLineVATPer: context?.vatPer ?? 0,
+            txtLineHCharge: row.hCharge,
+            txtLineHSCVATAmt: row.hScVat,
+            txtLineMF: row.mf,
+            txtLineMFWOVAT: row.mfWoVat,
+            txtLineMFVATAmt: row.mfVat,
+            txtLineSChgType: row.scType,
+            txtLineSChgPer: row.scPer,
+          }));
+        const detailPayload: TicketDetailPayload = {
+          txtRef1: detail.ref1,
+          txtRef2: detail.ref2,
+          txtRef3: detail.ref3,
+          txtRef4: detail.ref4,
+          txtKbAmt: toNumber(detail.kbAmt),
+          lkpKbAccount: detail.kbAccount,
+          txtInvNote: detail.invNote,
+          txtNote: detail.note,
+        };
+
+        // 1) the rules of the form (the old ValidateMe)
+        if (onValidate && !onValidate(lines, detailPayload)) break;
+
+        // 2) the rules of the customer lines (the old ValidateGrid)
+        if (context) {
+          const result = validateTicketLines(
+            lines.map((line) => ({
+              customer: line.lkpLineCustomer,
+              division: line.lkpLineDivision,
+              sChg: line.txtLineSChg,
+              sChgV: line.txtLineSChgV,
+              invAmt: line.txtLineInvAmt,
             })),
-          ...detail,
-          kbAmt: toNumber(detail.kbAmt),
-        });
+            {
+              vatPer: context.vatPer,
+              isVoid: context.isVoid,
+              customerHasDivision: (customerId) => (divisionsByCustomer[customerId]?.length ?? 0) > 0,
+            },
+          );
+          if (result.error) {
+            toast.error(result.error.message);
+            break;
+          }
+          if (result.confirm && !(await confirm({ message: result.confirm }))) break;
+        }
+
+        onSave?.(lines, detailPayload);
         break;
+      }
 
       case "delete":
+        if (onDeleteTicket) {
+          onDeleteTicket();
+          break;
+        }
         // remove the highlighted line
         setRows((prev) =>
           padLines(prev.filter((row) => row.key !== activeKey)),
@@ -727,6 +1418,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         setRows(padLines([]));
         setActiveKey(null);
         setDetail(initialDetail());
+        onAction?.(name); // the screen clears its own boxes too
         break;
 
       case "close":
@@ -742,17 +1434,38 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     }
   };
 
+  /* Alt+S = Save, Alt+M = Modify (the same button: the label says which), Alt+D = Delete, as in the old form and STOCK.
+     Window-level, so it works wherever the cursor is, also in an open dropdown. Only on the Ticket Sales screen. */
+  useAltShortcuts(
+    context
+      ? {
+          s: () => {
+            if (saveLabel === "Save") void handleAction("save");
+          },
+          m: () => {
+            if (saveLabel === "Modify") void handleAction("save");
+          },
+          d: () => void handleAction("delete"),
+        }
+      : {},
+  );
+
   const body = (
     <div className="flex flex-col gap-3  ">
       <TicketLinesGrid
         rows={rows}
+        customers={customers}
+        divisionsByCustomer={divisionsByCustomer}
         activeKey={activeKey}
         onActivate={setActiveKey}
-        onCustomerChange={(key, customerId) => updateRow(key, { customerId })}
+        onCustomerChange={handleCustomerChange}
         onDivisionChange={(key, division) => updateRow(key, { division })}
-        onMoneyChange={(key, field, value) => updateRow(key, { [field]: value })} onTypeChange={function (): void {
-          throw new Error("Function not implemented.");
-        } }      />
+        onMoneyChange={(key, field, value) =>
+          updateRow(key, { [field]: value }, field === "fare" || field === "tax")
+        }
+        calculated={context !== undefined}
+        onTypeChange={(key, type) => updateRow(key, { type })}
+      />
       <TicketLinesFields
         form={detail}
         set={set}
@@ -763,7 +1476,9 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         onAction={handleAction}
         enabled={enabled}
         variant={actionVariant}
+        saveLabel={saveLabel}
       />
+      {dialog}
     </div>
   );
 
