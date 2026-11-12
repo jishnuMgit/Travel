@@ -32,6 +32,8 @@ export type SaveTicketSalesPayload = {
   PstrUserID?: string; // sent by the screen for the naming; the user that is stored (fcuserid / fmuserid) is the logged-in user of the session
 
   lines?: unknown[];
+  // the Sales Conjunction popup (CNJ. = Yes): { txtCnjTktSlNo, txtCnjRoute, txtCnjCarrier, txtCnjClass }; one row per ticket
+  cnjRows?: unknown[];
   [elementId: string]: unknown;
 };
 
@@ -364,6 +366,55 @@ async function callSpTicketSalesBPage(
   );
 }
 
+// the conjunction ticket of the ticket (the Sales Conjunction popup)
+type TicketSalesCnjValues = {
+  txtCnjTktSlNo: string;
+  txtCnjRoute: string | null;
+  txtCnjCarrier: string | null;
+  txtCnjClass: string | null;
+};
+
+// dbo.sp_pageticketsalescnj : G get (cursor), S save, D delete
+async function callSpTicketSalesCnjPage(
+  client: Db,
+  p: CallParams & TicketSalesKey & Partial<TicketSalesCnjValues>,
+): Promise<void> {
+  await client.query(
+    `
+    CALL dbo.sp_pageticketsalescnj(
+      p_strmode        => $1::varchar,
+      p_pstrcoid       => $2::varchar,
+      p_pstryear       => $3::varchar,
+      p_lkptkttype     => $4::varchar,
+      p_txttktslno     => $5::varchar,
+      p_txtslno        => $6::smallint,
+      p_txtrevno       => $7::smallint,
+      p_lkpbranch      => $8::varchar,
+      p_txtcnjtktslno  => $9::varchar,
+      p_txtroute       => $10::varchar,
+      p_txtcarrier     => $11::varchar,
+      p_txtclass       => $12::varchar,
+      p_result_cursor  => $13::refcursor
+    )
+    `,
+    [
+      p.strmode,
+      p.PstrCoID,
+      p.PstrYear,
+      p.lkpTktType ?? null,
+      p.txtTktSLNo ?? null,
+      p.txtSlNo ?? 1,
+      p.txtRevNo ?? 1,
+      p.lkpBranch ?? null,
+      p.txtCnjTktSlNo ?? null,
+      p.txtCnjRoute ?? null,
+      p.txtCnjCarrier ?? null,
+      p.txtCnjClass ?? null,
+      p.cursorName ?? newCursorName("cur_ticketsalescnj"),
+    ],
+  );
+}
+
 /* ---------------------------------------------------------- VALIDATION */
 
 const text = (value: unknown): string =>
@@ -527,7 +578,25 @@ const cleanTicketSales = (payload: SaveTicketSalesPayload) => {
     lkpBranch: key.lkpBranch ?? "",
   };
 
-  return { key, ticket, customerLine, saved };
+  // the conjunction ticket (the Sales Conjunction popup): only when CNJ. is Yes, one row, with its CNJ Ticket No.
+  const cnjRows = ((Array.isArray(payload.cnjRows) ? payload.cnjRows : []) as Bag[]).filter(
+    (row) => text(row.txtCnjTktSlNo) !== "" || text(row.txtCnjRoute) !== "" || text(row.txtCnjCarrier) !== "" || text(row.txtCnjClass) !== "",
+  );
+  let cnj: TicketSalesCnjValues | null = null;
+  if (text(payload.lkpCNJ) === "Yes") {
+    if (cnjRows.length === 0) throw new ApiError(400, "Please input the 'CNJ Ticket No.'");
+    if (cnjRows.length > 1) throw new ApiError(400, "Only one conjunction ticket can be saved for a ticket");
+    const row = cnjRows[0];
+    if (text(row.txtCnjTktSlNo) === "") throw new ApiError(400, "Please input the 'CNJ Ticket No.'");
+    cnj = {
+      txtCnjTktSlNo: textOrNull(row.txtCnjTktSlNo, 12, "CNJ Ticket No.") ?? "",
+      txtCnjRoute: textOrNull(row.txtCnjRoute, 19, "CNJ Route"),
+      txtCnjCarrier: textOrNull(row.txtCnjCarrier, 8, "CNJ Carrier"),
+      txtCnjClass: textOrNull(row.txtCnjClass, 8, "CNJ Class"),
+    };
+  }
+
+  return { key, ticket, customerLine, cnj, saved };
 };
 
 // the key of a save / modify as the key of a load (the ticket type and no. are checked by cleanTicketSales)
@@ -548,11 +617,12 @@ export const saveTicketSalesWith = async (
   payload: SaveTicketSalesPayload,
   PstrUserID: string,
 ): Promise<SavedTicketSales> => {
-  const { key, ticket, customerLine, saved } = cleanTicketSales(payload);
+  const { key, ticket, customerLine, cnj, saved } = cleanTicketSales(payload);
 
-  // 1) the ticket, 2) its customer line (it needs the ticket)
+  // 1) the ticket, 2) its customer line (it needs the ticket), 3) its conjunction ticket (CNJ. = Yes)
   await callSpTicketSalesPage(db, { strmode: "S", ...key, ...ticket, PstrUserID });
   await callSpTicketSalesBPage(db, { strmode: "S", ...key, ...customerLine, PstrUserID });
+  if (cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...cnj });
 
   // the user audit (S): what was saved
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
@@ -605,13 +675,17 @@ export const modifyTicketSalesWith = async (
   payload: SaveTicketSalesPayload,
   PstrUserID: string,
 ): Promise<SavedTicketSales> => {
-  const { key, ticket, customerLine, saved } = cleanTicketSales(payload);
+  const { key, ticket, customerLine, cnj, saved } = cleanTicketSales(payload);
 
   // the ticket as it was, for the audit note (a ticket that is not saved is refused by the procedure below)
   const before = await fetchTicketSalesWith(db, loadKeyOf(key));
 
   await callSpTicketSalesPage(db, { strmode: "M", ...key, ...ticket, PstrUserID });
   await callSpTicketSalesBPage(db, { strmode: "M", ...key, ...customerLine, PstrUserID });
+
+  // the conjunction ticket is replaced: the old one is deleted, the new one (CNJ. = Yes) is saved
+  await callSpTicketSalesCnjPage(db, { strmode: "D", ...key });
+  if (cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...cnj });
 
   // the user audit (M): what changed, field by field
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
@@ -774,8 +848,16 @@ const mapRefs = (r: Bag) => ({
   txtRef4: toText(r.frefno4),
 });
 
+// the conjunction ticket (the Sales Conjunction popup)
+const mapCnjRow = (r: Bag) => ({
+  txtCnjTktSlNo: toText(r.fcnjtktslno),
+  txtCnjRoute: toText(r.froute),
+  txtCnjCarrier: toText(r.fcarrier),
+  txtCnjClass: toText(r.fclass),
+});
+
 export type LoadedTicketSales = { PstrCoID: string; PstrYear: string } & ReturnType<typeof mapTicketRow> &
-  ReturnType<typeof mapRefs> & { lines: ReturnType<typeof mapLineRow>[] };
+  ReturnType<typeof mapRefs> & { lines: ReturnType<typeof mapLineRow>[]; cnjRows: ReturnType<typeof mapCnjRow>[] };
 
 // The ticket (mode G of the two procedures) on one connection / transaction. null = no such ticket.
 export const fetchTicketSalesWith = async (
@@ -824,12 +906,17 @@ export const fetchTicketSalesWith = async (
   await callSpTicketSalesBPage(db, { strmode: "G", ...k, cursorName: lineCursor });
   const lines = await db.query(`FETCH ALL FROM "${lineCursor}"`);
 
+  const cnjCursor = newCursorName("cur_ticketsalescnj");
+  await callSpTicketSalesCnjPage(db, { strmode: "G", ...k, cursorName: cnjCursor });
+  const cnjRows = await db.query(`FETCH ALL FROM "${cnjCursor}"`);
+
   return {
     PstrCoID,
     PstrYear,
     ...mapTicketRow(ticket.rows[0]),
     ...mapRefs(lines.rows[0] ?? {}),
     lines: lines.rows.map(mapLineRow),
+    cnjRows: cnjRows.rows.map(mapCnjRow),
   };
 };
 
@@ -917,6 +1004,7 @@ export const deleteTicketSalesWith = async (
   // the ticket as it was, for the audit note
   const before = await fetchTicketSalesWith(db, k);
 
+  await callSpTicketSalesCnjPage(db, { strmode: "D", ...k });
   await callSpTicketSalesBPage(db, { strmode: "D", ...k });
   await callSpTicketSalesPage(db, { strmode: "D", ...k });
 
@@ -974,6 +1062,7 @@ const AUDIT_LABELS: Record<string, string> = {
   txtLineSChgV: "S. Chg. V.", txtLineMF: "MF", txtLineInvAmt: "Inv. Amt.", txtLineVATPer: "VAT %",
   txtLineHCharge: "CD. Charge", txtLineHSCVATAmt: "CD. VAT", txtLineMFWOVAT: "MF w/o VAT", txtLineMFVATAmt: "MF VAT",
   txtLineSChgType: "S. Chg. Type", txtLineSChgPer: "S. Chg. %",
+  txtCnjTktSlNo: "CNJ Ticket No.", txtCnjRoute: "CNJ Route", txtCnjCarrier: "CNJ Carrier", txtCnjClass: "CNJ Class",
 };
 
 // what a save / delete note lists (the main boxes), in the order of the screen
@@ -986,8 +1075,8 @@ type AuditView = Record<string, string | number>;
 
 // the ticket, its refs and its customer line as one list of boxes
 const auditView = (ticket: LoadedTicketSales): AuditView => {
-  const { lines, PstrCoID: _co, PstrYear: _year, ...boxes } = ticket;
-  return { ...boxes, ...(lines[0] ?? {}) } as AuditView;
+  const { lines, cnjRows, PstrCoID: _co, PstrYear: _year, ...boxes } = ticket;
+  return { ...boxes, ...(lines[0] ?? {}), ...(cnjRows[0] ?? {}) } as AuditView;
 };
 
 const auditShow = (key: string, value: string | number | undefined): string =>

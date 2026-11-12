@@ -124,42 +124,42 @@ const pairOptionLabel =
       option.label
     );
 
-type MoneyField = "fare" | "tax" | "cdAmt" | "sChg" | "sChgV" | "invAmt";
+type MoneyField = "txtLineFare" | "txtLineTax" | "txtLineCDAmt" | "txtLineSChg" | "txtLineSChgV" | "txtLineInvAmt";
 
 type LineRow = {
   key: number;
-  customerId: string | null;
-  division: string;
-   type: string;
-  fare: string;
-  tax: string;
-  cdAmt: string;
-  sChg: string;
-  sChgV: string;
-  invAmt: string;
-  invNo: string; // read-only
+  lkpLineCustomer: string | null;
+  lkpLineDivision: string;
+   txtLineBType: string;
+  txtLineFare: string;
+  txtLineTax: string;
+  txtLineCDAmt: string;
+  txtLineSChg: string;
+  txtLineSChgV: string;
+  txtLineInvAmt: string;
+  txtInvNo: string; // read-only
   // worked out by the calculations (when the form gives the grid its context)
-  vatAmt: number;
-  hCharge: number;
-  hScVat: number;
-  mf: number;
-  mfWoVat: number;
-  mfVat: number;
-  mfPer: number; // the merchant fee % of the customer's policy
-  scType: string; // the service charge type of the policy (A / P)
-  scPer: number; // the service charge % of the policy
+  txtLineVATAmt: number;
+  txtLineHCharge: number;
+  txtLineHSCVATAmt: number;
+  txtLineMF: number;
+  txtLineMFWOVAT: number;
+  txtLineMFVATAmt: number;
+  txtLineMFPer: number; // the merchant fee % of the customer's policy
+  txtLineSChgType: string; // the service charge type of the policy (A / P)
+  txtLineSChgPer: number; // the service charge % of the policy
 };
 
 type DetailForm = {
-  ref1: string;
-  ref2: string;
-  ref3: string;
-  ref4: string;
-  postNo: string; // read-only
-  kbAmt: string;
-  kbAccount: string | null;
-  invNote: string;
-  note: string;
+  txtRef1: string;
+  txtRef2: string;
+  txtRef3: string;
+  txtRef4: string;
+  txtPostNo: string; // read-only
+  txtKbAmt: string;
+  lkpKbAccount: string | null;
+  txtInvNote: string;
+  txtNote: string;
 };
 
 type SetDetail = <K extends keyof DetailForm>(
@@ -192,39 +192,39 @@ const nextKey = () => ++keyCounter;
 
 const emptyLine = (): LineRow => ({
   key: nextKey(),
-  customerId: null,
-  division: "",
-  type:"",
-  fare: "",
-  tax: "",
-  cdAmt: "",
-  sChg: "",
-  sChgV: "",
-  invAmt: "",
-  invNo: "",
-  vatAmt: 0,
-  hCharge: 0,
-  hScVat: 0,
-  mf: 0,
-  mfWoVat: 0,
-  mfVat: 0,
-  mfPer: 0,
-  scType: "",
-  scPer: 0,
+  lkpLineCustomer: null,
+  lkpLineDivision: "",
+  txtLineBType:"",
+  txtLineFare: "",
+  txtLineTax: "",
+  txtLineCDAmt: "",
+  txtLineSChg: "",
+  txtLineSChgV: "",
+  txtLineInvAmt: "",
+  txtInvNo: "",
+  txtLineVATAmt: 0,
+  txtLineHCharge: 0,
+  txtLineHSCVATAmt: 0,
+  txtLineMF: 0,
+  txtLineMFWOVAT: 0,
+  txtLineMFVATAmt: 0,
+  txtLineMFPer: 0,
+  txtLineSChgType: "",
+  txtLineSChgPer: 0,
 });
 
 const moneyFields: MoneyField[] = [
-  "fare",
-  "tax",
-  "cdAmt",
-  "sChg",
-  "sChgV",
-  "invAmt",
+  "txtLineFare",
+  "txtLineTax",
+  "txtLineCDAmt",
+  "txtLineSChg",
+  "txtLineSChgV",
+  "txtLineInvAmt",
 ];
 
 const isEmptyLine = (row: LineRow) =>
-  !row.customerId &&
-  !row.division &&
+  !row.lkpLineCustomer &&
+  !row.lkpLineDivision &&
   moneyFields.every((field) => row[field] === "");
 
 /** keeps one empty row at the end and at least MIN_ROWS rows in total */
@@ -238,15 +238,15 @@ const padLines = (rows: LineRow[]): LineRow[] => {
 };
 
 const initialDetail = (): DetailForm => ({
-  ref1: "",
-  ref2: "",
-  ref3: "",
-  ref4: "",
-  postNo: "",
-  kbAmt: "0",
-  kbAccount: null,
-  invNote: "",
-  note: "",
+  txtRef1: "",
+  txtRef2: "",
+  txtRef3: "",
+  txtRef4: "",
+  txtPostNo: "",
+  txtKbAmt: "0",
+  lkpKbAccount: null,
+  txtInvNote: "",
+  txtNote: "",
 });
 
 const toNumber = (value: string) => {
@@ -428,7 +428,7 @@ const TicketLinesGrid: React.FC<{
   const sum = (field: MoneyField) =>
     rows.reduce((total, row) => total + toNumber(row[field]), 0);
 
-  const vatTotal = rows.reduce((total, row) => total + row.vatAmt, 0);
+  const vatTotal = rows.reduce((total, row) => total + row.txtLineVATAmt, 0);
 
   const totalBox = (id: string, value: number) => (
     <td
@@ -489,11 +489,11 @@ const TicketLinesGrid: React.FC<{
           {rows.map((row) => {
             const active = row.key === activeKey;
 
-            const customerValue: PairOption | null = row.customerId
+            const customerValue: PairOption | null = row.lkpLineCustomer
               ? {
-                  value: row.customerId,
-                  label: row.customerId,
-                  second: customerNames[row.customerId] ?? "",
+                  value: row.lkpLineCustomer,
+                  label: row.lkpLineCustomer,
+                  second: customerNames[row.lkpLineCustomer] ?? "",
                 }
               : null;
 
@@ -544,11 +544,11 @@ const TicketLinesGrid: React.FC<{
                     aria-label="Customer Name"
                     options={customerNameOptions}
                     value={
-                      row.customerId
+                      row.lkpLineCustomer
                         ? {
-                            value: row.customerId,
-                            label: customerNames[row.customerId] ?? row.customerId,
-                            second: row.customerId,
+                            value: row.lkpLineCustomer,
+                            label: customerNames[row.lkpLineCustomer] ?? row.lkpLineCustomer,
+                            second: row.lkpLineCustomer,
                           }
                         : null
                     }
@@ -581,7 +581,7 @@ const TicketLinesGrid: React.FC<{
                 <td className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}>
                   {(() => {
                     const divisionOptions: PairOption[] = (
-                      (row.customerId && divisionsByCustomer[row.customerId]) ||
+                      (row.lkpLineCustomer && divisionsByCustomer[row.lkpLineCustomer]) ||
                       []
                     ).map((d) => ({
                       value: d.fdivid,
@@ -596,7 +596,7 @@ const TicketLinesGrid: React.FC<{
                         aria-label="Division"
                         options={divisionOptions}
                         value={
-                          divisionOptions.find((o) => o.value === row.division) ??
+                          divisionOptions.find((o) => o.value === row.lkpLineDivision) ??
                           null
                         }
                         components={{
@@ -607,7 +607,7 @@ const TicketLinesGrid: React.FC<{
                         onChange={(option) =>
                           onDivisionChange(row.key, option?.value ?? "")
                         }
-                        isDisabled={!row.customerId}
+                        isDisabled={!row.lkpLineCustomer}
                         formatOptionLabel={pairOptionLabel(divisionColumns)}
                         onMenuOpen={() =>
                           measureList(
@@ -631,7 +631,7 @@ const TicketLinesGrid: React.FC<{
                 <td className={`border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`}>
                   <input
                     aria-label="Type"
-                    value={row.type ?? ""}
+                    value={row.txtLineBType ?? ""}
                     onFocus={(event) => {
                       onActivate(row.key);
                       event.target.select();
@@ -644,7 +644,7 @@ const TicketLinesGrid: React.FC<{
                 </td>
 
                 {/* Fare, Tax, CD. Amt., S. Chg. */}
-                {(["fare", "tax", "cdAmt", "sChg"] as MoneyField[]).map(
+                {(["txtLineFare", "txtLineTax", "txtLineCDAmt", "txtLineSChg"] as MoneyField[]).map(
                   (field) => (
                     <td
                       key={field}
@@ -664,27 +664,27 @@ const TicketLinesGrid: React.FC<{
 
                 {/* VAT Amt. — read-only */}
                 <td className={`${td} bg-[#eef1f4] text-right`}>
-                  {isEmptyLine(row) ? "" : formatMoney(row.vatAmt)}
+                  {isEmptyLine(row) ? "" : formatMoney(row.txtLineVATAmt)}
                 </td>
 
                 {/* S. Chg. V. and Inv. Amt. The old "S. Chg. V." column (fAgencyChargeWVAT) is the service charge WITH its
                     VAT (S. Chg. + the VAT of it); the VAT alone (the hidden fSCVATAmt) is what is saved in fscvatamt. */}
-                {(["sChgV", "invAmt"] as MoneyField[]).map((field) =>
+                {(["txtLineSChgV", "txtLineInvAmt"] as MoneyField[]).map((field) =>
                   calculated ? (
                     <React.Fragment key={field}>
                       <td className={`${td} bg-[#eef1f4] text-right`}>
                         {isEmptyLine(row)
                           ? ""
                           : formatMoney(
-                              field === "sChgV"
-                                ? toNumber(row.sChg) + toNumber(row.sChgV)
+                              field === "txtLineSChgV"
+                                ? toNumber(row.txtLineSChg) + toNumber(row.txtLineSChgV)
                                 : toNumber(row[field]),
                             )}
                       </td>
                       {/* MF (the merchant fee of the customer's policy, with its VAT) sits between S. Chg. V. and Inv. Amt. */}
-                      {field === "sChgV" && SHOW_MF_COLUMN && (
+                      {field === "txtLineSChgV" && SHOW_MF_COLUMN && (
                         <td className={`${td} bg-[#eef1f4] text-right`}>
-                          {isEmptyLine(row) ? "" : formatMoney(row.mf)}
+                          {isEmptyLine(row) ? "" : formatMoney(row.txtLineMF)}
                         </td>
                       )}
                     </React.Fragment>
@@ -707,7 +707,7 @@ const TicketLinesGrid: React.FC<{
 
                 {/* Inv. No. — read-only */}
                 <td className={`${td} bg-[#eef1f4]`}>
-                  {row.invNo}
+                  {row.txtInvNo}
                 </td>
               </tr>
             );
@@ -722,14 +722,14 @@ const TicketLinesGrid: React.FC<{
               className="border border-[#B7ECD0] bg-[#eef1f4]"
             />
 
-            {totalBox("txtTotalFare", sum("fare"))}
-            {totalBox("txtTotalTax", sum("tax"))}
-            {totalBox("txtTotalCdAmt", sum("cdAmt"))}
-            {totalBox("txtTotalSChg", sum("sChg"))}
+            {totalBox("txtTotalFare", sum("txtLineFare"))}
+            {totalBox("txtTotalTax", sum("txtLineTax"))}
+            {totalBox("txtTotalCdAmt", sum("txtLineCDAmt"))}
+            {totalBox("txtTotalSChg", sum("txtLineSChg"))}
             {totalBox("txtTotalVatAmt", vatTotal)}
-            {totalBox("txtTotalSChgV", calculated ? sum("sChg") + sum("sChgV") : sum("sChgV"))}
-            {calculated && SHOW_MF_COLUMN && totalBox("txtTotalMF", rows.reduce((total, row) => total + row.mf, 0))}
-            {totalBox("txtTotalInvAmt", sum("invAmt"))}
+            {totalBox("txtTotalSChgV", calculated ? sum("txtLineSChg") + sum("txtLineSChgV") : sum("txtLineSChgV"))}
+            {calculated && SHOW_MF_COLUMN && totalBox("txtTotalMF", rows.reduce((total, row) => total + row.txtLineMF, 0))}
+            {totalBox("txtTotalInvAmt", sum("txtLineInvAmt"))}
 
             <td className="border border-[#B7ECD0] bg-[#eef1f4]" />
           </tr>
@@ -961,6 +961,8 @@ type TicketLinesPageProps = {
   onValidate?: (lines: TicketLinePayload[], detail: TicketDetailPayload) => boolean;
   /** the fares panel and header of the form: when given, the lines are worked out as the old form did */
   context?: TicketLinesContext;
+  /** the CNJ button is enabled (CNJ. is Yes on the form) */
+  cnjEnabled?: boolean;
   /** the Delete button deletes the saved ticket (the old form); without it Delete removes the highlighted line */
   onDeleteTicket?: () => void;
   /** a new number clears the grid and the lines' boxes (after a delete) */
@@ -980,6 +982,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   onValidate,
   saveLabel = "Save",
   onDeleteTicket,
+  cnjEnabled = false,
   clearVersion,
   context,
   loaded,
@@ -1038,24 +1041,24 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   const recalcRow = (row: LineRow, applyPolicy: boolean): LineRow => {
     if (!context) return row;
 
-    let sChg = toNumber(row.sChg);
-    let { scType, scPer, mfPer } = row;
-    let sChgText = row.sChg;
+    let sChg = toNumber(row.txtLineSChg);
+    let { txtLineSChgType: scType, txtLineSChgPer: scPer, txtLineMFPer: mfPer } = row;
+    let sChgText = row.txtLineSChg;
 
     if (applyPolicy) {
-      const customer = customers.find((c) => c.fcsaccountid === row.customerId);
+      const customer = customers.find((c) => c.fcsaccountid === row.lkpLineCustomer);
       const policy = customer?.fisservicechargepolicy
         ? policies.find(
             (p) =>
-              p.fcustomerid === row.customerId &&
+              p.fcustomerid === row.lkpLineCustomer &&
               p.fservicetypeid === context.serviceId,
           )
         : undefined;
       const charge = calcPolicyCharge(
         policy,
         context.boxDorI,
-        toNumber(row.fare),
-        toNumber(row.tax),
+        toNumber(row.txtLineFare),
+        toNumber(row.txtLineTax),
       );
       scType = charge.type;
       scPer = charge.per;
@@ -1068,24 +1071,24 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
 
     let amounts = calcLineAmounts(
       {
-        fare: toNumber(row.fare),
-        tax: toNumber(row.tax),
-        cdAmt: toNumber(row.cdAmt),
+        fare: toNumber(row.txtLineFare),
+        tax: toNumber(row.txtLineTax),
+        cdAmt: toNumber(row.txtLineCDAmt),
         sChg,
-        prevVatAmt: row.vatAmt,
-        prevSChgV: toNumber(row.sChgV),
+        prevVatAmt: row.txtLineVATAmt,
+        prevSChgV: toNumber(row.txtLineSChgV),
         mfPer,
       },
       context,
     );
 
     // a loaded ticket keeps its saved merchant fee (only the amounts are saved, not the %)
-    if (!applyPolicy && mfPer === 0 && row.mf !== 0) {
-      const mfWoVat = round2((row.mf / (100 + context.vatPer)) * 100);
-      const mfVat = round2(row.mf - mfWoVat);
+    if (!applyPolicy && mfPer === 0 && row.txtLineMF !== 0) {
+      const mfWoVat = round2((row.txtLineMF / (100 + context.vatPer)) * 100);
+      const mfVat = round2(row.txtLineMF - mfWoVat);
       amounts = {
         ...amounts,
-        mf: row.mf,
+        mf: row.txtLineMF,
         mfWoVat,
         mfVat,
         invAmt: round2(amounts.invAmt - amounts.mfWoVat - amounts.mfVat + mfWoVat + mfVat),
@@ -1094,18 +1097,18 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
 
     return {
       ...row,
-      sChg: sChgText,
-      sChgV: amounts.sChgV.toFixed(2),
-      invAmt: amounts.invAmt.toFixed(2),
-      vatAmt: amounts.vatAmt,
-      hCharge: amounts.hCharge,
-      hScVat: amounts.hScVat,
-      mf: amounts.mf,
-      mfWoVat: amounts.mfWoVat,
-      mfVat: amounts.mfVat,
-      mfPer,
-      scType,
-      scPer,
+      txtLineSChg: sChgText,
+      txtLineSChgV: amounts.sChgV.toFixed(2),
+      txtLineInvAmt: amounts.invAmt.toFixed(2),
+      txtLineVATAmt: amounts.vatAmt,
+      txtLineHCharge: amounts.hCharge,
+      txtLineHSCVATAmt: amounts.hScVat,
+      txtLineMF: amounts.mf,
+      txtLineMFWOVAT: amounts.mfWoVat,
+      txtLineMFVATAmt: amounts.mfVat,
+      txtLineMFPer: mfPer,
+      txtLineSChgType: scType,
+      txtLineSChgPer: scPer,
     };
   };
 
@@ -1117,7 +1120,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
 
   /* Buttons that depend on the loaded ticket. Enable them from your own
      rules, for example once a saved ticket is loaded. */
-  const enabled = { copy: false, cnj: false, cc: false, inv: false, ci: false };
+  const enabled = { copy: false, cnj: cnjEnabled, cc: false, inv: false, ci: false };
 
   /* Profit Amt. is calculated from your pricing rules; 0.00 until then. */
   const filledRows = rows.filter((row) => !isEmptyLine(row));
@@ -1125,15 +1128,15 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     filledRows.reduce((total, row) => total + pick(row), 0);
 
   // the old CalcProfitAmt is worked out only when the grid has a customer line (else it stays 0)
-  const profitAmt = context && rows.some((row) => row.customerId)
+  const profitAmt = context && rows.some((row) => row.lkpLineCustomer)
     ? calcProfitAmt({
-        invTotal: sumRows((row) => toNumber(row.invAmt)),
-        vatTotal: sumRows((row) => row.vatAmt),
+        invTotal: sumRows((row) => toNumber(row.txtLineInvAmt)),
+        vatTotal: sumRows((row) => row.txtLineVATAmt),
         feeVat: context.feeVat,
         supplierAmt: context.supplierAmt,
-        kbAmt: toNumber(detail.kbAmt),
-        mfVatTotal: sumRows((row) => row.mfVat),
-        hScVatTotal: sumRows((row) => row.hScVat),
+        kbAmt: toNumber(detail.txtKbAmt),
+        mfVatTotal: sumRows((row) => row.txtLineMFVATAmt),
+        hScVatTotal: sumRows((row) => row.txtLineHSCVATAmt),
         k7: context.k7,
       })
     : 0;
@@ -1180,36 +1183,36 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
       padLines(
         ticket.lines.map((line) => ({
           ...emptyLine(),
-          customerId: line.lkpLineCustomer || null,
-          division: line.lkpLineDivision,
-          type: line.txtLineBType,
-          fare: money(line.txtLineFare),
-          tax: money(line.txtLineTax),
-          cdAmt: line.txtLineCDAmt !== 0 ? money(line.txtLineCDAmt) : "",
-          sChg: line.txtLineSChg !== 0 ? money(line.txtLineSChg) : "",
-          sChgV: money(line.txtLineSChgV),
-          invAmt: money(line.txtLineInvAmt),
-          vatAmt: line.txtLineVATAmt,
-          hCharge: line.txtLineHCharge,
-          hScVat: line.txtLineHSCVATAmt,
-          mf: line.txtLineMF,
-          mfWoVat: line.txtLineMFWOVAT,
-          mfVat: line.txtLineMFVATAmt,
-          scType: line.txtLineSChgType,
-          scPer: line.txtLineSChgPer,
+          lkpLineCustomer: line.lkpLineCustomer || null,
+          lkpLineDivision: line.lkpLineDivision,
+          txtLineBType: line.txtLineBType,
+          txtLineFare: money(line.txtLineFare),
+          txtLineTax: money(line.txtLineTax),
+          txtLineCDAmt: line.txtLineCDAmt !== 0 ? money(line.txtLineCDAmt) : "",
+          txtLineSChg: line.txtLineSChg !== 0 ? money(line.txtLineSChg) : "",
+          txtLineSChgV: money(line.txtLineSChgV),
+          txtLineInvAmt: money(line.txtLineInvAmt),
+          txtLineVATAmt: line.txtLineVATAmt,
+          txtLineHCharge: line.txtLineHCharge,
+          txtLineHSCVATAmt: line.txtLineHSCVATAmt,
+          txtLineMF: line.txtLineMF,
+          txtLineMFWOVAT: line.txtLineMFWOVAT,
+          txtLineMFVATAmt: line.txtLineMFVATAmt,
+          txtLineSChgType: line.txtLineSChgType,
+          txtLineSChgPer: line.txtLineSChgPer,
         })),
       ),
     );
     setDetail({
       ...initialDetail(),
-      ref1: ticket.txtRef1,
-      ref2: ticket.txtRef2,
-      ref3: ticket.txtRef3,
-      ref4: ticket.txtRef4,
-      kbAmt: String(ticket.txtKbAmt),
-      kbAccount: ticket.lkpKbAccount || null,
-      invNote: ticket.txtInvNote,
-      note: ticket.txtNote,
+      txtRef1: ticket.txtRef1,
+      txtRef2: ticket.txtRef2,
+      txtRef3: ticket.txtRef3,
+      txtRef4: ticket.txtRef4,
+      txtKbAmt: String(ticket.txtKbAmt),
+      lkpKbAccount: ticket.lkpKbAccount || null,
+      txtInvNote: ticket.txtInvNote,
+      txtNote: ticket.txtNote,
     });
     setActiveKey(null);
 
@@ -1234,12 +1237,12 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     setRows((prev) =>
       padLines(
         prev.map((row, index) =>
-          index === 0 && row.customerId
+          index === 0 && row.lkpLineCustomer
             ? recalcRow(
                 {
                   ...row,
-                  fare: (context.sFare + context.supFee).toFixed(2),
-                  tax: context.tax.toFixed(2),
+                  txtLineFare: (context.sFare + context.supFee).toFixed(2),
+                  txtLineTax: context.tax.toFixed(2),
                 },
                 true,
               )
@@ -1266,7 +1269,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
 
     setRows((prev) =>
       prev.map((row) =>
-        row.customerId || !isEmptyLine(row) ? recalcRow(row, !keepSaved) : row,
+        row.lkpLineCustomer || !isEmptyLine(row) ? recalcRow(row, !keepSaved) : row,
       ),
     );
   }, [settingsKey, customers, policies]);
@@ -1284,8 +1287,8 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     setRows((prev) =>
       padLines(
         prev.map((row) =>
-          row.key === key && row.customerId === customerId && !row.division
-            ? { ...row, division: first.fdivid }
+          row.key === key && row.lkpLineCustomer === customerId && !row.lkpLineDivision
+            ? { ...row, lkpLineDivision: first.fdivid }
             : row,
         ),
       ),
@@ -1300,10 +1303,10 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     const isFirstLine = rows[0]?.key === key;
     const row = rows.find((r) => r.key === key);
     const fromPanel =
-      context && customerId && isFirstLine && row && !row.fare && !row.tax
+      context && customerId && isFirstLine && row && !row.txtLineFare && !row.txtLineTax
         ? {
-            fare: (context.sFare + context.supFee).toFixed(2),
-            tax: context.tax.toFixed(2),
+            txtLineFare: (context.sFare + context.supFee).toFixed(2),
+            txtLineTax: context.tax.toFixed(2),
           }
         : {};
 
@@ -1313,7 +1316,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
 
     updateRow(
       key,
-      { customerId, division: "", type: businessType, ...fromPanel },
+      { lkpLineCustomer: customerId, lkpLineDivision: "", txtLineBType: businessType, ...fromPanel },
       true,
     );
 
@@ -1342,34 +1345,34 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         const lines: TicketLinePayload[] = rows
           .filter((row) => !isEmptyLine(row))
           .map((row) => ({
-            lkpLineCustomer: row.customerId,
-            lkpLineDivision: row.division,
-            txtLineBType: row.type,
-            txtLineFare: toNumber(row.fare),
-            txtLineTax: toNumber(row.tax),
-            txtLineCDAmt: toNumber(row.cdAmt),
-            txtLineSChg: toNumber(row.sChg),
-            txtLineVATAmt: row.vatAmt,
-            txtLineSChgV: toNumber(row.sChgV),
-            txtLineInvAmt: toNumber(row.invAmt),
+            lkpLineCustomer: row.lkpLineCustomer,
+            lkpLineDivision: row.lkpLineDivision,
+            txtLineBType: row.txtLineBType,
+            txtLineFare: toNumber(row.txtLineFare),
+            txtLineTax: toNumber(row.txtLineTax),
+            txtLineCDAmt: toNumber(row.txtLineCDAmt),
+            txtLineSChg: toNumber(row.txtLineSChg),
+            txtLineVATAmt: row.txtLineVATAmt,
+            txtLineSChgV: toNumber(row.txtLineSChgV),
+            txtLineInvAmt: toNumber(row.txtLineInvAmt),
             txtLineVATPer: context?.vatPer ?? 0,
-            txtLineHCharge: row.hCharge,
-            txtLineHSCVATAmt: row.hScVat,
-            txtLineMF: row.mf,
-            txtLineMFWOVAT: row.mfWoVat,
-            txtLineMFVATAmt: row.mfVat,
-            txtLineSChgType: row.scType,
-            txtLineSChgPer: row.scPer,
+            txtLineHCharge: row.txtLineHCharge,
+            txtLineHSCVATAmt: row.txtLineHSCVATAmt,
+            txtLineMF: row.txtLineMF,
+            txtLineMFWOVAT: row.txtLineMFWOVAT,
+            txtLineMFVATAmt: row.txtLineMFVATAmt,
+            txtLineSChgType: row.txtLineSChgType,
+            txtLineSChgPer: row.txtLineSChgPer,
           }));
         const detailPayload: TicketDetailPayload = {
-          txtRef1: detail.ref1,
-          txtRef2: detail.ref2,
-          txtRef3: detail.ref3,
-          txtRef4: detail.ref4,
-          txtKbAmt: toNumber(detail.kbAmt),
-          lkpKbAccount: detail.kbAccount,
-          txtInvNote: detail.invNote,
-          txtNote: detail.note,
+          txtRef1: detail.txtRef1,
+          txtRef2: detail.txtRef2,
+          txtRef3: detail.txtRef3,
+          txtRef4: detail.txtRef4,
+          txtKbAmt: toNumber(detail.txtKbAmt),
+          lkpKbAccount: detail.lkpKbAccount,
+          txtInvNote: detail.txtInvNote,
+          txtNote: detail.txtNote,
         };
 
         // 1) the rules of the form (the old ValidateMe)
@@ -1459,12 +1462,12 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         activeKey={activeKey}
         onActivate={setActiveKey}
         onCustomerChange={handleCustomerChange}
-        onDivisionChange={(key, division) => updateRow(key, { division })}
+        onDivisionChange={(key, division) => updateRow(key, { lkpLineDivision: division })}
         onMoneyChange={(key, field, value) =>
-          updateRow(key, { [field]: value }, field === "fare" || field === "tax")
+          updateRow(key, { [field]: value }, field === "txtLineFare" || field === "txtLineTax")
         }
         calculated={context !== undefined}
-        onTypeChange={(key, type) => updateRow(key, { type })}
+        onTypeChange={(key, type) => updateRow(key, { txtLineBType: type })}
       />
       <TicketLinesFields
         form={detail}

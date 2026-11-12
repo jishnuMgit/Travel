@@ -213,6 +213,8 @@ export type LoadedTicket = {
   txtRef3: string;
   txtRef4: string;
   lines: LoadedTicketLine[];
+  // the Sales Conjunction popup (CNJ. = Yes): the conjunction ticket of the ticket, one row at most
+  cnjRows: { txtCnjTktSlNo: string; txtCnjRoute: string; txtCnjCarrier: string; txtCnjClass: string }[];
 };
 
 export const getTicketSales = (p: {

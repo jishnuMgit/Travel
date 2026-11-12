@@ -34,6 +34,7 @@ import {
   type TicketLinePayload,
   type TktTypeRecord,
 } from "../../../utils/airlineApi";
+import CnjModal, { isEmptyCnjRow, type CnjRow } from "./CnjModal";
 import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
@@ -67,61 +68,61 @@ const tripOptions: Option[] = [
 ];
 
 type FormState = {
-  ticketPrefix: string | null; // fticketTypeid
-  tktName: string; // ftickttypename of the selected ticket type
-  ticketNo: string;
-  slNo: string; // fSlNo (txtSlNo): starts at 1
-  airline: string | null;
-  branch: string | null;
-  iata: string | null;
+  lkpTktType: string | null; // fticketTypeid
+  txtTktTypeName: string; // ftickttypename of the selected ticket type
+  txtTktSLNo: string;
+  txtSlNo: string; // fSlNo (txtSlNo): starts at 1
+  lkpAirlineNo: string | null;
+  lkpBranch: string | null;
+  lkpIATA: string | null;
 
-  date: string;
-  bspDate: string;
-  flightDate: string;
-  di: string | null;
-  voidFlag: string | null;
+  dtpDate: string;
+  dtpBSPDate: string;
+  dtpFlightDate: string;
+  lkpDI: string | null;
+  lkpVoid: string | null;
 
-  supplier: string | null;
-  supPayment: string | null;
+  lkpSupplier: string | null;
+  lkpPaySupplierID: string | null;
 
-  pax: string;
-  staff: string | null;
-  bookingGdsLogin: string;
+  txtPaxName: string;
+  lkpStaffID: string | null;
+  txtBookingGDSLogin: string;
 
-  mobile: string;
-  paxType: string | null;
-  service: string | null;
-  salesGdsLogin: string;
-  pnrNo: string;
+  txtMobile: string;
+  lkpPaxType: string | null;
+  lkpService: string | null;
+  txtSalesGDSLogin: string;
+  txtPNRNo: string;
 
-  email: string;
-  paxId: string;
-  trip: string | null;
-  returnDate: string;
-  tourCode: string;
+  txtEmail: string;
+  txtPaxNameId: string;
+  lkpTrip: string | null;
+  dtpReturnDate: string;
+  txtTourCode: string;
 
-  route: string;
-  travelClass: string;
-  fop: string | null;
-  destination: string;
-  cnj: string | null;
-  gds: string | null;
-  ccType: string | null;
-  carrier: string;
-  fareBasis: string;
-  merchant: string | null;
-  fopCash: string;
-  fopCc: string;
-  fopEp: string;
+  txtRoute: string;
+  txtClass: string;
+  lkpFOP: string | null;
+  txtDestination: string;
+  lkpCNJ: string | null;
+  lkpGDS: string | null;
+  lkpCCType: string | null;
+  txtCarrier: string;
+  txtFareBasis: string;
+  lkpMerchant: string | null;
+  txtFopCash: string;
+  txtFopCc: string;
+  txtFopEp: string;
 
-  gFare: string;
-  sFare: string;
-  tax: string;
-  k7: string;
-  supFee: string;
-  alComType: string | null;
-  alCom: string; // A/L Com. % (typed when the type is P)
-  alComAmt: string; // A/L Com. Amt. (typed when the type is A)
+  txtGFare: string;
+  txtSFare: string;
+  txtTax: string;
+  txtK7: string;
+  txtSupFee: string;
+  lkpALCom: string | null;
+  txtALCom: string; // A/L Com. % (typed when the type is P)
+  txtALComAmt: string; // A/L Com. Amt. (typed when the type is A)
 };
 
 type SetField = <K extends keyof FormState>(
@@ -173,35 +174,35 @@ const toNumber = (value: string) => {
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 const calcAmounts = (form: FormState, vat: TicketSalesVat): Computed => {
-  const gFare = toNumber(form.gFare);
-  const sFare = toNumber(form.sFare);
-  const tax = toNumber(form.tax);
-  const k7 = toNumber(form.k7);
-  const supFee = toNumber(form.supFee);
+  const gFare = toNumber(form.txtGFare);
+  const sFare = toNumber(form.txtSFare);
+  const tax = toNumber(form.txtTax);
+  const k7 = toNumber(form.txtK7);
+  const supFee = toNumber(form.txtSupFee);
 
   // A/L Com. (the old CalcCommAmt / CalcCommPer): type P = the % is typed and the amount is
   // worked out; type A = the amount is typed and the % is worked out.
   const alComPer =
-    form.alComType === "P"
-      ? toNumber(form.alCom)
+    form.lkpALCom === "P"
+      ? toNumber(form.txtALCom)
       : sFare !== 0
-        ? round2((toNumber(form.alComAmt) / sFare) * 100)
+        ? round2((toNumber(form.txtALComAmt) / sFare) * 100)
         : 0;
   const alComAmt =
-    form.alComType === "P"
-      ? round2(sFare * toNumber(form.alCom) * 0.01)
-      : round2(toNumber(form.alComAmt));
+    form.lkpALCom === "P"
+      ? round2(sFare * toNumber(form.txtALCom) * 0.01)
+      : round2(toNumber(form.txtALComAmt));
 
-  const isBspTicket = form.ticketPrefix === "B" || form.ticketPrefix === "BS";
-  const supCom = isBspTicket && form.tourCode.trim() === "" ? round2(gFare - sFare) : 0;
+  const isBspTicket = form.lkpTktType === "B" || form.lkpTktType === "BS";
+  const supCom = isBspTicket && form.txtTourCode.trim() === "" ? round2(gFare - sFare) : 0;
 
-  const vatOnCommission = form.di === "D" || vat.chkVATOnCommission;
+  const vatOnCommission = form.lkpDI === "D" || vat.chkVATOnCommission;
   const alCVat = vatOnCommission
     ? round2((supCom + alComAmt) * vat.txtCommVATPer * 0.01)
     : 0;
 
   const feeVat =
-    SUPPLIER_CALC_FEE_VAT && form.supPayment
+    SUPPLIER_CALC_FEE_VAT && form.lkpPaySupplierID
       ? round2(supFee * vat.txtSCVATPer * 0.01)
       : 0;
 
@@ -212,61 +213,61 @@ const calcAmounts = (form: FormState, vat: TicketSalesVat): Computed => {
 };
 
 const initialForm = (): FormState => ({
-  ticketPrefix: null,
-  tktName: "",
-  ticketNo: "",
-  slNo: "1",
-  airline: null,
-  branch: null,
-  iata: null,
+  lkpTktType: null,
+  txtTktTypeName: "",
+  txtTktSLNo: "",
+  txtSlNo: "1",
+  lkpAirlineNo: null,
+  lkpBranch: null,
+  lkpIATA: null,
 
-  date: TODAY,
-  bspDate: "",
-  flightDate: "",
-  di: "I",
-  voidFlag: "No",
+  dtpDate: TODAY,
+  dtpBSPDate: "",
+  dtpFlightDate: "",
+  lkpDI: "I",
+  lkpVoid: "No",
 
-  supplier: null,
-  supPayment: null,
+  lkpSupplier: null,
+  lkpPaySupplierID: null,
 
-  pax: "",
-  staff: null,
-  bookingGdsLogin: "",
+  txtPaxName: "",
+  lkpStaffID: null,
+  txtBookingGDSLogin: "",
 
-  mobile: "",
-  paxType: "A", // Adult (fpid of tbltlparam PXTP)
-  service: "TKT",
-  salesGdsLogin: "",
-  pnrNo: "",
+  txtMobile: "",
+  lkpPaxType: "A", // Adult (fpid of tbltlparam PXTP)
+  lkpService: "TKT",
+  txtSalesGDSLogin: "",
+  txtPNRNo: "",
 
-  email: "",
-  paxId: "",
-  trip: null,
-  returnDate: "",
-  tourCode: "",
+  txtEmail: "",
+  txtPaxNameId: "",
+  lkpTrip: null,
+  dtpReturnDate: "",
+  txtTourCode: "",
 
-  route: "",
-  travelClass: "",
-  fop: "CASH",
-  destination: "",
-  cnj: "No",
-  gds: null,
-  ccType: "NA",
-  carrier: "",
-  fareBasis: "",
-  merchant: "NA",
-  fopCash: "0.00",
-  fopCc: "0.00",
-  fopEp: "0.00",
+  txtRoute: "",
+  txtClass: "",
+  lkpFOP: "CASH",
+  txtDestination: "",
+  lkpCNJ: "No",
+  lkpGDS: null,
+  lkpCCType: "NA",
+  txtCarrier: "",
+  txtFareBasis: "",
+  lkpMerchant: "NA",
+  txtFopCash: "0.00",
+  txtFopCc: "0.00",
+  txtFopEp: "0.00",
 
-  gFare: "0.00",
-  sFare: "0.00",
-  tax: "0.00",
-  k7: "0.00",
-  supFee: "0.00",
-  alComType: "P",
-  alCom: "0.00",
-  alComAmt: "0.00",
+  txtGFare: "0.00",
+  txtSFare: "0.00",
+  txtTax: "0.00",
+  txtK7: "0.00",
+  txtSupFee: "0.00",
+  lkpALCom: "P",
+  txtALCom: "0.00",
+  txtALComAmt: "0.00",
 });
 
 /* A saved ticket (from the server, the keys are the element ids) -> the values of the form. The calculated boxes
@@ -275,57 +276,57 @@ const money2 = (value: number) => value.toFixed(2);
 const orNull = (value: string) => (value === "" ? null : value);
 
 const formFromTicket = (t: LoadedTicket, tktName: string): Partial<FormState> => ({
-  ticketPrefix: t.lkpTktType,
-  tktName,
-  ticketNo: t.txtTktSLNo,
-  slNo: String(t.txtSlNo),
-  airline: orNull(t.lkpAirlineNo),
-  branch: orNull(t.lkpBranch),
-  iata: orNull(t.lkpIATA),
+  lkpTktType: t.lkpTktType,
+  txtTktTypeName: tktName,
+  txtTktSLNo: t.txtTktSLNo,
+  txtSlNo: String(t.txtSlNo),
+  lkpAirlineNo: orNull(t.lkpAirlineNo),
+  lkpBranch: orNull(t.lkpBranch),
+  lkpIATA: orNull(t.lkpIATA),
 
-  date: t.dtpDate,
-  bspDate: t.dtpBSPDate,
-  flightDate: t.dtpFlightDate,
-  returnDate: t.dtpReturnDate,
-  pnrNo: t.txtPNRNo,
-  di: orNull(t.lkpDI),
-  supplier: orNull(t.lkpSupplier),
-  supPayment: orNull(t.lkpPaySupplierID),
-  pax: t.txtPaxName,
-  staff: orNull(t.lkpStaffID),
-  bookingGdsLogin: t.txtBookingGDSLogin ?? "",
-  paxType: orNull(t.lkpPaxType),
-  paxId: t.txtPaxNameId,
-  voidFlag: t.lkpVoid,
-  service: orNull(t.lkpService),
-  salesGdsLogin: t.txtSalesGDSLogin ?? "",
-  mobile: t.txtMobile,
-  email: t.txtEmail,
-  trip: orNull(t.lkpTrip),
-  tourCode: t.txtTourCode,
+  dtpDate: t.dtpDate,
+  dtpBSPDate: t.dtpBSPDate,
+  dtpFlightDate: t.dtpFlightDate,
+  dtpReturnDate: t.dtpReturnDate,
+  txtPNRNo: t.txtPNRNo,
+  lkpDI: orNull(t.lkpDI),
+  lkpSupplier: orNull(t.lkpSupplier),
+  lkpPaySupplierID: orNull(t.lkpPaySupplierID),
+  txtPaxName: t.txtPaxName,
+  lkpStaffID: orNull(t.lkpStaffID),
+  txtBookingGDSLogin: t.txtBookingGDSLogin ?? "",
+  lkpPaxType: orNull(t.lkpPaxType),
+  txtPaxNameId: t.txtPaxNameId,
+  lkpVoid: t.lkpVoid,
+  lkpService: orNull(t.lkpService),
+  txtSalesGDSLogin: t.txtSalesGDSLogin ?? "",
+  txtMobile: t.txtMobile,
+  txtEmail: t.txtEmail,
+  lkpTrip: orNull(t.lkpTrip),
+  txtTourCode: t.txtTourCode,
 
-  route: t.txtRoute,
-  travelClass: t.txtClass,
-  destination: t.txtDestination,
-  cnj: t.lkpCNJ,
-  gds: orNull(t.lkpGDS),
-  ccType: orNull(t.lkpCCType),
-  carrier: t.txtCarrier,
-  fareBasis: t.txtFareBasis,
-  merchant: orNull(t.lkpMerchant),
+  txtRoute: t.txtRoute,
+  txtClass: t.txtClass,
+  txtDestination: t.txtDestination,
+  lkpCNJ: t.lkpCNJ,
+  lkpGDS: orNull(t.lkpGDS),
+  lkpCCType: orNull(t.lkpCCType),
+  txtCarrier: t.txtCarrier,
+  txtFareBasis: t.txtFareBasis,
+  lkpMerchant: orNull(t.lkpMerchant),
 
-  fop: orNull(t.lkpFOP),
-  gFare: money2(t.txtGFare),
-  supFee: money2(t.txtSupFee),
-  fopCash: money2(t.txtFopCash),
-  sFare: money2(t.txtSFare),
-  alComType: orNull(t.lkpALCom),
-  alCom: money2(t.txtALCom),
-  fopCc: money2(t.txtFopCc),
-  tax: money2(t.txtTax),
-  alComAmt: money2(t.txtALComAmt),
-  fopEp: money2(t.txtFopEp),
-  k7: money2(t.txtK7),
+  lkpFOP: orNull(t.lkpFOP),
+  txtGFare: money2(t.txtGFare),
+  txtSupFee: money2(t.txtSupFee),
+  txtFopCash: money2(t.txtFopCash),
+  txtSFare: money2(t.txtSFare),
+  lkpALCom: orNull(t.lkpALCom),
+  txtALCom: money2(t.txtALCom),
+  txtFopCc: money2(t.txtFopCc),
+  txtTax: money2(t.txtTax),
+  txtALComAmt: money2(t.txtALComAmt),
+  txtFopEp: money2(t.txtFopEp),
+  txtK7: money2(t.txtK7),
 });
 
 /* Label widths. Every row uses the same widths per column, so the controls
@@ -578,7 +579,7 @@ const TicketTopBar: React.FC<
   const [ticketNoWrapRef, ticketNoWrapWidth] = useElementWidth<HTMLDivElement>();
 
   return (
-  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(300px,1.4fr)_1.5fr_1.3fr_1.5fr]">
+  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(385px,1.4fr)_1.5fr_1.3fr_1.5fr]">
 
     {/* Ticket No */}
     <Field
@@ -591,7 +592,7 @@ const TicketTopBar: React.FC<
           id="lkpTktType"
           menuWidth={ticketNoWrapWidth || undefined}
           options={ticketTypeOptions}
-          value={form.ticketPrefix}
+          value={form.lkpTktType}
           onChange={onTicketTypeChange}
           className="w-16.25 shrink-0"
           disabled={keyLocked}
@@ -601,10 +602,10 @@ const TicketTopBar: React.FC<
         <input
           ref={ticketNoRef}
           id="txtTktSLNo"
-          value={form.ticketNo}
+          value={form.txtTktSLNo}
           readOnly={keyLocked}
           maxLength={10} // the old txtTktSlNo: 10 characters at most
-          onChange={(event) => set("ticketNo", event.target.value)}
+          onChange={(event) => set("txtTktSLNo", event.target.value)}
           onBlur={onTicketNoLeave}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
@@ -615,19 +616,20 @@ const TicketTopBar: React.FC<
         />
 
         {/* Sl. No. (fSlNo): 1 to start with */}
-        <input
-          id="txtSlNo"
-          aria-label="Sl. No."
-          inputMode="numeric"
-          maxLength={3}
-          value={form.slNo}
-          onFocus={(event) => event.target.select()}
-          onBlur={onSlNoLeave}
-          onChange={(event) => {
-            if (/^\d{0,3}$/.test(event.target.value)) set("slNo", event.target.value);
-          }}
-          className="input-style w-9 shrink-0 text-center"
-        />
+        <Field label="Sl. No. :" htmlFor="txtSlNo" className="shrink-0 whitespace-nowrap">
+          <input
+            id="txtSlNo"
+            inputMode="numeric"
+            maxLength={3}
+            value={form.txtSlNo}
+            onFocus={(event) => event.target.select()}
+            onBlur={onSlNoLeave}
+            onChange={(event) => {
+              if (/^\d{0,3}$/.test(event.target.value)) set("txtSlNo", event.target.value);
+            }}
+            className="input-style w-9 shrink-0 text-center"
+          />
+        </Field>
       </div>
     </Field>
 
@@ -644,8 +646,8 @@ const TicketTopBar: React.FC<
           nameId="lkpAirlineName"
           idOptions={airlineIdOptions}
           nameOptions={airlineNameOptions}
-          value={form.airline}
-          onChange={(v) => set("airline", v)}
+          value={form.lkpAirlineNo}
+          onChange={(v) => set("lkpAirlineNo", v)}
           idWidth="w-[80px] shrink-0"
           fitMenuToPair
           idMenuWidth={260}
@@ -671,8 +673,8 @@ const TicketTopBar: React.FC<
           nameId="lkpBranchName"
           idOptions={branchIdOptions}
           nameOptions={branchNameOptions}
-          value={form.branch}
-          onChange={(v) => set("branch", v)}
+          value={form.lkpBranch}
+          onChange={(v) => set("lkpBranch", v)}
           idWidth="w-[55px] shrink-0"
           nameWidth="min-w-0 flex-1"
           fitMenuToPair
@@ -698,8 +700,8 @@ const TicketTopBar: React.FC<
           nameId="lkpIATAName"
           idOptions={iataIdOptions}
           nameOptions={iataNameOptions}
-          value={form.iata}
-          onChange={(v) => set("iata", v)}
+          value={form.lkpIATA}
+          onChange={(v) => set("lkpIATA", v)}
           idWidth="w-[110px] shrink-0"
           nameWidth="min-w-0 flex-1"
           fitMenuToPair
@@ -707,7 +709,7 @@ const TicketTopBar: React.FC<
           nameFirstHeader="IATA"
           nameSecondHeader="IATA Code"
           isSearchable
-          disabled={form.ticketPrefix === "X"} // an XO ticket is saved with IATA NA only
+          disabled={form.lkpTktType === "X"} // an XO ticket is saved with IATA NA only
           containerClassName="flex flex-1 gap-2"
         />
       </div>
@@ -751,8 +753,8 @@ const TicketDetailsFields: React.FC<
         <AppDatePicker
         id="dtpDate"
         label="Date"
-        value={form.date}
-        onChange={(v) => set("date", v)}
+        value={form.dtpDate}
+        onChange={(v) => set("dtpDate", v)}
       />
       </div>
     </Field>
@@ -761,8 +763,8 @@ const TicketDetailsFields: React.FC<
         <AppDatePicker
         id="dtpBSPDate"
         label="BSP Date"
-        value={form.bspDate}
-        onChange={(v) => set("bspDate", v)}
+        value={form.dtpBSPDate}
+        onChange={(v) => set("dtpBSPDate", v)}
       />
       </div>
     </Field>
@@ -772,8 +774,8 @@ const TicketDetailsFields: React.FC<
         <AppDatePicker
         id="dtpFlightDate"
         label="Flight Date"
-        value={form.flightDate}
-        onChange={(v) => set("flightDate", v)}
+        value={form.dtpFlightDate}
+        onChange={(v) => set("dtpFlightDate", v)}
       />
       </div>
     </Field>
@@ -782,8 +784,8 @@ const TicketDetailsFields: React.FC<
         <AppDatePicker
        id="dtpReturnDate"
         label="Return Date"
-        value={form.returnDate}
-        onChange={(v) => set("returnDate", v)}
+        value={form.dtpReturnDate}
+        onChange={(v) => set("dtpReturnDate", v)}
       />
       </div>
     </Field>
@@ -795,8 +797,8 @@ const TicketDetailsFields: React.FC<
     >
       <input
         id="txtPNRNo"
-        value={form.pnrNo}
-        onChange={(event) => set("pnrNo", event.target.value)}
+        value={form.txtPNRNo}
+        onChange={(event) => set("txtPNRNo", event.target.value)}
         className={`${inputClass} min-w-0`}
       />
     </Field>
@@ -808,8 +810,8 @@ const TicketDetailsFields: React.FC<
         secondHeader="ID"
         secondColumnExtra={44}
         options={diOptions}
-        value={form.di}
-        onChange={(v) => set("di", v)}
+        value={form.lkpDI}
+        onChange={(v) => set("lkpDI", v)}
         isSearchable
       />
     </Field>
@@ -827,11 +829,11 @@ const TicketDetailsFields: React.FC<
         nameId="lkpSupplierName"
         idOptions={supplierIdOptions}
         nameOptions={supplierNameOptions}
-        value={form.supplier}
+        value={form.lkpSupplier}
         onChange={(v) => {
-          set("supplier", v);
-          if (form.supPayment === null || form.supPayment === form.supplier) {
-            set("supPayment", v);
+          set("lkpSupplier", v);
+          if (form.lkpPaySupplierID === null || form.lkpPaySupplierID === form.lkpSupplier) {
+            set("lkpPaySupplierID", v);
           }
         }}
         idWidth="w-[110px]"
@@ -854,8 +856,8 @@ const TicketDetailsFields: React.FC<
         nameId="lkpPaySupplierName"
         idOptions={supplierIdOptions}
         nameOptions={supplierNameOptions}
-        value={form.supPayment}
-        onChange={(v) => set("supPayment", v)}
+        value={form.lkpPaySupplierID}
+        onChange={(v) => set("lkpPaySupplierID", v)}
         idWidth="w-[110px]"
         nameWidth="flex-1"
         fitMenuToPair
@@ -876,8 +878,8 @@ const TicketDetailsFields: React.FC<
     >
       <input
         id="txtPaxName"
-        value={form.pax}
-        onChange={(event) => set("pax", event.target.value)}
+        value={form.txtPaxName}
+        onChange={(event) => set("txtPaxName", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -891,8 +893,8 @@ const TicketDetailsFields: React.FC<
         nameId="lkpStaffName"
         idOptions={staffIdOptions}
         nameOptions={staffNameOptions}
-        value={form.staff}
-        onChange={(v) => set("staff", v)}
+        value={form.lkpStaffID}
+        onChange={(v) => set("lkpStaffID", v)}
         idWidth="w-[72px]"
         fitMenuToPair
         nameSecondColumnExtra={88}
@@ -909,8 +911,8 @@ const TicketDetailsFields: React.FC<
       <input
         id="txtBookingGDSLogin"
         maxLength={6}
-        value={form.bookingGdsLogin}
-        onChange={(e) => set("bookingGdsLogin", e.target.value)}
+        value={form.txtBookingGDSLogin}
+        onChange={(e) => set("txtBookingGDSLogin", e.target.value)}
         className={inputClass}
       />
     </Field>
@@ -923,8 +925,8 @@ const TicketDetailsFields: React.FC<
         firstHeader="Name"
         secondHeader="ID"
         options={paxTypeOptions}
-        value={form.paxType}
-        onChange={(v) => set("paxType", v)}
+        value={form.lkpPaxType}
+        onChange={(v) => set("lkpPaxType", v)}
         isSearchable
       />
     </Field>
@@ -936,8 +938,8 @@ const TicketDetailsFields: React.FC<
     >
       <input
         id="txtPaxNameId"
-        value={form.paxId}
-        onChange={(event) => set("paxId", event.target.value)}
+        value={form.txtPaxNameId}
+        onChange={(event) => set("txtPaxNameId", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -959,8 +961,8 @@ const TicketDetailsFields: React.FC<
         id="lkpVoid"
         fitMenuToBox
         options={yesNoOptions}
-        value={form.voidFlag}
-        onChange={(v) => set("voidFlag", v)}
+        value={form.lkpVoid}
+        onChange={(v) => set("lkpVoid", v)}
         isSearchable
       />
       </div>
@@ -970,8 +972,8 @@ const TicketDetailsFields: React.FC<
         id="lkpService"
         menuWidth={240}
         options={serviceOptions}
-        value={form.service}
-        onChange={(v) => set("service", v)}
+        value={form.lkpService}
+        onChange={(v) => set("lkpService", v)}
         isSearchable
       />
     </Field>
@@ -983,8 +985,8 @@ const TicketDetailsFields: React.FC<
       <input
         id="txtSalesGDSLogin"
         maxLength={6}
-        value={form.salesGdsLogin}
-        onChange={(e) => set("salesGdsLogin", e.target.value)}
+        value={form.txtSalesGDSLogin}
+        onChange={(e) => set("txtSalesGDSLogin", e.target.value)}
         className={inputClass}
       />
     </Field>
@@ -998,8 +1000,8 @@ const TicketDetailsFields: React.FC<
     >
       <input
         id="txtMobile"
-        value={form.mobile}
-        onChange={(event) => set("mobile", event.target.value)}
+        value={form.txtMobile}
+        onChange={(event) => set("txtMobile", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -1013,8 +1015,8 @@ const TicketDetailsFields: React.FC<
       <input
         id="txtEmail"
         type="email"
-        value={form.email}
-        onChange={(event) => set("email", event.target.value)}
+        value={form.txtEmail}
+        onChange={(event) => set("txtEmail", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -1023,8 +1025,8 @@ const TicketDetailsFields: React.FC<
       <Combo
         id="lkpTrip"
         options={tripOptions}
-        value={form.trip}
-        onChange={(v) => set("trip", v)}
+        value={form.lkpTrip}
+        onChange={(v) => set("lkpTrip", v)}
         isSearchable
       />
     </Field>
@@ -1037,8 +1039,8 @@ const TicketDetailsFields: React.FC<
     >
       <input
         id="txtTourCode"
-        value={form.tourCode}
-        onChange={(event) => set("tourCode", event.target.value)}
+        value={form.txtTourCode}
+        onChange={(event) => set("txtTourCode", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -1059,8 +1061,8 @@ const greyBoxClass =
   "h-[30px] w-[30px] shrink-0 rounded-[2px] border border-[#cbd2dc] bg-[#e5e7eb]";
 
 const TicketRoutePanel: React.FC<
-  PartProps & { gdsOptions: Option[]; merchantOptions: Option[] }
-> = ({ form, set, gdsOptions, merchantOptions }) => (
+  PartProps & { gdsOptions: Option[]; merchantOptions: Option[]; onCnjChange: (value: string | null) => void }
+> = ({ form, set, gdsOptions, merchantOptions, onCnjChange }) => (
   <div className="@container min-w-0">
     <div
       className={`${panelClass} grid h-full grid-cols-1 items-center gap-x-4 gap-y-2 @md:grid-cols-2`}
@@ -1073,10 +1075,10 @@ const TicketRoutePanel: React.FC<
       >
         <input
           id="txtRoute"
-          value={form.route}
+          value={form.txtRoute}
           maxLength={ROUTE_MAX_LENGTH}
           autoCapitalize="characters"
-          onChange={(e) => set("route", formatRoute(e.target.value))}
+          onChange={(e) => set("txtRoute", formatRoute(e.target.value))}
           className={inputClassforTicketRoutePanel}
         />
       </Field>
@@ -1089,8 +1091,10 @@ const TicketRoutePanel: React.FC<
       >
         <input
           id="txtClass"
-          value={form.travelClass}
-          onChange={(e) => set("travelClass", e.target.value)}
+          value={form.txtClass}
+          maxLength={8}
+          autoCapitalize="characters"
+          onChange={(e) => set("txtClass", e.target.value.toUpperCase())}
           className={inputClassforTicketRoutePanel}
         />
       </Field>
@@ -1104,10 +1108,10 @@ const TicketRoutePanel: React.FC<
         <div className="flex w-full min-w-0 items-center gap-2">
           <input
             id="txtDestination"
-            value={form.destination}
+            value={form.txtDestination}
             maxLength={3}
             autoCapitalize="characters"
-            onChange={(e) => set("destination", formatAirportCode(e.target.value))}
+            onChange={(e) => set("txtDestination", formatAirportCode(e.target.value))}
             className={`${inputClassforTicketRoutePanel} flex-1`}
           />
           <Field label="CNJ. :" className="shrink-0">
@@ -1115,8 +1119,8 @@ const TicketRoutePanel: React.FC<
               id="lkpCNJ"
               fitMenuToBox
               options={yesNoOptions}
-              value={form.cnj}
-              onChange={(v) => set("cnj", v)}
+              value={form.lkpCNJ}
+              onChange={(v) => onCnjChange(v)}
               className="w-14.5 min-w-0"
               isSearchable
             />
@@ -1132,8 +1136,8 @@ const TicketRoutePanel: React.FC<
             firstHeader="Name"
             secondHeader="ID"
             options={gdsOptions}
-            value={form.gds}
-            onChange={(v) => set("gds", v)}
+            value={form.lkpGDS}
+            onChange={(v) => set("lkpGDS", v)}
             className="min-w-0 flex-1"
             isSearchable
           />
@@ -1156,8 +1160,8 @@ const TicketRoutePanel: React.FC<
       >
         <input
           id="txtCarrier"
-          value={form.carrier}
-          onChange={(e) => set("carrier", e.target.value)}
+          value={form.txtCarrier}
+          onChange={(e) => set("txtCarrier", e.target.value)}
           className={inputClassforTicketRoutePanel}
         />
       </Field>
@@ -1169,8 +1173,8 @@ const TicketRoutePanel: React.FC<
           firstHeader="Name"
           secondHeader="ID"
           options={merchantOptions}
-          value={form.merchant}
-          onChange={(v) => set("merchant", v)}
+          value={form.lkpMerchant}
+          onChange={(v) => set("lkpMerchant", v)}
           className="w-full min-w-0"
           isSearchable
         />
@@ -1204,8 +1208,8 @@ const TicketAmountsPanel: React.FC<
         <Combo
           id="lkpFOP"
           options={fopOptions}
-          value={form.fop}
-          onChange={(v) => set("fop", v)}
+          value={form.lkpFOP}
+          onChange={(v) => set("lkpFOP", v)}
           className="w-full min-w-0"
           isSearchable
         />
@@ -1219,12 +1223,12 @@ const TicketAmountsPanel: React.FC<
       >
         <FareMoneyInput
           id="txtGFare"
-          value={form.gFare}
+          value={form.txtGFare}
           onChange={(v) => {
-            set("gFare", v);
+            set("txtGFare", v);
             // a changed G. Fare also fills S. Fare (a new ticket); a blur that only
             // formats the same value does not overwrite what was typed in S. Fare
-            if (v !== form.gFare) set("sFare", v);
+            if (v !== form.txtGFare) set("txtSFare", v);
           }}
         />
       </Field>
@@ -1237,8 +1241,8 @@ const TicketAmountsPanel: React.FC<
       >
         <MoneyInput
           id="txtSupFee"
-          value={form.supFee}
-          onChange={(v) => set("supFee", v)}
+          value={form.txtSupFee}
+          onChange={(v) => set("txtSupFee", v)}
         />
       </Field>
 
@@ -1255,8 +1259,8 @@ const TicketAmountsPanel: React.FC<
       >
         <MoneyInput
           id="txtFopCash"
-          value={form.fopCash}
-          onChange={(v) => set("fopCash", v)}
+          value={form.txtFopCash}
+          onChange={(v) => set("txtFopCash", v)}
         />
       </Field>
 
@@ -1268,8 +1272,8 @@ const TicketAmountsPanel: React.FC<
       >
         <FareMoneyInput
           id="txtSFare"
-          value={form.sFare}
-          onChange={(v) => set("sFare", v)}
+          value={form.txtSFare}
+          onChange={(v) => set("txtSFare", v)}
         />
       </Field>
 
@@ -1280,23 +1284,23 @@ const TicketAmountsPanel: React.FC<
               id="lkpALCom"
               fitMenuToBox
               options={alComTypeOptions}
-              value={form.alComType}
+              value={form.lkpALCom}
               onChange={(v) => {
-                set("alComType", v);
+                set("lkpALCom", v);
                 // a new type clears the A/L Com. % and amount (the old lkpCommType_EditValueChanged)
-                set("alCom", "0.00");
-                set("alComAmt", "0.00");
+                set("txtALCom", "0.00");
+                set("txtALComAmt", "0.00");
               }}
               className="w-full"
               isSearchable
             />
           </div>
           <div className="min-w-0 flex-1">
-            {form.alComType === "P" ? (
+            {form.lkpALCom === "P" ? (
               <MoneyInput
                 id="txtALCom"
-                value={form.alCom}
-                onChange={(v) => set("alCom", v)}
+                value={form.txtALCom}
+                onChange={(v) => set("txtALCom", v)}
               />
             ) : (
               <MoneyReadOnly id="txtALCom" value={computed.alComPer} />
@@ -1318,8 +1322,8 @@ const TicketAmountsPanel: React.FC<
       >
         <MoneyInput
           id="txtFopCc"
-          value={form.fopCc}
-          onChange={(v) => set("fopCc", v)}
+          value={form.txtFopCc}
+          onChange={(v) => set("txtFopCc", v)}
         />
       </Field>
 
@@ -1331,17 +1335,17 @@ const TicketAmountsPanel: React.FC<
       >
         <FareMoneyInput
           id="txtTax"
-          value={form.tax}
-          onChange={(v) => set("tax", v)}
+          value={form.txtTax}
+          onChange={(v) => set("txtTax", v)}
         />
       </Field>
 
       <Field label="A/L Com. Amt. :" labelClassName={A3} className="min-w-0">
-        {form.alComType === "A" ? (
+        {form.lkpALCom === "A" ? (
           <MoneyInput
             id="txtALComAmt"
-            value={form.alComAmt}
-            onChange={(v) => set("alComAmt", v)}
+            value={form.txtALComAmt}
+            onChange={(v) => set("txtALComAmt", v)}
           />
         ) : (
           <MoneyReadOnly id="txtALComAmt" value={computed.alComAmt} />
@@ -1361,8 +1365,8 @@ const TicketAmountsPanel: React.FC<
       >
         <MoneyInput
           id="txtFopEp"
-          value={form.fopEp}
-          onChange={(v) => set("fopEp", v)}
+          value={form.txtFopEp}
+          onChange={(v) => set("txtFopEp", v)}
         />
       </Field>
 
@@ -1374,8 +1378,8 @@ const TicketAmountsPanel: React.FC<
       >
         <FareMoneyInput
           id="txtK7"
-          value={form.k7}
-          onChange={(v) => set("k7", v)}
+          value={form.txtK7}
+          onChange={(v) => set("txtK7", v)}
         />
       </Field>
 
@@ -1442,16 +1446,16 @@ console.log(onClose);
     const realIata = iataIdOptions.find((option) => option.value !== "NA");
     setForm((prev) => ({
       ...prev,
-      ticketPrefix: fticketTypeid,
-      tktName: row?.ftickttypename ?? "",
-      iata:
+      lkpTktType: fticketTypeid,
+      txtTktTypeName: row?.ftickttypename ?? "",
+      lkpIATA:
         fticketTypeid === "X" && naIata
           ? naIata.value
-          : prev.ticketPrefix === "X" && prev.iata === "NA" && realIata
+          : prev.lkpTktType === "X" && prev.lkpIATA === "NA" && realIata
             ? realIata.value
-            : prev.iata,
+            : prev.lkpIATA,
     }));
-    autoLoad(fticketTypeid, form.ticketNo); // the number was typed first, then the type
+    autoLoad(fticketTypeid, form.txtTktSLNo); // the number was typed first, then the type
   };
 
   useEffect(() => {
@@ -1464,12 +1468,12 @@ console.log(onClose);
         const first = rows[0];
         if (first) {
           setForm((prev) =>
-            prev.ticketPrefix
+            prev.lkpTktType
               ? prev
               : {
                   ...prev,
-                  ticketPrefix: first.ftickettypeid,
-                  tktName: first.ftickttypename ?? "",
+                  lkpTktType: first.ftickettypeid,
+                  txtTktTypeName: first.ftickttypename ?? "",
                 },
           );
         }
@@ -1804,7 +1808,7 @@ console.log(onClose);
         const first = rows[0];
         if (first) {
           setForm((prev) =>
-            prev.iata ? prev : { ...prev, iata: first.fiatacode },
+            prev.lkpIATA ? prev : { ...prev, lkpIATA: first.fiatacode },
           );
         }
       })
@@ -1848,7 +1852,7 @@ console.log(onClose);
         const first = rows[0];
         if (first) {
           setForm((prev) =>
-            prev.branch ? prev : { ...prev, branch: first.fbrid },
+            prev.lkpBranch ? prev : { ...prev, lkpBranch: first.fbrid },
           );
         }
       })
@@ -1892,7 +1896,7 @@ console.log(onClose);
         const first = rows[0];
         if (first) {
           setForm((prev) =>
-            prev.airline ? prev : { ...prev, airline: first.fairlineno },
+            prev.lkpAirlineNo ? prev : { ...prev, lkpAirlineNo: first.fairlineno },
           );
         }
       })
@@ -1913,15 +1917,15 @@ console.log(onClose);
   /* The VAT percentages (by the date, D/I and airline of the ticket). The old form
      took D/I as "D" when K7 (the purchase VAT) is entered, otherwise the D/I box. */
   const [vat, setVat] = useState<TicketSalesVat>(noVat);
-  const vatDorI: "D" | "I" = form.di === "D" || toNumber(form.k7) !== 0 ? "D" : "I";
+  const vatDorI: "D" | "I" = form.lkpDI === "D" || toNumber(form.txtK7) !== 0 ? "D" : "I";
 
   useEffect(() => {
     let cancelled = false;
 
     getTicketSalesVat(PstrCoID, {
       lkpDI: vatDorI,
-      dtpDate: form.date,
-      lkpAirlineNo: form.airline ?? "",
+      dtpDate: form.dtpDate,
+      lkpAirlineNo: form.lkpAirlineNo ?? "",
     })
       .then((data) => {
         if (!cancelled) setVat(data);
@@ -1935,7 +1939,7 @@ console.log(onClose);
     return () => {
       cancelled = true;
     };
-  }, [vatDorI, form.date, form.airline]);
+  }, [vatDorI, form.dtpDate, form.lkpAirlineNo]);
 
   const computed = calcAmounts(form, vat);
 
@@ -1943,41 +1947,56 @@ console.log(onClose);
      (it was loaded, or it was just saved), as in the old form. Another ticket no. is a new ticket again, and so is another
      Sl. No.: a Ticket No. has a row for each Sl. No. (both tables), the Sl. No. box starts at 1. */
   const [savedKey, setSavedKey] = useState("");
-  const ticketKey = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}|${form.slNo.trim()}`;
+  const ticketKey = `${form.lkpTktType ?? ""}|${form.txtTktSLNo.trim()}|${form.txtSlNo.trim()}`;
   const isModify = savedKey !== "" && savedKey === ticketKey;
 
   /* The rules of the old form (ValidateMe) before a save: the form, the fares panel, the ticket type and the D/I.
      The first rule that fails stops the save: its message is shown and the cursor goes to its box. The rules that
      only warn are shown and the save goes on. The customer lines have their own rules in the grid. */
   const validateForm = (lines: TicketLinePayload[], detail: TicketDetailPayload): boolean => {
+    // CNJ. = Yes needs the conjunction ticket of the popup
+    if (form.lkpCNJ === "Yes" && !cnjRows.some((row) => row.txtCnjTktSlNo.trim() !== "")) {
+      toast.error("Please input the 'CNJ Ticket No.'");
+      setCnjOpen(true);
+      return false;
+    }
+
+    // the CNJ Route is airport codes of 3 characters with a space between them (IND BHA), as the Route
+    const cnjRoute = cnjRows[0]?.txtCnjRoute.trim() ?? "";
+    if (form.lkpCNJ === "Yes" && cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,2}$/.test(cnjRoute.toUpperCase())) {
+      toast.error("'Route' of the conjunction ticket should be 2 or 3 airport codes of 3 characters, like IND BHA");
+      setCnjOpen(true);
+      return false;
+    }
+
     const result = validateTicketHeader({
       loginYear: PstrYear,
-      ticketType: form.ticketPrefix,
-      ticketNo: form.ticketNo,
-      airline: form.airline,
-      branch: form.branch,
-      iata: form.iata,
-      date: form.date,
-      bspDate: form.bspDate,
-      flightDate: form.flightDate,
-      di: form.di,
-      isVoid: form.voidFlag === "Yes",
-      supplier: form.supplier,
-      supPayment: form.supPayment,
-      pax: form.pax,
-      staff: form.staff,
-      trip: form.trip,
-      route: form.route,
-      destination: form.destination,
-      gds: form.gds,
-      fop: form.fop,
-      ccType: form.ccType,
-      merchant: form.merchant,
-      alComType: form.alComType,
-      sFare: toNumber(form.sFare),
-      tax: toNumber(form.tax),
-      supFee: toNumber(form.supFee),
-      k7: toNumber(form.k7),
+      ticketType: form.lkpTktType,
+      ticketNo: form.txtTktSLNo,
+      airline: form.lkpAirlineNo,
+      branch: form.lkpBranch,
+      iata: form.lkpIATA,
+      date: form.dtpDate,
+      bspDate: form.dtpBSPDate,
+      flightDate: form.dtpFlightDate,
+      di: form.lkpDI,
+      isVoid: form.lkpVoid === "Yes",
+      supplier: form.lkpSupplier,
+      supPayment: form.lkpPaySupplierID,
+      pax: form.txtPaxName,
+      staff: form.lkpStaffID,
+      trip: form.lkpTrip,
+      route: form.txtRoute,
+      destination: form.txtDestination,
+      gds: form.lkpGDS,
+      fop: form.lkpFOP,
+      ccType: form.lkpCCType,
+      merchant: form.lkpMerchant,
+      alComType: form.lkpALCom,
+      sFare: toNumber(form.txtSFare),
+      tax: toNumber(form.txtTax),
+      supFee: toNumber(form.txtSupFee),
+      k7: toNumber(form.txtK7),
       supplierAmt: computed.supplierAmt,
       kbAmt: detail.txtKbAmt,
       kbAccount: detail.lkpKbAccount,
@@ -2015,58 +2034,64 @@ console.log(onClose);
         PstrYear,
         PstrUserID,
         // the keys are the element ids of this screen
-        lkpTktType: form.ticketPrefix,
-        txtTktSLNo: form.ticketNo,
-        txtSlNo: form.slNo,
-        lkpAirlineNo: form.airline,
-        lkpBranch: form.branch,
-        lkpIATA: form.iata,
-        dtpDate: form.date,
-        dtpBSPDate: form.bspDate,
-        dtpFlightDate: form.flightDate,
-        dtpReturnDate: form.returnDate,
-        txtPNRNo: form.pnrNo,
-        lkpDI: form.di,
-        lkpSupplier: form.supplier,
-        lkpPaySupplierID: form.supPayment,
-        txtPaxName: form.pax,
-        lkpStaffID: form.staff,
-        txtBookingGDSLogin: form.bookingGdsLogin,
-        lkpPaxType: form.paxType,
-        txtPaxNameId: form.paxId,
-        lkpVoid: form.voidFlag,
-        lkpService: form.service,
-        txtSalesGDSLogin: form.salesGdsLogin,
-        txtMobile: form.mobile,
-        txtEmail: form.email,
-        lkpTrip: form.trip,
-        txtTourCode: form.tourCode,
-        txtRoute: form.route,
-        txtClass: form.travelClass,
-        txtDestination: form.destination,
-        lkpCNJ: form.cnj,
-        lkpGDS: form.gds,
-        lkpCCType: form.ccType,
-        txtCarrier: form.carrier,
-        txtFareBasis: form.fareBasis,
-        lkpMerchant: form.merchant,
-        lkpFOP: form.fop,
-        txtGFare: form.gFare,
-        txtSupFee: form.supFee,
+        lkpTktType: form.lkpTktType,
+        txtTktSLNo: form.txtTktSLNo,
+        txtSlNo: form.txtSlNo,
+        lkpAirlineNo: form.lkpAirlineNo,
+        lkpBranch: form.lkpBranch,
+        lkpIATA: form.lkpIATA,
+        dtpDate: form.dtpDate,
+        dtpBSPDate: form.dtpBSPDate,
+        dtpFlightDate: form.dtpFlightDate,
+        dtpReturnDate: form.dtpReturnDate,
+        txtPNRNo: form.txtPNRNo,
+        lkpDI: form.lkpDI,
+        lkpSupplier: form.lkpSupplier,
+        lkpPaySupplierID: form.lkpPaySupplierID,
+        txtPaxName: form.txtPaxName,
+        lkpStaffID: form.lkpStaffID,
+        txtBookingGDSLogin: form.txtBookingGDSLogin,
+        lkpPaxType: form.lkpPaxType,
+        txtPaxNameId: form.txtPaxNameId,
+        lkpVoid: form.lkpVoid,
+        lkpService: form.lkpService,
+        txtSalesGDSLogin: form.txtSalesGDSLogin,
+        txtMobile: form.txtMobile,
+        txtEmail: form.txtEmail,
+        lkpTrip: form.lkpTrip,
+        txtTourCode: form.txtTourCode,
+        txtRoute: form.txtRoute,
+        txtClass: form.txtClass,
+        txtDestination: form.txtDestination,
+        lkpCNJ: form.lkpCNJ,
+        lkpGDS: form.lkpGDS,
+        lkpCCType: form.lkpCCType,
+        txtCarrier: form.txtCarrier,
+        txtFareBasis: form.txtFareBasis,
+        lkpMerchant: form.lkpMerchant,
+        lkpFOP: form.lkpFOP,
+        txtGFare: form.txtGFare,
+        txtSupFee: form.txtSupFee,
         txtFeeVat: computed.feeVat,
-        txtFopCash: form.fopCash,
-        txtSFare: form.sFare,
-        lkpALCom: form.alComType,
+        txtFopCash: form.txtFopCash,
+        txtSFare: form.txtSFare,
+        lkpALCom: form.lkpALCom,
         txtALCom: computed.alComPer,
         txtSupCom: computed.supCom,
-        txtFopCc: form.fopCc,
-        txtTax: form.tax,
+        txtFopCc: form.txtFopCc,
+        txtTax: form.txtTax,
         txtALComAmt: computed.alComAmt,
         txtALCVat: computed.alCVat,
-        txtFopEp: form.fopEp,
-        txtK7: form.k7,
+        txtFopEp: form.txtFopEp,
+        txtK7: form.txtK7,
         txtSupplierAmt: computed.supplierAmt,
         lines,
+        // the conjunction ticket of the popup (only with CNJ. = Yes)
+        cnjRows: form.lkpCNJ === "Yes"
+          ? cnjRows
+              .filter((row) => !isEmptyCnjRow(row))
+              .map((row) => ({ ...row }))
+          : [],
         ...detail,
       });
       toast.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
@@ -2104,7 +2129,7 @@ console.log(onClose);
         PstrYear,
         lkpTktType: type,
         txtTktSLNo: ticketNo,
-        lkpBranch: form.branch,
+        lkpBranch: form.lkpBranch,
         txtSlNo: slNo,
       });
 
@@ -2112,12 +2137,67 @@ console.log(onClose);
       setError("");
       setForm((prev) => ({ ...prev, ...formFromTicket(ticket, tktName) }));
       setLoaded({ version: Date.now(), ticket });
+      setCnjRows(
+        (ticket.cnjRows ?? []).map((row) => ({
+          txtCnjTktSlNo: row.txtCnjTktSlNo,
+          txtCnjRoute: row.txtCnjRoute,
+          txtCnjCarrier: row.txtCnjCarrier,
+          txtCnjClass: row.txtCnjClass,
+        })),
+      );
       setSavedKey(`${ticket.lkpTktType}|${ticket.txtTktSLNo.trim()}|${ticket.txtSlNo}`); // a saved ticket: the button is Modify
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load the ticket.";
       if (silent && /not found$/i.test(message)) return;
       toast.error(message);
     }
+  };
+
+  /* Sales Conjunction (the old frmTktSalesCnj): CNJ. = Yes opens the popup of the conjunction tickets (CNJ Ticket No., Route,
+     Carrier, Class), also from the CNJ button. The airline must be chosen first, as in the old form. CNJ. = No clears them. */
+  const [cnjOpen, setCnjOpen] = useState(false);
+  const [cnjRows, setCnjRows] = useState<CnjRow[]>([]);
+
+  const openCnj = () => {
+    if (!form.lkpAirlineNo) {
+      toast.error("Please select a 'AirlineNo'");
+      document.getElementById("lkpAirlineNo")?.focus();
+      return false;
+    }
+    setCnjOpen(true);
+    return true;
+  };
+
+  const handleCnjChange = (value: string | null) => {
+    if (value === "Yes") {
+      if (!openCnj()) return; // no airline yet: CNJ. stays as it was
+      setForm((prev) => ({ ...prev, lkpCNJ: "Yes" }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, lkpCNJ: value }));
+    setCnjRows([]);
+  };
+
+  /* Fix (the old cmdFix_Click, Domestic tickets only): works the Tax and the K7 back out of the Supplier Amt. The supplier
+     amount without the commission and the supplier fee (S. Fare + Tax + K7) is taken as VAT inclusive: the amount without VAT
+     less the S. Fare is the Tax, and the VAT part of it is the K7. The grid line follows the new Tax. */
+  const handleFix = () => {
+    if (form.lkpDI !== "D") {
+      toast.info("Fix is for Domestic (D) tickets only");
+      return;
+    }
+
+    const supplierAmtWoComm = computed.supplierAmt + computed.alComAmt - toNumber(form.txtSupFee) - computed.feeVat;
+    const withoutVat = round2((supplierAmtWoComm / (100 + vat.txtSCVATPer)) * 100);
+
+    set("txtTax", round2(withoutVat - toNumber(form.txtSFare)).toFixed(2));
+    set("txtK7", round2(supplierAmtWoComm - withoutVat).toFixed(2));
+  };
+
+  const closeCnj = () => {
+    setCnjRows((rows) => rows.filter((row) => !isEmptyCnjRow(row))); // the empty rows are not kept
+    setCnjOpen(false);
+    setTimeout(() => document.getElementById("lkpCNJ")?.focus(), 0);
   };
 
   /* Delete the saved ticket of the Ticket Type + Ticket No. boxes (the old cmdDelete_Click): the type and the number are
@@ -2128,26 +2208,28 @@ console.log(onClose);
     const firstType = tktTypes[0];
     setForm({
       ...initialForm(),
-      ticketPrefix: firstType?.ftickettypeid ?? null,
-      tktName: firstType?.ftickttypename ?? "",
-      branch: branchIdOptions[0]?.value ?? null,
-      iata: iataIdOptions[0]?.value ?? null,
-      airline: airlineIdOptions[0]?.value ?? null,
+      lkpTktType: firstType?.ftickettypeid ?? null,
+      txtTktTypeName: firstType?.ftickttypename ?? "",
+      lkpBranch: branchIdOptions[0]?.value ?? null,
+      lkpIATA: iataIdOptions[0]?.value ?? null,
+      lkpAirlineNo: airlineIdOptions[0]?.value ?? null,
     });
     setSavedKey("");
     setLoaded(undefined);
+    setCnjRows([]);
+    setCnjOpen(false);
     lastAutoKey.current = "";
     setClearVersion((v) => v + 1);
     ticketNoRef.current?.focus();
   };
 
   const handleDelete = async () => {
-    if (!form.ticketPrefix) {
+    if (!form.lkpTktType) {
       toast.error("Please select a 'Ticket Type'");
       document.getElementById("lkpTktType")?.focus();
       return;
     }
-    if (form.ticketNo.trim() === "") {
+    if (form.txtTktSLNo.trim() === "") {
       toast.error("Please input 'Ticket No.'");
       document.getElementById("txtTktSLNo")?.focus();
       return;
@@ -2158,10 +2240,10 @@ console.log(onClose);
       const result = await deleteTicketSales({
         PstrCoID,
         PstrYear,
-        lkpTktType: form.ticketPrefix,
-        txtTktSLNo: form.ticketNo.trim(),
-        lkpBranch: form.branch,
-        txtSlNo: form.slNo.trim() || null, // only this Sl. No.: the other Sl. Nos of the Ticket No. stay
+        lkpTktType: form.lkpTktType,
+        txtTktSLNo: form.txtTktSLNo.trim(),
+        lkpBranch: form.lkpBranch,
+        txtSlNo: form.txtSlNo.trim() || null, // only this Sl. No.: the other Sl. Nos of the Ticket No. stay
       });
       toast.success(result.message || "Deleted successfully");
       clearScreen();
@@ -2172,14 +2254,14 @@ console.log(onClose);
 
   // Enter in Ticket No. or the Search button: always loads (and says when the ticket is not found)
   const handleSearch = () => {
-    lastAutoKey.current = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}|${form.slNo.trim()}`;
-    void loadTicket(form.ticketPrefix, form.ticketNo, form.slNo.trim(), false);
+    lastAutoKey.current = `${form.lkpTktType ?? ""}|${form.txtTktSLNo.trim()}|${form.txtSlNo.trim()}`;
+    void loadTicket(form.lkpTktType, form.txtTktSLNo, form.txtSlNo.trim(), false);
   };
 
   // Automatic load: when the Ticket Type and Ticket No. are given and you leave the Ticket No. box (or pick the type
   // after typing the number). The same ticket is not loaded twice by itself, so what you typed is never overwritten.
   const lastAutoKey = useRef("");
-  const autoLoad = (type: string | null, no: string, slNo: string = form.slNo.trim()) => {
+  const autoLoad = (type: string | null, no: string, slNo: string = form.txtSlNo.trim()) => {
     const key = `${type ?? ""}|${no.trim()}|${slNo}`;
     if (!type || no.trim() === "" || key === lastAutoKey.current) return;
     lastAutoKey.current = key;
@@ -2191,11 +2273,11 @@ console.log(onClose);
        - a Sl. No. that is not saved yet is a new row: what is on the screen stays and Save inserts it as that Sl. No.;
        - an empty box shows the next free Sl. No. (2 when Sl. No. 1 is saved, 1 when the Ticket No. is not saved yet). */
   const handleSlNoLeave = async () => {
-    if (!form.ticketPrefix || form.ticketNo.trim() === "") return;
+    if (!form.lkpTktType || form.txtTktSLNo.trim() === "") return;
 
-    const typed = form.slNo.trim();
+    const typed = form.txtSlNo.trim();
     if (typed !== "" && Number(typed) >= 1) {
-      autoLoad(form.ticketPrefix, form.ticketNo, typed);
+      autoLoad(form.lkpTktType, form.txtTktSLNo, typed);
       return;
     }
 
@@ -2203,11 +2285,11 @@ console.log(onClose);
       const { next } = await getTicketSalesSlNos({
         PstrCoID,
         PstrYear,
-        lkpTktType: form.ticketPrefix,
-        txtTktSLNo: form.ticketNo.trim(),
+        lkpTktType: form.lkpTktType,
+        txtTktSLNo: form.txtTktSLNo.trim(),
       });
-      set("slNo", String(next));
-      lastAutoKey.current = `${form.ticketPrefix}|${form.ticketNo.trim()}|${next}`; // a free number: nothing to load
+      set("txtSlNo", String(next));
+      lastAutoKey.current = `${form.lkpTktType}|${form.txtTktSLNo.trim()}|${next}`; // a free number: nothing to load
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to get the next Sl. No.");
     }
@@ -2230,7 +2312,7 @@ console.log(onClose);
               set={set}
               ticketNoRef={ticketNoRef}
               onSearch={handleSearch}
-              onTicketNoLeave={() => autoLoad(form.ticketPrefix, form.ticketNo)}
+              onTicketNoLeave={() => autoLoad(form.lkpTktType, form.txtTktSLNo)}
               airlineIdOptions={airlineIdOptions}
               airlineNameOptions={airlineNameOptions}
               ticketTypeOptions={ticketTypeOptions}
@@ -2261,6 +2343,7 @@ console.log(onClose);
                 set={set}
                 gdsOptions={gdsOptions}
                 merchantOptions={merchantOptions}
+                onCnjChange={handleCnjChange}
               />
               <TicketAmountsPanel
                 form={form}
@@ -2284,29 +2367,33 @@ console.log(onClose);
             onValidate={validateForm}
             saveLabel={isModify ? "Modify" : "Save"}
             onDeleteTicket={handleDelete}
+            cnjEnabled={form.lkpCNJ === "Yes"}
             clearVersion={clearVersion}
             loaded={loaded}
             onAction={(name) => {
               if (name === "search") handleSearch();
+              if (name === "cnj") openCnj();
+              if (name === "fix") handleFix();
               if (name === "cancel") clearScreen(); // the header too, so the Ticket Type / No. are open for another ticket
             }}
             context={{
-              sFare: toNumber(form.sFare),
-              supFee: toNumber(form.supFee),
-              tax: toNumber(form.tax),
+              sFare: toNumber(form.txtSFare),
+              supFee: toNumber(form.txtSupFee),
+              tax: toNumber(form.txtTax),
               dorI: vatDorI,
-              boxDorI: form.di === "D" ? "D" : "I",
+              boxDorI: form.lkpDI === "D" ? "D" : "I",
               vatPer: vat.txtSCVATPer,
-              serviceId: form.service ?? "",
-              merchantIsAirline: form.merchant === "A",
-              isVoid: form.voidFlag === "Yes",
+              serviceId: form.lkpService ?? "",
+              merchantIsAirline: form.lkpMerchant === "A",
+              isVoid: form.lkpVoid === "Yes",
               supplierAmt: computed.supplierAmt,
               feeVat: computed.feeVat,
-              k7: toNumber(form.k7),
+              k7: toNumber(form.txtK7),
             }}
           />
         </main>
         {dialog}
+        <CnjModal open={cnjOpen} rows={cnjRows} onChange={setCnjRows} onClose={closeCnj} />
       </div>
     </div>
   );

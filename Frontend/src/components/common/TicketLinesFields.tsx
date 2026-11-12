@@ -6,15 +6,15 @@ import { fieldSelectProps } from "./Combo";
 
 
 type DetailForm = {
-  ref1: string;
-  ref2: string;
-  ref3: string;
-  ref4: string;
-  postNo: string; // read-only
-  kbAmt: string;
-  kbAccount: string | null;
-  invNote: string;
-  note: string;
+  txtRef1: string;
+  txtRef2: string;
+  txtRef3: string;
+  txtRef4: string;
+  txtPostNo: string; // read-only
+  txtKbAmt: string;
+  lkpKbAccount: string | null;
+  txtInvNote: string;
+  txtNote: string;
 };
 
 type SetDetail = <K extends keyof DetailForm>(
@@ -87,8 +87,8 @@ const TicketLinesFields: React.FC<{
     >
       <input
         id="txtRef1"
-        value={form.ref1}
-        onChange={(event) => set("ref1", event.target.value)}
+        value={form.txtRef1}
+        onChange={(event) => set("txtRef1", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -100,8 +100,8 @@ const TicketLinesFields: React.FC<{
     >
       <input
         id="txtRef2"
-        value={form.ref2}
-        onChange={(event) => set("ref2", event.target.value)}
+        value={form.txtRef2}
+        onChange={(event) => set("txtRef2", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -113,8 +113,8 @@ const TicketLinesFields: React.FC<{
     >
       <input
         id="txtRef3"
-        value={form.ref3}
-        onChange={(event) => set("ref3", event.target.value)}
+        value={form.txtRef3}
+        onChange={(event) => set("txtRef3", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -126,8 +126,8 @@ const TicketLinesFields: React.FC<{
     >
       <input
         id="txtRef4"
-        value={form.ref4}
-        onChange={(event) => set("ref4", event.target.value)}
+        value={form.txtRef4}
+        onChange={(event) => set("txtRef4", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -143,11 +143,11 @@ const TicketLinesFields: React.FC<{
         <input
           id="txtKbAmt"
           inputMode="numeric"
-          value={form.kbAmt}
+          value={form.txtKbAmt}
           onFocus={(event) => event.target.select()}
           onChange={(event) => {
             if (/^\d*\.?\d{0,2}$/.test(event.target.value))
-              set("kbAmt", event.target.value);
+              set("txtKbAmt", event.target.value);
           }}
           className={`${inputClass} text-right`}
         />
@@ -160,8 +160,8 @@ const TicketLinesFields: React.FC<{
           instanceId="lkpKbAccount"
           components={selectComponents}
           options={kbAccountOptions}
-          value={kbAccountOptions.find((o) => o.value === form.kbAccount) ?? null}
-          onChange={(option) => set("kbAccount", option?.value ?? null)}
+          value={kbAccountOptions.find((o) => o.value === form.lkpKbAccount) ?? null}
+          onChange={(option) => set("lkpKbAccount", option?.value ?? null)}
           {...fieldSelectProps}
         />
       </div>
@@ -180,7 +180,7 @@ const TicketLinesFields: React.FC<{
           id="txtPostNo"
           readOnly
           tabIndex={-1}
-          value={form.postNo}
+          value={form.txtPostNo}
           className={readOnlyClass}
         />
       </Field>
@@ -215,8 +215,8 @@ const TicketLinesFields: React.FC<{
     >
       <input
         id="txtInvNote"
-        value={form.invNote}
-        onChange={(event) => set("invNote", event.target.value)}
+        value={form.txtInvNote}
+        onChange={(event) => set("txtInvNote", event.target.value)}
         className={inputClass}
       />
     </Field>
@@ -228,8 +228,8 @@ const TicketLinesFields: React.FC<{
     >
       <input
         id="txtNote"
-        value={form.note}
-        onChange={(event) => set("note", event.target.value)}
+        value={form.txtNote}
+        onChange={(event) => set("txtNote", event.target.value)}
         className={inputClass}
       />
     </Field>
