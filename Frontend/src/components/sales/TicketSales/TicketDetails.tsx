@@ -21,14 +21,21 @@ import {
   getTicketSalesServiceTypes,
   getTicketSalesStaffs,
   getTicketSalesSuppliers,
+  getTicketSales,
   getTicketSalesTktTypes,
+  deleteTicketSales,
   getTicketSalesVat,
+  modifyTicketSales,
   saveTicketSales,
+  type LoadedTicket,
   type TicketSalesVat,
   type TicketDetailPayload,
   type TicketLinePayload,
   type TktTypeRecord,
 } from "../../../utils/airlineApi";
+import { formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
 
 dayjs.extend(customParseFormat);
 
@@ -62,6 +69,7 @@ type FormState = {
   ticketPrefix: string | null; // fticketTypeid
   tktName: string; // ftickttypename of the selected ticket type
   ticketNo: string;
+  slNo: string; // fSlNo (txtSlNo): starts at 1
   airline: string | null;
   branch: string | null;
   iata: string | null;
@@ -77,10 +85,12 @@ type FormState = {
 
   pax: string;
   staff: string | null;
+  bookingGdsLogin: string;
 
   mobile: string;
   paxType: string | null;
   service: string | null;
+  salesGdsLogin: string;
   pnrNo: string;
 
   email: string;
@@ -204,6 +214,7 @@ const initialForm = (): FormState => ({
   ticketPrefix: null,
   tktName: "",
   ticketNo: "",
+  slNo: "1",
   airline: null,
   branch: null,
   iata: null,
@@ -219,10 +230,12 @@ const initialForm = (): FormState => ({
 
   pax: "",
   staff: null,
+  bookingGdsLogin: "",
 
   mobile: "",
   paxType: "A", // Adult (fpid of tbltlparam PXTP)
   service: "TKT",
+  salesGdsLogin: "",
   pnrNo: "",
 
   email: "",
@@ -255,6 +268,65 @@ const initialForm = (): FormState => ({
   alComAmt: "0.00",
 });
 
+/* A saved ticket (from the server, the keys are the element ids) -> the values of the form. The calculated boxes
+   (Fee VAT, Sup. Com., A/L C. VAT, Supplier Amt., Net) are worked out again from these values. */
+const money2 = (value: number) => value.toFixed(2);
+const orNull = (value: string) => (value === "" ? null : value);
+
+const formFromTicket = (t: LoadedTicket, tktName: string): Partial<FormState> => ({
+  ticketPrefix: t.lkpTktType,
+  tktName,
+  ticketNo: t.txtTktSLNo,
+  slNo: String(t.txtSlNo),
+  airline: orNull(t.lkpAirlineNo),
+  branch: orNull(t.lkpBranch),
+  iata: orNull(t.lkpIATA),
+
+  date: t.dtpDate,
+  bspDate: t.dtpBSPDate,
+  flightDate: t.dtpFlightDate,
+  returnDate: t.dtpReturnDate,
+  pnrNo: t.txtPNRNo,
+  di: orNull(t.lkpDI),
+  supplier: orNull(t.lkpSupplier),
+  supPayment: orNull(t.lkpPaySupplierID),
+  pax: t.txtPaxName,
+  staff: orNull(t.lkpStaffID),
+  bookingGdsLogin: t.txtBookingGDSLogin ?? "",
+  paxType: orNull(t.lkpPaxType),
+  paxId: t.txtPaxNameId,
+  voidFlag: t.lkpVoid,
+  service: orNull(t.lkpService),
+  salesGdsLogin: t.txtSalesGDSLogin ?? "",
+  mobile: t.txtMobile,
+  email: t.txtEmail,
+  trip: orNull(t.lkpTrip),
+  tourCode: t.txtTourCode,
+
+  route: t.txtRoute,
+  travelClass: t.txtClass,
+  destination: t.txtDestination,
+  cnj: t.lkpCNJ,
+  gds: orNull(t.lkpGDS),
+  ccType: orNull(t.lkpCCType),
+  carrier: t.txtCarrier,
+  fareBasis: t.txtFareBasis,
+  merchant: orNull(t.lkpMerchant),
+
+  fop: orNull(t.lkpFOP),
+  gFare: money2(t.txtGFare),
+  supFee: money2(t.txtSupFee),
+  fopCash: money2(t.txtFopCash),
+  sFare: money2(t.txtSFare),
+  alComType: orNull(t.lkpALCom),
+  alCom: money2(t.txtALCom),
+  fopCc: money2(t.txtFopCc),
+  tax: money2(t.txtTax),
+  alComAmt: money2(t.txtALComAmt),
+  fopEp: money2(t.txtFopEp),
+  k7: money2(t.txtK7),
+});
+
 /* Label widths. Every row uses the same widths per column, so the controls
    line up vertically (column groups: A, B, C, D, E). */
 const LA = "w-[64px]"; // Date, Supplier, Pax., Mobile, E-mail
@@ -270,8 +342,6 @@ const inputClass =
   " w-full min-w-0 input-style";
 
 const readOnlyClass =
-  "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
-const readOnlyClass1 =
   "h-[30px] w-full min-w-0 rounded-[4px] border border-[#cfd7df] bg-[#eef1f4] px-2 text-[12px] text-[#24364d] outline-none";
 
 const panelClass = "border border-gray-300 rounded-sm bg-[#fcfdfe] p-3 shadow-sm";
@@ -474,6 +544,7 @@ const TicketTopBar: React.FC<
   PartProps & {
     ticketNoRef: React.RefObject<HTMLInputElement | null>;
     onSearch: () => void;
+    onTicketNoLeave: () => void; // leaving the Ticket No. box loads the ticket when it is saved
     airlineIdOptions: Option[];
     airlineNameOptions: Option[];
     ticketTypeOptions: Option[];
@@ -488,6 +559,7 @@ const TicketTopBar: React.FC<
   set,
   ticketNoRef,
   onSearch,
+  onTicketNoLeave,
   airlineIdOptions,
   airlineNameOptions,
   branchIdOptions,
@@ -501,7 +573,7 @@ const TicketTopBar: React.FC<
   const [ticketNoWrapRef, ticketNoWrapWidth] = useElementWidth<HTMLDivElement>();
 
   return (
-  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[1.2fr_1.5fr_1.3fr_1.5fr]">
+  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(300px,1.4fr)_1.5fr_1.3fr_1.5fr]">
 
     {/* Ticket No */}
     <Field
@@ -525,12 +597,27 @@ const TicketTopBar: React.FC<
           id="txtTktSLNo"
           value={form.ticketNo}
           onChange={(event) => set("ticketNo", event.target.value)}
+          onBlur={onTicketNoLeave}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               onSearch();
             }
           }}
-          className={`${inputClass} w-full min-w-0`}
+          className="input-style w-full min-w-[104px]" // room for 10 digits
+        />
+
+        {/* Sl. No. (fSlNo): 1 to start with */}
+        <input
+          id="txtSlNo"
+          aria-label="Sl. No."
+          inputMode="numeric"
+          maxLength={3}
+          value={form.slNo}
+          onFocus={(event) => event.target.select()}
+          onChange={(event) => {
+            if (/^\d{0,3}$/.test(event.target.value)) set("slNo", event.target.value);
+          }}
+          className="input-style w-9 shrink-0 text-center"
         />
       </div>
     </Field>
@@ -543,6 +630,8 @@ const TicketTopBar: React.FC<
       <div className="w-full min-w-0  ml-[2%]">
         <PairCombo
           idId="lkpAirlineNo"
+          idFirstHeader="A/L No."
+          idSecondHeader="Name"
           nameId="lkpAirlineName"
           idOptions={airlineIdOptions}
           nameOptions={airlineNameOptions}
@@ -552,9 +641,9 @@ const TicketTopBar: React.FC<
           fitMenuToPair
           idMenuWidth={260}
           nameMenuWidth={250}
-          nameSecondColumnExtra={60}
+          nameSecondColumnExtra={84}
           nameFirstHeader="Name"
-          nameSecondHeader="ID"
+          nameSecondHeader="A/L No."
           nameWidth="min-w-0 flex-1"
           isSearchable
           containerClassName="flex flex-1 gap-2"
@@ -595,6 +684,8 @@ const TicketTopBar: React.FC<
       <div className="w-full min-w-0">
         <PairCombo
           idId="lkpIATA"
+          idFirstHeader="IATA Code"
+          idSecondHeader="IATA"
           nameId="lkpIATAName"
           idOptions={iataIdOptions}
           nameOptions={iataNameOptions}
@@ -604,8 +695,8 @@ const TicketTopBar: React.FC<
           nameWidth="min-w-0 flex-1"
           fitMenuToPair
           nameSecondColumnExtra={88}
-          nameFirstHeader="Name"
-          nameSecondHeader="ID"
+          nameFirstHeader="IATA"
+          nameSecondHeader="IATA Code"
           isSearchable
           containerClassName="flex flex-1 gap-2"
         />
@@ -807,10 +898,10 @@ const TicketDetailsFields: React.FC<
     >
       <input
         id="txtBookingGDSLogin"
-        readOnly
-        tabIndex={-1}
-        value={form.staff ?? ""}
-        className={readOnlyClass1}
+        maxLength={6}
+        value={form.bookingGdsLogin}
+        onChange={(e) => set("bookingGdsLogin", e.target.value)}
+        className={inputClass}
       />
     </Field>
 
@@ -881,10 +972,10 @@ const TicketDetailsFields: React.FC<
     >
       <input
         id="txtSalesGDSLogin"
-        readOnly
-        tabIndex={-1}
-        value={form.staff ?? ""}
-        className={`${readOnlyClass1} `}
+        maxLength={6}
+        value={form.salesGdsLogin}
+        onChange={(e) => set("salesGdsLogin", e.target.value)}
+        className={inputClass}
       />
     </Field>
 
@@ -973,7 +1064,9 @@ const TicketRoutePanel: React.FC<
         <input
           id="txtRoute"
           value={form.route}
-          onChange={(e) => set("route", e.target.value)}
+          maxLength={ROUTE_MAX_LENGTH}
+          autoCapitalize="characters"
+          onChange={(e) => set("route", formatRoute(e.target.value))}
           className={inputClassforTicketRoutePanel}
         />
       </Field>
@@ -1098,9 +1191,6 @@ const TicketAmountsPanel: React.FC<
       <Field label="FOP :" labelClassName={A1} className="min-w-0">
         <Combo
           id="lkpFOP"
-          secondColumnExtra={84}
-          firstHeader="Name"
-          secondHeader="ID"
           options={fopOptions}
           value={form.fop}
           onChange={(v) => set("fop", v)}
@@ -1301,8 +1391,14 @@ type TicketDetailsProps = {
 const TicketDetails: React.FC<TicketDetailsProps> = ({ onClose }) => {
   // Same names as LoginPage.tsx; the login stores them in localStorage.
   const PstrCoID = localStorage.getItem("PstrCoID") ?? "";
+  const PstrYear = localStorage.getItem("PstrYear") ?? "";
+  const PstrUserID = localStorage.getItem("PstrUserID") ?? "";
 
   const [form, setForm] = useState<FormState>(initialForm);
+
+  // Enter moves to the next box (as Tab), and the delete question is the confirm dialog of STOCK
+  const handleEnterAsTab = useEnterAsTab();
+  const { confirm, dialog } = useConfirmModal();
   const [error, setError] = useState("");
   const ticketNoRef = useRef<HTMLInputElement>(null);
 console.log(onClose);
@@ -1334,6 +1430,7 @@ console.log(onClose);
       ticketPrefix: fticketTypeid,
       tktName: row?.ftickttypename ?? "",
     }));
+    autoLoad(fticketTypeid, form.ticketNo); // the number was typed first, then the type
   };
 
   useEffect(() => {
@@ -1381,9 +1478,7 @@ console.log(onClose);
         setFopOptions(
           rows.map((r) => ({
             value: r.ffop,
-            label: r.ffop, // the box shows the FOP id
-            listFirst: r.ffopname ?? r.ffop, // list reads "Name | ID"
-            secondLabel: r.ffop,
+            label: r.ffop, // the box and the list show only the FOP id
           })),
         );
       })
@@ -1653,6 +1748,7 @@ console.log(onClose);
 
   /* IATA lookup (tbliata): value = fiatacode,
      ID combo shows fiatacode, Name combo shows fiataname. */
+  const [iataBspAccounts, setIataBspAccounts] = useState<Record<string, string>>({});
   const [iataIdOptions, setIataIdOptions] = useState<Option[]>([]);
   const [iataNameOptions, setIataNameOptions] = useState<Option[]>([]);
 
@@ -1662,6 +1758,14 @@ console.log(onClose);
     getTicketSalesIatas(PstrCoID)
       .then((rows) => {
         if (cancelled) return;
+        // the IATA codes that have a BSP account (the supplier of a BSP ticket must be it)
+        setIataBspAccounts(
+          Object.fromEntries(
+            rows
+              .filter((r) => (r.fbsppurchase_csaccountid ?? "").trim() !== "")
+              .map((r) => [r.fiatacode, (r.fbsppurchase_csaccountid ?? "").trim()]),
+          ),
+        );
         setIataIdOptions(
           rows.map((r) => ({
             value: r.fiatacode,
@@ -1740,7 +1844,7 @@ console.log(onClose);
   }, []);
 
   /* Airline lookup: value = fairlineno (unique key),
-     ID combo shows fairlinecode, Name combo shows fairlinename. */
+     ID combo shows fairlineno, Name combo shows fairlinename. */
   const [airlineIdOptions, setAirlineIdOptions] = useState<Option[]>([]);
   const [airlineNameOptions, setAirlineNameOptions] = useState<Option[]>([]);
 
@@ -1753,7 +1857,7 @@ console.log(onClose);
         setAirlineIdOptions(
           rows.map((r) => ({
             value: r.fairlineno,
-            label: r.fairlinecode || r.fairlineno,
+            label: r.fairlineno, // the box shows the airline no.
             secondLabel: r.fairlinename, // the ID list shows "ID | Name"
           })),
         );
@@ -1761,7 +1865,7 @@ console.log(onClose);
           rows.map((r) => ({
             value: r.fairlineno,
             label: r.fairlinename,
-            secondLabel: r.fairlinecode || r.fairlineno, // list reads "Name | ID"
+            secondLabel: r.fairlineno, // list reads "Name | No."
           })),
         );
         const first = rows[0];
@@ -1814,6 +1918,66 @@ console.log(onClose);
 
   const computed = calcAmounts(form, vat);
 
+  /* Save or Modify: the Save button is Modify while the ticket of the Ticket Type + Ticket No. boxes is a saved one
+     (it was loaded, or it was just saved), as in the old form. Another ticket no. is a new ticket again. */
+  const [savedKey, setSavedKey] = useState("");
+  const ticketKey = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}`;
+  const isModify = savedKey !== "" && savedKey === ticketKey;
+
+  /* The rules of the old form (ValidateMe) before a save: the form, the fares panel, the ticket type and the D/I.
+     The first rule that fails stops the save: its message is shown and the cursor goes to its box. The rules that
+     only warn are shown and the save goes on. The customer lines have their own rules in the grid. */
+  const validateForm = (lines: TicketLinePayload[], detail: TicketDetailPayload): boolean => {
+    const result = validateTicketHeader({
+      loginYear: PstrYear,
+      ticketType: form.ticketPrefix,
+      ticketNo: form.ticketNo,
+      airline: form.airline,
+      branch: form.branch,
+      iata: form.iata,
+      date: form.date,
+      bspDate: form.bspDate,
+      flightDate: form.flightDate,
+      di: form.di,
+      isVoid: form.voidFlag === "Yes",
+      supplier: form.supplier,
+      supPayment: form.supPayment,
+      pax: form.pax,
+      staff: form.staff,
+      trip: form.trip,
+      route: form.route,
+      gds: form.gds,
+      fop: form.fop,
+      ccType: form.ccType,
+      merchant: form.merchant,
+      alComType: form.alComType,
+      sFare: toNumber(form.sFare),
+      tax: toNumber(form.tax),
+      supFee: toNumber(form.supFee),
+      k7: toNumber(form.k7),
+      supplierAmt: computed.supplierAmt,
+      kbAmt: detail.txtKbAmt,
+      kbAccount: detail.lkpKbAccount,
+      vatPer: vat.txtSCVATPer,
+      iataBspAccounts,
+      lines: lines.map((line) => ({
+        customer: line.lkpLineCustomer,
+        fare: line.txtLineFare,
+        tax: line.txtLineTax,
+        invAmt: line.txtLineInvAmt,
+      })),
+    });
+
+    if (result.error) {
+      toast.error(result.error.message);
+      if (result.error.focusId) document.getElementById(result.error.focusId)?.focus();
+      return false;
+    }
+
+    result.warnings.forEach((message) => toast.warn(message));
+    return true;
+  };
+
   /* Save a new ticket: the form (header) + the customer grid lines + the
      detail fields go to the server, which inserts tblticketsales and
      tblticketsalesb in one transaction. */
@@ -1822,36 +1986,40 @@ console.log(onClose);
     detail: TicketDetailPayload,
   ) => {
     try {
-      const result = await saveTicketSales({
+      // a saved ticket is loaded (or was just saved) and its Ticket Type + Ticket No. are still in the boxes: Modify
+      const result = await (isModify ? modifyTicketSales : saveTicketSales)({
         PstrCoID,
-        PstrYear: localStorage.getItem("PstrYear") ?? "",
+        PstrYear,
+        PstrUserID,
         // the keys are the element ids of this screen
         lkpTktType: form.ticketPrefix,
         txtTktSLNo: form.ticketNo,
+        txtSlNo: form.slNo,
+        lkpAirlineNo: form.airline,
         lkpBranch: form.branch,
         lkpIATA: form.iata,
-        lkpAirlineNo: form.airline,
         dtpDate: form.date,
         dtpBSPDate: form.bspDate,
         dtpFlightDate: form.flightDate,
         dtpReturnDate: form.returnDate,
+        txtPNRNo: form.pnrNo,
         lkpDI: form.di,
-        lkpVoid: form.voidFlag,
         lkpSupplier: form.supplier,
         lkpPaySupplierID: form.supPayment,
         txtPaxName: form.pax,
         lkpStaffID: form.staff,
-        txtMobile: form.mobile,
+        txtBookingGDSLogin: form.bookingGdsLogin,
         lkpPaxType: form.paxType,
-        lkpService: form.service,
-        txtPNRNo: form.pnrNo,
-        txtEmail: form.email,
         txtPaxNameId: form.paxId,
+        lkpVoid: form.voidFlag,
+        lkpService: form.service,
+        txtSalesGDSLogin: form.salesGdsLogin,
+        txtMobile: form.mobile,
+        txtEmail: form.email,
         lkpTrip: form.trip,
         txtTourCode: form.tourCode,
         txtRoute: form.route,
         txtClass: form.travelClass,
-        lkpFOP: form.fop,
         txtDestination: form.destination,
         lkpCNJ: form.cnj,
         lkpGDS: form.gds,
@@ -1859,38 +2027,147 @@ console.log(onClose);
         txtCarrier: form.carrier,
         txtFareBasis: form.fareBasis,
         lkpMerchant: form.merchant,
-        txtFopCash: form.fopCash,
-        txtFopCc: form.fopCc,
-        txtFopEp: form.fopEp,
+        lkpFOP: form.fop,
         txtGFare: form.gFare,
-        txtSFare: form.sFare,
-        txtTax: form.tax,
-        txtK7: form.k7,
         txtSupFee: form.supFee,
+        txtFeeVat: computed.feeVat,
+        txtFopCash: form.fopCash,
+        txtSFare: form.sFare,
         lkpALCom: form.alComType,
         txtALCom: computed.alComPer,
-        txtFeeVat: computed.feeVat,
         txtSupCom: computed.supCom,
+        txtFopCc: form.fopCc,
+        txtTax: form.tax,
         txtALComAmt: computed.alComAmt,
         txtALCVat: computed.alCVat,
+        txtFopEp: form.fopEp,
+        txtK7: form.k7,
         txtSupplierAmt: computed.supplierAmt,
-        ...detail,
         lines,
+        ...detail,
       });
-      toast.success(result.message);
+      toast.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
+      setSavedKey(ticketKey); // the ticket exists now: the button is Modify from here
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save the ticket.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : isModify
+            ? "Failed to modify the ticket."
+            : "Failed to save the ticket.",
+      );
     }
   };
 
+  /* Load a saved ticket (Enter in Ticket No. or the Search button): the form and the customer grid are filled
+     from the ticket and its customer line. */
+  const [loaded, setLoaded] = useState<{ version: number; ticket: LoadedTicket } | undefined>(undefined);
+
+  // silent = the automatic load: a ticket number that does not exist is a NEW ticket, so no message for it
+  const loadTicket = async (type: string | null, no: string, silent: boolean) => {
+    const ticketNo = no.trim();
+    if (!type) {
+      if (!silent) toast.error("Please select 'Ticket Type'");
+      return;
+    }
+    if (ticketNo === "") {
+      if (!silent) toast.error("Please enter 'Ticket No.'");
+      return;
+    }
+
+    try {
+      const { ticket } = await getTicketSales({
+        PstrCoID,
+        PstrYear,
+        lkpTktType: type,
+        txtTktSLNo: ticketNo,
+        lkpBranch: form.branch,
+      });
+
+      const tktName = tktTypes.find((r) => r.ftickettypeid === ticket.lkpTktType)?.ftickttypename ?? "";
+      setError("");
+      setForm((prev) => ({ ...prev, ...formFromTicket(ticket, tktName) }));
+      setLoaded({ version: Date.now(), ticket });
+      setSavedKey(`${ticket.lkpTktType}|${ticket.txtTktSLNo.trim()}`); // a saved ticket: the button is Modify
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load the ticket.";
+      if (silent && /not found$/i.test(message)) return;
+      toast.error(message);
+    }
+  };
+
+  /* Delete the saved ticket of the Ticket Type + Ticket No. boxes (the old cmdDelete_Click): the type and the number are
+     checked, it asks "Do you want to Delete ?", deletes the ticket and its customer line, and clears the screen. */
+  const [clearVersion, setClearVersion] = useState(0);
+
+  const clearScreen = () => {
+    const firstType = tktTypes[0];
+    setForm({
+      ...initialForm(),
+      ticketPrefix: firstType?.ftickettypeid ?? null,
+      tktName: firstType?.ftickttypename ?? "",
+      branch: branchIdOptions[0]?.value ?? null,
+      iata: iataIdOptions[0]?.value ?? null,
+      airline: airlineIdOptions[0]?.value ?? null,
+    });
+    setSavedKey("");
+    setLoaded(undefined);
+    lastAutoKey.current = "";
+    setClearVersion((v) => v + 1);
+    ticketNoRef.current?.focus();
+  };
+
+  const handleDelete = async () => {
+    if (!form.ticketPrefix) {
+      toast.error("Please select a 'Ticket Type'");
+      document.getElementById("lkpTktType")?.focus();
+      return;
+    }
+    if (form.ticketNo.trim() === "") {
+      toast.error("Please input 'Ticket No.'");
+      document.getElementById("txtTktSLNo")?.focus();
+      return;
+    }
+    if (!(await confirm({ message: "Do you want to delete?" }))) return;
+
+    try {
+      const result = await deleteTicketSales({
+        PstrCoID,
+        PstrYear,
+        lkpTktType: form.ticketPrefix,
+        txtTktSLNo: form.ticketNo.trim(),
+        lkpBranch: form.branch,
+      });
+      toast.success(result.message || "Deleted successfully");
+      clearScreen();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Not deleted, try again");
+    }
+  };
+
+  // Enter in Ticket No. or the Search button: always loads (and says when the ticket is not found)
   const handleSearch = () => {
-    console.log("search ticket", `${form.ticketPrefix ?? ""}${form.ticketNo}`);
+    lastAutoKey.current = `${form.ticketPrefix ?? ""}|${form.ticketNo.trim()}`;
+    void loadTicket(form.ticketPrefix, form.ticketNo, false);
+  };
+
+  // Automatic load: when the Ticket Type and Ticket No. are given and you leave the Ticket No. box (or pick the type
+  // after typing the number). The same ticket is not loaded twice by itself, so what you typed is never overwritten.
+  const lastAutoKey = useRef("");
+  const autoLoad = (type: string | null, no: string) => {
+    const key = `${type ?? ""}|${no.trim()}`;
+    if (!type || no.trim() === "" || key === lastAutoKey.current) return;
+    lastAutoKey.current = key;
+    void loadTicket(type, no, true);
   };
 
   
 
   return (
-    <div className="flex min-h-full w-full items-start justify-center bg-white px-2 py-2 sm:px-4 sm:py-4">
+    <div
+      className="flex min-h-full w-full items-start justify-center bg-white px-2 py-2 sm:px-4 sm:py-4"
+      onKeyDown={handleEnterAsTab}
+    >
       <div className="min-h-fit w-full max-w-375 bg-white p-0">
         <main className="h-fit w-full overflow-hidden border border-gray-400 ">
           <Header Name="Ticket Sales"/>
@@ -1901,6 +2178,7 @@ console.log(onClose);
               set={set}
               ticketNoRef={ticketNoRef}
               onSearch={handleSearch}
+              onTicketNoLeave={() => autoLoad(form.ticketPrefix, form.ticketNo)}
               airlineIdOptions={airlineIdOptions}
               airlineNameOptions={airlineNameOptions}
               ticketTypeOptions={ticketTypeOptions}
@@ -1949,6 +2227,14 @@ console.log(onClose);
           </section>
            <TicketLinesPage
             onSave={handleSave}
+            onValidate={validateForm}
+            saveLabel={isModify ? "Modify" : "Save"}
+            onDeleteTicket={handleDelete}
+            clearVersion={clearVersion}
+            loaded={loaded}
+            onAction={(name) => {
+              if (name === "search") handleSearch();
+            }}
             context={{
               sFare: toNumber(form.sFare),
               supFee: toNumber(form.supFee),
@@ -1958,13 +2244,14 @@ console.log(onClose);
               vatPer: vat.txtSCVATPer,
               serviceId: form.service ?? "",
               merchantIsAirline: form.merchant === "A",
+              isVoid: form.voidFlag === "Yes",
               supplierAmt: computed.supplierAmt,
               feeVat: computed.feeVat,
               k7: toNumber(form.k7),
             }}
           />
         </main>
-       
+        {dialog}
       </div>
     </div>
   );

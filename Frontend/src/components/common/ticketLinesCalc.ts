@@ -118,6 +118,7 @@ export type TicketLinesContext = {
   vatPer: number;
   serviceId: string;
   merchantIsAirline: boolean;
+  isVoid: boolean; // the Void box is Yes
   supplierAmt: number; // for Profit Amt.
   feeVat: number;
   k7: number;

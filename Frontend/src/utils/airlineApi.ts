@@ -60,9 +60,9 @@ export type TicketLinePayload = {
   txtLineTax: number;
   txtLineCDAmt: number;
   txtLineSChg: number;
+  txtLineVATAmt: number;
   txtLineSChgV: number;
   txtLineInvAmt: number;
-  txtLineVATAmt: number;
   txtLineVATPer: number;
   txtLineHCharge: number;
   txtLineHSCVATAmt: number;
@@ -87,6 +87,7 @@ export type TicketDetailPayload = {
 export type SaveTicketPayload = TicketDetailPayload & {
   PstrCoID: string;
   PstrYear: string;
+  PstrUserID: string; // the logged-in user, stored by the login
   lines: TicketLinePayload[];
   [elementId: string]: unknown;
 };
@@ -96,6 +97,129 @@ export const saveTicketSales = (payload: SaveTicketPayload) =>
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+/* Modify a saved ticket: the same payload as the save. */
+export const modifyTicketSales = (payload: SaveTicketPayload) =>
+  request<{ success: boolean; message: string }>("/ticket-sales", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+/* Delete a saved ticket and its customer line. */
+export const deleteTicketSales = (p: {
+  PstrCoID: string;
+  PstrYear: string;
+  lkpTktType: string;
+  txtTktSLNo: string;
+  lkpBranch?: string | null;
+}) =>
+  request<{ success: boolean; message: string }>(
+    `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${
+      p.lkpBranch ? `?lkpBranch=${encode(p.lkpBranch)}` : ""
+    }`,
+    { method: "DELETE" },
+  );
+
+/* A saved ticket as the server gives it: the keys are the element ids of the form (the same as when it is saved);
+   dates are "DD-MM-YYYY", Void / CNJ are "Yes" / "No", amounts are numbers. */
+export type LoadedTicketLine = {
+  lkpLineCustomer: string;
+  lkpLineDivision: string;
+  txtLineBType: string;
+  txtLineFare: number;
+  txtLineTax: number;
+  txtLineSChg: number;
+  txtLineVATAmt: number;
+  txtLineSChgV: number;
+  txtLineInvAmt: number;
+  txtLineVATPer: number;
+  txtLineHCharge: number;
+  txtLineHSCVATAmt: number;
+  txtLineMF: number;
+  txtLineMFWOVAT: number;
+  txtLineMFVATAmt: number;
+  txtLineSChgType: string;
+  txtLineSChgPer: number;
+  txtLineCDAmt: number;
+};
+
+export type LoadedTicket = {
+  PstrCoID: string;
+  PstrYear: string;
+  lkpTktType: string;
+  txtTktSLNo: string;
+  txtSlNo: number;
+  lkpAirlineNo: string;
+  lkpBranch: string;
+  lkpIATA: string;
+  dtpDate: string;
+  dtpBSPDate: string;
+  dtpFlightDate: string;
+  dtpReturnDate: string;
+  txtPNRNo: string;
+  lkpDI: string;
+  lkpSupplier: string;
+  lkpPaySupplierID: string;
+  txtPaxName: string;
+  lkpStaffID: string;
+  txtBookingGDSLogin: string;
+  lkpPaxType: string;
+  txtPaxNameId: string;
+  lkpVoid: string;
+  lkpService: string;
+  txtSalesGDSLogin: string;
+  txtMobile: string;
+  txtEmail: string;
+  lkpTrip: string;
+  txtTourCode: string;
+  txtRoute: string;
+  txtClass: string;
+  txtDestination: string;
+  lkpCNJ: string;
+  lkpGDS: string;
+  lkpCCType: string;
+  txtCarrier: string;
+  txtFareBasis: string;
+  lkpMerchant: string;
+  lkpFOP: string;
+  txtGFare: number;
+  txtSupFee: number;
+  txtFeeVat: number;
+  txtFopCash: number;
+  txtSFare: number;
+  lkpALCom: string;
+  txtALCom: number;
+  txtSupCom: number;
+  txtFopCc: number;
+  txtTax: number;
+  txtALComAmt: number;
+  txtALCVat: number;
+  txtFopEp: number;
+  txtK7: number;
+  txtSupplierAmt: number;
+  txtKbAmt: number;
+  lkpKbAccount: string;
+  txtInvNote: string;
+  txtNote: string;
+  txtRef1: string;
+  txtRef2: string;
+  txtRef3: string;
+  txtRef4: string;
+  lines: LoadedTicketLine[];
+};
+
+export const getTicketSales = (p: {
+  PstrCoID: string;
+  PstrYear: string;
+  lkpTktType: string;
+  txtTktSLNo: string;
+  lkpBranch?: string | null;
+}) =>
+  request<{ success: boolean; ticket: LoadedTicket }>(
+    `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${
+      p.lkpBranch ? `?lkpBranch=${encode(p.lkpBranch)}` : ""
+    }`,
+  );
 
 export type ComTypeRecord = {
   fpid: string;
@@ -169,6 +293,7 @@ export const getTicketSalesServiceTypes = (PstrCoID: string) =>
 export type CustomerRecord = {
   fcsaccountid: string;
   fcsaccountname: string | null;
+  fbussinesstype?: string | null; // the business type of the customer (B.Type of the grid)
   fisservicechargepolicy?: boolean; // the customer has a service charge policy
 };
 
@@ -226,6 +351,7 @@ export const getTicketSalesStaffs = (PstrCoID: string) =>
 export type IataRecord = {
   fiatacode: string;
   fiataname: string | null;
+  fbsppurchase_csaccountid?: string | null; // the BSP account of the IATA: the supplier of a BSP ticket
 };
 
 export const getTicketSalesIatas = (PstrCoID: string) =>

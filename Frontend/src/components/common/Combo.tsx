@@ -6,6 +6,7 @@ import Select, {
   type MenuListProps,
 } from "react-select";
 import selectComponents from "./selectComponents";
+import { searchFilter } from "./searchFilter";
 
 // `secondLabel` is optional. When the options have it, the dropdown list shows
 // two columns (label | secondLabel) with a divider; the box shows only `label`.
@@ -74,6 +75,7 @@ const comboClassNames: ClassNamesConfig<Option, false> = {
 };
 export const fieldSelectProps = {
   isSearchable: true,
+  filterOption: searchFilter,
   isClearable: false,
   placeholder: "",
   menuPosition: "fixed" as const,
@@ -146,7 +148,7 @@ export const Combo: React.FC<ComboProps> = ({
   onChange,
   className = "w-full",
   disabled = false,
-  isSearchable = false,
+  isSearchable = true,
 }) => {
   const hasSecondLabel = options.some((option) => option.secondLabel !== undefined);
 
@@ -228,6 +230,7 @@ export const Combo: React.FC<ComboProps> = ({
         onChange={(option) => onChange?.(option?.value ?? null)}
         isDisabled={disabled}
         isSearchable={isSearchable}
+        filterOption={searchFilter}
         isClearable={false}
         placeholder=""
         onMenuOpen={() => {
@@ -315,6 +318,9 @@ type PairComboProps = {
   idMenuWidth?: number;
   /** width in px of the ID column in the ID box's list (default: width of the box) */
   idFirstColumnWidth?: number;
+  /** heading texts of the ID box's list (default: ID | Name) */
+  idFirstHeader?: string;
+  idSecondHeader?: string;
   /** same for the Name box's list (use with options that have secondLabel/listFirst) */
   nameMenuWidth?: number;
   /** width in px of the ID column in the Name box's list */
@@ -346,6 +352,8 @@ export const PairCombo: React.FC<PairComboProps> = ({
   nameWidth = "flex-1",
   idMenuWidth,
   idFirstColumnWidth,
+  idFirstHeader,
+  idSecondHeader,
   nameMenuWidth,
   nameFirstColumnWidth,
   nameSecondColumnWidth,
@@ -353,7 +361,7 @@ export const PairCombo: React.FC<PairComboProps> = ({
   nameFirstHeader,
   nameSecondHeader,
   fitMenuToPair = false,
-  isSearchable = false,
+  isSearchable = true,
   containerClassName,
 }) => {
   const pairRef = React.useRef<HTMLDivElement>(null);
@@ -377,6 +385,8 @@ export const PairCombo: React.FC<PairComboProps> = ({
         id={idId}
         menuWidth={fitted ?? idMenuWidth}
         firstColumnWidth={idFirstColumnWidth}
+        firstHeader={idFirstHeader}
+        secondHeader={idSecondHeader}
         options={idOptions}
         value={value}
         onChange={onChange}

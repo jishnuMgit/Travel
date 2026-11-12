@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  deleteTicketSales,
   getTicketSalesAirlines,
   getTicketSalesBranches,
   getTicketSalesCustomerDivisions,
@@ -17,6 +18,8 @@ import {
   getTicketSalesSuppliers,
   getTicketSalesTktTypes,
   getTicketSalesVat,
+  loadTicketSales,
+  modifyTicketSales,
   saveTicketSales,
 } from "../../../controllers/Travel/Sales/TicketSalesController";
 import { requireAuthentication } from "../../../middleware/AuthMiddleware";
@@ -47,7 +50,20 @@ TicketSalesRouter.get(
   getTicketSalesCustomerDivisions,
 );
 
-// Saving needs a login: the user id comes from the session.
+// Loading and saving a ticket need a login (the user id of the save comes from the session).
+TicketSalesRouter.get(
+  "/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo",
+  requireAuthentication,
+  loadTicketSales,
+);
 TicketSalesRouter.post("/", requireAuthentication, saveTicketSales);
+// Modify a saved ticket (the Save button is Modify while a saved ticket is loaded).
+TicketSalesRouter.put("/", requireAuthentication, modifyTicketSales);
+// Delete a saved ticket and its customer line.
+TicketSalesRouter.delete(
+  "/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo",
+  requireAuthentication,
+  deleteTicketSales,
+);
 
 export default TicketSalesRouter;

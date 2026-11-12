@@ -3,7 +3,10 @@ import pool from "../../../DB/db";
 import type { AuthenticatedRequest } from "../../../middleware/AuthMiddleware";
 import {
   ApiError,
+  deleteTicketSales as deleteTicketSalesRecord,
+  fetchTicketSales as fetchTicketSalesRecord,
   fetchTicketSalesVat,
+  modifyTicketSales as modifyTicketSalesRecord,
   saveTicketSales as saveTicketSalesRecord,
   type SaveTicketSalesPayload,
 } from "../../../services/Travel/Sales/TicketSalesService";
@@ -206,7 +209,7 @@ export const getTicketSalesCustomers = async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      `SELECT fcsaccountid, fcsaccountname,
+      `SELECT fcsaccountid, fcsaccountname, fbussinesstype,
               COALESCE(fisservicechargepolicy, false) AS fisservicechargepolicy
          FROM dbo.tblaccountcs
         WHERE fcoid = $1
@@ -357,7 +360,7 @@ export const getTicketSalesIatas = async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      `SELECT fiatacode, fiataname
+      `SELECT fiatacode, fiataname, fbsppurchase_csaccountid
          FROM dbo.tbliata
         WHERE fcoid = $1
         ORDER BY fpositionno, fiatacode`,
@@ -430,6 +433,8 @@ export const saveTicketSales = async (
   req: AuthenticatedRequest,
   res: Response,
 ) => {
+  // the user stored in fcuserid / fmuserid is the logged-in user of the SESSION (the screen also sends PstrUserID, but a value
+  // from the browser can be changed by anyone, so it is not what is stored)
   const PstrUserID = req.user?.userId;
 
   if (!PstrUserID) {
@@ -445,7 +450,7 @@ export const saveTicketSales = async (
 
     res.status(201).json({
       success: true,
-      message: `Ticket ${saved.lkpTktType}-${saved.txtTktSLNo} saved.`,
+      message: "Saved successfully",
       ticket: saved,
     });
   } catch (error: unknown) {
@@ -488,5 +493,121 @@ export const getTicketSalesVat = async (req: Request, res: Response) => {
 
     console.error("Ticket sales VAT lookup error:", error);
     res.status(500).json({ message: "Internal server error while loading the VAT percentages." });
+  }
+};
+
+// GET /api/ticket-sales/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo?lkpBranch=JD
+// Load a saved ticket (the ticket and its customer line) into the Ticket Sales screen: the keys of the answer are the
+// element ids of the form. The ticket is searched in the branch of the screen first, else in the branch it was saved in.
+export const loadTicketSales = async (req: Request, res: Response) => {
+  const param = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+
+  try {
+    const ticket = await fetchTicketSalesRecord({
+      PstrCoID: param(req.params.PstrCoID),
+      PstrYear: param(req.params.PstrYear),
+      lkpTktType: param(req.params.lkpTktType),
+      txtTktSLNo: param(req.params.txtTktSLNo),
+      lkpBranch: param(req.query.lkpBranch) || null,
+    });
+
+    if (!ticket) {
+      res.status(404).json({
+        success: false,
+        message: `Ticket ${param(req.params.lkpTktType)}-${param(req.params.txtTktSLNo)} not found`,
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, ticket });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      res.status(error.status).json({ success: false, message: error.message });
+      return;
+    }
+
+    console.error("Ticket sales load error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while loading the ticket.",
+    });
+  }
+};
+
+// PUT /api/ticket-sales
+// Modify a saved ticket: the same body as the save (the keys are the element ids of the form). The user stored in fmuserid is
+// the logged-in user of the session, as in the save.
+export const modifyTicketSales = async (
+  req: AuthenticatedRequest,
+  res: Response,
+) => {
+  const PstrUserID = req.user?.userId;
+
+  if (!PstrUserID) {
+    res.status(401).json({ success: false, message: "Authentication required" });
+    return;
+  }
+
+  try {
+    const saved = await modifyTicketSalesRecord(
+      (req.body ?? {}) as SaveTicketSalesPayload,
+      PstrUserID,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Modified successfully",
+      ticket: saved,
+    });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      res.status(error.status).json({ success: false, message: error.message });
+      return;
+    }
+
+    console.error("Ticket sales modify error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while modifying the ticket.",
+    });
+  }
+};
+
+// DELETE /api/ticket-sales/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo?lkpBranch=JD
+// Delete a saved ticket and its customer line (the old Delete button). A ticket that does not exist is a 404; an invoiced or
+// posted ticket is refused.
+export const deleteTicketSales = async (req: AuthenticatedRequest, res: Response) => {
+  const param = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const PstrUserID = req.user?.userId;
+
+  if (!PstrUserID) {
+    res.status(401).json({ success: false, message: "Authentication required" });
+    return;
+  }
+
+  try {
+    const deleted = await deleteTicketSalesRecord(
+      {
+      PstrCoID: param(req.params.PstrCoID),
+      PstrYear: param(req.params.PstrYear),
+      lkpTktType: param(req.params.lkpTktType),
+      txtTktSLNo: param(req.params.txtTktSLNo),
+      lkpBranch: param(req.query.lkpBranch) || null,
+      },
+      PstrUserID,
+    );
+
+    res.status(200).json({ success: true, message: "Deleted successfully", ticket: deleted });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      res.status(error.status).json({ success: false, message: error.message });
+      return;
+    }
+
+    console.error("Ticket sales delete error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while deleting the ticket.",
+    });
   }
 };

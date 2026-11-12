@@ -19,6 +19,9 @@
 -- fcuserid / fcuserdate = created by, fmuserid / fmuserdate = modified by.
 --
 -- Parameter names follow the screen: p_<element id of the form, in lower case>. p_pstr... are the logged-in values.
+-- The ORDER follows the screen too: the ticket (Ticket Type, Ticket No., Branch, Date), the grid columns left to right
+-- (Customer, Division, B.Type, Fare, Tax, S. Chg., VAT Amt., S. Chg. V., Inv. Amt.), the amounts the grid keeps without a column
+-- (VAT %, CD. charge and its VAT, MF, S. Chg. type and %), then Ref. 1-4. The parameters, the INSERT and the UPDATE use this order.
 -- =====================================================================
 
 DROP PROCEDURE IF EXISTS dbo.sp_pageticketsalesb;
@@ -28,10 +31,10 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsalesb
     IN    p_strmode           varchar(1),
     IN    p_pstrcoid          varchar(3),
     IN    p_pstryear          varchar(4),
-    IN    p_lkpbranch       varchar(3),
     IN    p_lkptkttype        varchar(4),
     IN    p_txttktslno        varchar(12),
     IN    p_txtrevno          smallint      DEFAULT 1,
+    IN    p_lkpbranch         varchar(3)    DEFAULT NULL,
     IN    p_dtpdate           date          DEFAULT NULL,
     IN    p_lkplinecustomer   varchar(12)   DEFAULT NULL,
     IN    p_lkplinedivision   varchar(4)    DEFAULT NULL,
@@ -39,8 +42,8 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsalesb
     IN    p_txtlinefare       numeric(18,2) DEFAULT 0,
     IN    p_txtlinetax        numeric(18,2) DEFAULT 0,
     IN    p_txtlineschg       numeric(18,2) DEFAULT 0,
-    IN    p_txtlineschgv      numeric(18,2) DEFAULT 0,
     IN    p_txtlinevatamt     numeric(18,2) DEFAULT 0,
+    IN    p_txtlineschgv      numeric(18,2) DEFAULT 0,
     IN    p_txtlineinvamt     numeric(18,2) DEFAULT 0,
     IN    p_txtlinevatper     numeric(18,2) DEFAULT 0,
     IN    p_txtlinehcharge    numeric(18,2) DEFAULT 0,
@@ -48,20 +51,20 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsalesb
     IN    p_txtlinemf         numeric(18,2) DEFAULT 0,
     IN    p_txtlinemfwovat    numeric(18,2) DEFAULT 0,
     IN    p_txtlinemfvatamt   numeric(18,2) DEFAULT 0,
-    IN    p_txtlinesctype     varchar(2)    DEFAULT NULL,
-    IN    p_txtlinescper      numeric(18,2) DEFAULT 0,
+    IN    p_txtlineschgtype   varchar(2)    DEFAULT NULL,
+    IN    p_txtlineschgper    numeric(18,2) DEFAULT 0,
     IN    p_txtref1           varchar(30)   DEFAULT NULL,
     IN    p_txtref2           varchar(30)   DEFAULT NULL,
     IN    p_txtref3           varchar(30)   DEFAULT NULL,
     IN    p_txtref4           varchar(30)   DEFAULT NULL,
-    IN    p_pstruserid        varchar(20)   DEFAULT NULL,
+    IN    p_pstruserid        varchar(30)   DEFAULT NULL,
     INOUT p_result_cursor     refcursor     DEFAULT 'ticketsalesb_cursor'
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_group  varchar(4);
-    v_now    timestamp := CURRENT_TIMESTAMP;
+    v_now    timestamp := dbo.getserverdate();   -- the common server date (sql/common/fn_getserverdate.sql)
 BEGIN
 
     IF COALESCE(BTRIM(p_lkptkttype), '') = '' OR COALESCE(BTRIM(p_txttktslno), '') = ''
@@ -111,22 +114,17 @@ BEGIN
         END IF;
 
         INSERT INTO dbo.tblticketsalesb
-               (fcoid, fyear, fbrid, ftickettypeid, fticketslno, frevno, fservicetypegroupid, fdate,
-                fcustomerid, fdivid, fbusinesstypeid,
-                ftotfare, ftaxamt, fagencycharge, fscvatamt, fvatamt, fbillingamt,
-                fvatper, fh_agencycharge, fh_scvatamt, fmf, fmfwovat, fmfvatamt,
-                fservicechargetype, fservicechargeper,
-                frefno, frefno2, frefno3, frefno4,
-                fcuserid, fcuserdate)
-        VALUES (p_pstrcoid, p_pstryear, p_lkpbranch, p_lkptkttype, p_txttktslno, p_txtrevno, COALESCE(v_group, 'TKT'),
-                p_dtpdate,
-                BTRIM(p_lkplinecustomer), NULLIF(BTRIM(p_lkplinedivision), ''), NULLIF(BTRIM(p_txtlinebtype), ''),
-                p_txtlinefare, p_txtlinetax, p_txtlineschg, p_txtlineschgv, p_txtlinevatamt, p_txtlineinvamt,
-                p_txtlinevatper, p_txtlinehcharge, p_txtlinehscvatamt, p_txtlinemf, p_txtlinemfwovat, p_txtlinemfvatamt,
-                NULLIF(BTRIM(p_txtlinesctype), ''), p_txtlinescper,
-                NULLIF(BTRIM(p_txtref1), ''), NULLIF(BTRIM(p_txtref2), ''),
-                NULLIF(BTRIM(p_txtref3), ''), NULLIF(BTRIM(p_txtref4), ''),
-                p_pstruserid, v_now::date);
+               (fcoid, fyear, ftickettypeid, fticketslno, fslno, frevno, fbrid, fservicetypegroupid, fdate,
+                fcustomerid, fdivid, fbusinesstypeid, ftotfare, ftaxamt, fagencycharge, fvatamt, fscvatamt,
+                fbillingamt, fvatper, fh_agencycharge, fh_scvatamt, fmf, fmfwovat, fmfvatamt, fservicechargetype,
+                fservicechargeper, frefno, frefno2, frefno3, frefno4, fcuserid, fcuserdate)
+        VALUES (p_pstrcoid, p_pstryear, p_lkptkttype, p_txttktslno, 1, p_txtrevno, p_lkpbranch,
+                COALESCE(v_group, 'TKT'), p_dtpdate, BTRIM(p_lkplinecustomer), NULLIF(BTRIM(p_lkplinedivision), ''),
+                NULLIF(BTRIM(p_txtlinebtype), ''), p_txtlinefare, p_txtlinetax, p_txtlineschg, p_txtlinevatamt,
+                p_txtlineschgv, p_txtlineinvamt, p_txtlinevatper, p_txtlinehcharge, p_txtlinehscvatamt, p_txtlinemf,
+                p_txtlinemfwovat, p_txtlinemfvatamt, NULLIF(BTRIM(p_txtlineschgtype), ''), p_txtlineschgper,
+                NULLIF(BTRIM(p_txtref1), ''), NULLIF(BTRIM(p_txtref2), ''), NULLIF(BTRIM(p_txtref3), ''),
+                NULLIF(BTRIM(p_txtref4), ''), p_pstruserid, v_now);
 
     -- ------------------------------------------------------------- MODIFY
     ELSIF p_strmode = 'M' THEN
@@ -143,30 +141,30 @@ BEGIN
         END IF;
 
         UPDATE dbo.tblticketsalesb
-           SET fdate           = p_dtpdate,
-               fcustomerid     = BTRIM(p_lkplinecustomer),
-               fdivid          = NULLIF(BTRIM(p_lkplinedivision), ''),
-               fbusinesstypeid = NULLIF(BTRIM(p_txtlinebtype), ''),
-               ftotfare        = p_txtlinefare,
-               ftaxamt         = p_txtlinetax,
-               fagencycharge   = p_txtlineschg,
-               fscvatamt       = p_txtlineschgv,
-               fvatamt         = p_txtlinevatamt,
-               fbillingamt     = p_txtlineinvamt,
-               fvatper         = p_txtlinevatper,
-               fh_agencycharge = p_txtlinehcharge,
-               fh_scvatamt     = p_txtlinehscvatamt,
-               fmf             = p_txtlinemf,
-               fmfwovat        = p_txtlinemfwovat,
-               fmfvatamt       = p_txtlinemfvatamt,
-               fservicechargetype = NULLIF(BTRIM(p_txtlinesctype), ''),
-               fservicechargeper  = p_txtlinescper,
-               frefno          = NULLIF(BTRIM(p_txtref1), ''),
-               frefno2         = NULLIF(BTRIM(p_txtref2), ''),
-               frefno3         = NULLIF(BTRIM(p_txtref3), ''),
-               frefno4         = NULLIF(BTRIM(p_txtref4), ''),
-               fmuserid        = p_pstruserid,
-               fmuserdate      = v_now::date
+           SET fdate               = p_dtpdate,
+               fcustomerid         = BTRIM(p_lkplinecustomer),
+               fdivid              = NULLIF(BTRIM(p_lkplinedivision), ''),
+               fbusinesstypeid     = NULLIF(BTRIM(p_txtlinebtype), ''),
+               ftotfare            = p_txtlinefare,
+               ftaxamt             = p_txtlinetax,
+               fagencycharge       = p_txtlineschg,
+               fvatamt             = p_txtlinevatamt,
+               fscvatamt           = p_txtlineschgv,
+               fbillingamt         = p_txtlineinvamt,
+               fvatper             = p_txtlinevatper,
+               fh_agencycharge     = p_txtlinehcharge,
+               fh_scvatamt         = p_txtlinehscvatamt,
+               fmf                 = p_txtlinemf,
+               fmfwovat            = p_txtlinemfwovat,
+               fmfvatamt           = p_txtlinemfvatamt,
+               fservicechargetype  = NULLIF(BTRIM(p_txtlineschgtype), ''),
+               fservicechargeper   = p_txtlineschgper,
+               frefno              = NULLIF(BTRIM(p_txtref1), ''),
+               frefno2             = NULLIF(BTRIM(p_txtref2), ''),
+               frefno3             = NULLIF(BTRIM(p_txtref3), ''),
+               frefno4             = NULLIF(BTRIM(p_txtref4), ''),
+               fmuserid            = p_pstruserid,
+               fmuserdate          = v_now
          WHERE fcoid = p_pstrcoid
            AND fyear = p_pstryear
            AND fbrid = p_lkpbranch
