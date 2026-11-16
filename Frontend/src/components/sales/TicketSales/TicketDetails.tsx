@@ -337,6 +337,8 @@ const LC = "w-[92px]"; // Flight Date, Sup. Payment, Staff, Service, Trip
 const LD = "w-[92px]"; // D/I, Orig. Tkt.No., Return Date
 const LE = "w-[72px]"; // Void, PNR No., Tour Code
 const Lx = "w-[72px]"; 
+const LDATE = "w-[72px]"; // BSP Date, Flight Date, Return Date: the same label width, so the three date boxes are the same width
+
 /* ---------------------------------------------------------------------
    2. SHARED BUILDING BLOCKS
    --------------------------------------------------------------------- */
@@ -438,9 +440,11 @@ const AppDatePicker: React.FC<{
   label: string;
   value: string;
   onChange: (value: string) => void;
-}> = ({ id, label, value, onChange }) => (
+  disabled?: boolean;
+}> = ({ id, label, value, onChange, disabled = false }) => (
   <LocalizationProvider dateAdapter={AdapterDayjs}>
     <DatePicker
+      disabled={disabled}
       value={value ? dayjs(value, DATE_FORMAT) : null}
       onChange={(newValue) => {
         onChange(newValue?.isValid() ? newValue.format(DATE_FORMAT) : "");
@@ -503,6 +507,7 @@ const AppDatePicker: React.FC<{
         "& .MuiPickersOutlinedInput-notchedOutline": {
           borderColor: "#B7C7D7 !important",
         },
+        "& .MuiPickersInputBase-root.Mui-disabled": { backgroundColor: "#eef1f4" },
         "& .MuiPickersInputBase-root:hover .MuiPickersOutlinedInput-notchedOutline":
           { borderColor: "#B7C7D7 !important" },
         "& .MuiPickersInputBase-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline":
@@ -642,7 +647,7 @@ const TicketTopBar: React.FC<
         <PairCombo
           idId="lkpAirlineNo"
           idFirstHeader="A/L No."
-          idSecondHeader="Name"
+          idSecondHeader="Airline Name"
           nameId="lkpAirlineName"
           idOptions={airlineIdOptions}
           nameOptions={airlineNameOptions}
@@ -653,7 +658,7 @@ const TicketTopBar: React.FC<
           idMenuWidth={260}
           nameMenuWidth={250}
           nameSecondColumnExtra={84}
-          nameFirstHeader="Name"
+          nameFirstHeader="Airline Name"
           nameSecondHeader="A/L No."
           nameWidth="min-w-0 flex-1"
           isSearchable
@@ -696,7 +701,7 @@ const TicketTopBar: React.FC<
         <PairCombo
           idId="lkpIATA"
           idFirstHeader="IATA Code"
-          idSecondHeader="IATA"
+          idSecondHeader="IATA Name"
           nameId="lkpIATAName"
           idOptions={iataIdOptions}
           nameOptions={iataNameOptions}
@@ -706,7 +711,7 @@ const TicketTopBar: React.FC<
           nameWidth="min-w-0 flex-1"
           fitMenuToPair
           nameSecondColumnExtra={88}
-          nameFirstHeader="IATA"
+          nameFirstHeader="IATA Name"
           nameSecondHeader="IATA Code"
           isSearchable
           disabled={form.lkpTktType === "X"} // an XO ticket is saved with IATA NA only
@@ -758,8 +763,8 @@ const TicketDetailsFields: React.FC<
       />
       </div>
     </Field>
-    <Field label="BSP Date :" labelClassName={LB} className="min-w-0 lg:col-span-2 mb-2">
-      <div className="w-35 min-w-0">
+    <Field label="BSP Date :" labelClassName={LDATE} className="min-w-0 lg:col-span-2 mb-2">
+      <div className="w-[112px] shrink-0">
         <AppDatePicker
         id="dtpBSPDate"
         label="BSP Date"
@@ -769,8 +774,8 @@ const TicketDetailsFields: React.FC<
       </div>
     </Field>
    
-    <Field label="Flight Date :" labelClassName={LC} className="min-w-0 lg:col-span-2 mb-2">
-      <div className="w-35 min-w-0">
+    <Field label="Flight Date :" labelClassName={LDATE} className="min-w-0 lg:col-span-2 mb-2">
+      <div className="w-[112px] shrink-0">
         <AppDatePicker
         id="dtpFlightDate"
         label="Flight Date"
@@ -779,8 +784,8 @@ const TicketDetailsFields: React.FC<
       />
       </div>
     </Field>
-    <Field label="Return Date :" labelClassName={LC} className="min-w-0 lg:col-span-2 mb-2">
-      <div className="w-35 min-w-0">
+    <Field label="Return Date :" labelClassName={LDATE} className="min-w-0 lg:col-span-2 mb-2">
+      <div className="w-[112px] shrink-0">
         <AppDatePicker
        id="dtpReturnDate"
         label="Return Date"
@@ -837,11 +842,13 @@ const TicketDetailsFields: React.FC<
           }
         }}
         idWidth="w-[110px]"
+        idFirstHeader="SupplierID"
+        idSecondHeader="Supplier Name"
         nameWidth="flex-1"
         fitMenuToPair
         nameSecondColumnExtra={84}
-        nameFirstHeader="Name"
-        nameSecondHeader="ID"
+        nameFirstHeader="Supplier Name"
+        nameSecondHeader="SupplierID"
         isSearchable
         containerClassName="flex flex-1 gap-2"
       />
@@ -859,11 +866,13 @@ const TicketDetailsFields: React.FC<
         value={form.lkpPaySupplierID}
         onChange={(v) => set("lkpPaySupplierID", v)}
         idWidth="w-[110px]"
+        idFirstHeader="PaymentID"
+        idSecondHeader="Payment Name"
         nameWidth="flex-1"
         fitMenuToPair
         nameSecondColumnExtra={84}
-        nameFirstHeader="Name"
-        nameSecondHeader="ID"
+        nameFirstHeader="Payment Name"
+        nameSecondHeader="PaymentID"
         isSearchable
         containerClassName="flex flex-1 gap-2"
       />
@@ -1026,7 +1035,13 @@ const TicketDetailsFields: React.FC<
         id="lkpTrip"
         options={tripOptions}
         value={form.lkpTrip}
-        onChange={(v) => set("lkpTrip", v)}
+        onChange={(v) => {
+          set("lkpTrip", v);
+          // the Return Date can always be selected; a Round Trip needs it when the form is saved (the cursor goes to it),
+          // One Way has none: it is cleared here and saved as null
+          if (v === "RT") setTimeout(() => document.getElementById("dtpReturnDate")?.focus(), 0);
+          else set("dtpReturnDate", "");
+        }}
         isSearchable
       />
     </Field>
@@ -1990,6 +2005,7 @@ console.log(onClose);
       pax: form.txtPaxName,
       staff: form.lkpStaffID,
       trip: form.lkpTrip,
+      returnDate: form.dtpReturnDate,
       route: form.txtRoute,
       destination: form.txtDestination,
       gds: form.lkpGDS,
@@ -2047,7 +2063,7 @@ console.log(onClose);
         dtpDate: form.dtpDate,
         dtpBSPDate: form.dtpBSPDate,
         dtpFlightDate: form.dtpFlightDate,
-        dtpReturnDate: form.dtpReturnDate,
+        dtpReturnDate: form.lkpTrip === "RT" ? form.dtpReturnDate : "", // only a Round Trip has a Return Date: One Way saves it as null
         txtPNRNo: form.txtPNRNo,
         lkpDI: form.lkpDI,
         lkpSupplier: form.lkpSupplier,
