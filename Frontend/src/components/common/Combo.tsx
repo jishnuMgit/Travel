@@ -48,6 +48,8 @@ type ComboProps = {
   className?: string;
   disabled?: boolean;
   isSearchable?: boolean;
+  /** font size in px of the text in the box and of the text typed in it (default: 12px) */
+  fontSize?: number;
 };
 
 const comboClassNames: ClassNamesConfig<Option, false> = {
@@ -149,6 +151,7 @@ export const Combo: React.FC<ComboProps> = ({
   className = "w-full",
   disabled = false,
   isSearchable = true,
+  fontSize,
 }) => {
   const hasSecondLabel = options.some((option) => option.secondLabel !== undefined);
 
@@ -262,6 +265,13 @@ export const Combo: React.FC<ComboProps> = ({
           // sticky header of the customer grid (z-index 10). react-select's own
           // default for the portal is 1, which let that header cover the list.
           menuPortal: (base) => ({ ...base, zIndex: 999999 }),
+          // a bigger text in the box (the classes of the list set 12px as important, so this one is important too)
+          ...(fontSize
+            ? {
+                singleValue: (base) => ({ ...base, fontSize: `${fontSize}px !important` }),
+                input: (base) => ({ ...base, fontSize: `${fontSize}px !important` }),
+              }
+            : {}),
           ...(hasSecondLabel
             ? {
                 menu: (base) => ({
@@ -340,6 +350,8 @@ type PairComboProps = {
   isSearchable?: boolean;
   /** both boxes are locked (the value cannot be changed) */
   disabled?: boolean;
+  /** font size in px of the text in both boxes (default: 12px) */
+  fontSize?: number;
   containerClassName?: string;
 };
 
@@ -365,6 +377,7 @@ export const PairCombo: React.FC<PairComboProps> = ({
   fitMenuToPair = false,
   isSearchable = true,
   disabled = false,
+  fontSize,
   containerClassName,
 }) => {
   const pairRef = React.useRef<HTMLDivElement>(null);
@@ -396,6 +409,7 @@ export const PairCombo: React.FC<PairComboProps> = ({
         className={`${idWidth} shrink-0`}
         isSearchable={isSearchable}
         disabled={disabled}
+        fontSize={fontSize}
       />
 
       <Combo
@@ -412,6 +426,7 @@ export const PairCombo: React.FC<PairComboProps> = ({
         className={nameWidth}
         isSearchable={isSearchable}
         disabled={disabled}
+        fontSize={fontSize}
       />
     </>
   );
