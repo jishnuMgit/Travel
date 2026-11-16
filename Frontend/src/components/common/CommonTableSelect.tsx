@@ -32,7 +32,8 @@ interface CommonTableSelectProps {
   isSearchable?: boolean;
   isDisabled?: boolean;
   inputId?: string;
-    headerFontSize?: string;
+  headerFontSize?: string;
+  ariaLabel?: string;
 
 }
 
@@ -48,7 +49,8 @@ const CommonTableSelect = ({
   isSearchable = true,
   isDisabled = false,
   inputId,
-  headerFontSize= "13px",
+  headerFontSize = "13px",
+  ariaLabel,
 
 }: CommonTableSelectProps) => {
 
@@ -179,6 +181,7 @@ const CommonTableSelect = ({
   return (
     <Select<TableSelectOption, false>
       inputId={inputId}
+      aria-label={ariaLabel}
       options={options}
       value={value}
       onChange={onChange}

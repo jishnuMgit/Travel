@@ -53,8 +53,8 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
   const menuWidth = firstWidth + gap + secondWidth;
 
   // The blank middle grid column preserves the physical gap between the inputs.
-  const normalColumns = `${firstWidth}px ${gap}px ${secondWidth}px`;
-  const reverseColumns = `${secondWidth}px ${gap}px ${firstWidth}px`;
+  const normalColumns = `${firstWidth}px ${gap}px minmax(0, 1fr)`;
+  const reverseColumns = `minmax(0, 1fr) ${gap}px ${firstWidth}px`;
 
   const selectedFirst =
     options.find((option) => option.value === firstValue) ?? null;
@@ -170,6 +170,7 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
       ...base,
       padding: 0,
       maxHeight: "200px",
+      overflowX: "hidden",
     }),
     option: (base, state) => ({
       ...base,
