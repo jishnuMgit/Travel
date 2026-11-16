@@ -40,13 +40,13 @@ export const getTicketSalesTktTypes = async (req: Request, res: Response) => {
 
 // GET /api/ticket-sales/com-types
 // Airline commission type lookup (fpid, fpname) for the Ticket Sales screen:
-// the COMTP parameters of tbltlparam (P = Percentage, A = Amount).
-// tbltlparam has no company column.
+// the COMTP parameters of tblttpram (P = Percentage, A = Amount).
+// tblttpram has no company column.
 export const getTicketSalesComTypes = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT fpid, fpname
-         FROM dbo.tbltlparam
+         FROM dbo.tblttpram
         WHERE fptype = 'COMTP'
         ORDER BY fpositionno, fpid`,
     );
@@ -59,12 +59,12 @@ export const getTicketSalesComTypes = async (_req: Request, res: Response) => {
 
 // GET /api/ticket-sales/pax-types
 // Passenger type lookup (fpid, fpname) for the Ticket Sales screen: the PXTP
-// parameters of tbltlparam. tbltlparam has no company column.
+// parameters of tblttpram. tblttpram has no company column.
 export const getTicketSalesPaxTypes = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT fpid, fpname
-         FROM dbo.tbltlparam
+         FROM dbo.tblttpram
         WHERE fptype = 'PXTP'
         ORDER BY fpositionno, fpid`,
     );
@@ -77,13 +77,13 @@ export const getTicketSalesPaxTypes = async (_req: Request, res: Response) => {
 
 // GET /api/ticket-sales/di
 // Domestic / International lookup (fpid, fpname) for the Ticket Sales screen:
-// the DITP parameters of tbltlparam (Domestic and International only; B = Both
-// is left out). tbltlparam has no company column.
+// the DITP parameters of tblttpram (Domestic and International only; B = Both
+// is left out). tblttpram has no company column.
 export const getTicketSalesDi = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT fpid, fpname
-         FROM dbo.tbltlparam
+         FROM dbo.tblttpram
         WHERE fptype = 'DITP'
           AND fpid IN ('D', 'I')
         ORDER BY fpositionno, fpid`,
@@ -97,12 +97,12 @@ export const getTicketSalesDi = async (_req: Request, res: Response) => {
 
 // GET /api/ticket-sales/merchants
 // Merchant lookup (fpid, fpname) for the Ticket Sales screen: the MERC
-// parameters of tbltlparam. tbltlparam has no company column.
+// parameters of tblttpram. tblttpram has no company column.
 export const getTicketSalesMerchants = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT fpid, fpname
-         FROM dbo.tbltlparam
+         FROM dbo.tblttpram
         WHERE fptype = 'MERC'
         ORDER BY fpositionno, fpid`,
     );
@@ -210,12 +210,16 @@ export const getTicketSalesCustomers = async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      `SELECT fcsaccountid, fcsaccountname, fbussinesstype,
-              COALESCE(fisservicechargepolicy, false) AS fisservicechargepolicy
-         FROM dbo.tblaccountcs
-        WHERE fcoid = $1
-          AND fcs = 'C'
-        ORDER BY fcsaccountid`,
+      `SELECT c.fcsaccountid, c.fcsaccountname, c.fbussinesstype,
+              COALESCE(c.fisservicechargepolicy, false) AS fisservicechargepolicy,
+              NULLIF(BTRIM(c.fkbaccountid), '') AS fkbaccountid,
+              a.faccountname AS fkbaccountname
+         FROM dbo.tblaccountcs AS c
+         LEFT JOIN dbo.tblaccount AS a
+                ON a.fcoid = c.fcoid AND a.faccountid = c.fkbaccountid
+        WHERE c.fcoid = $1
+          AND c.fcs = 'C'
+        ORDER BY c.fcsaccountid`,
       [PstrCoID],
     );
     res.status(200).json(result.rows);

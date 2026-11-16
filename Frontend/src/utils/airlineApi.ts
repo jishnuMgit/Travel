@@ -185,7 +185,7 @@ export type LoadedTicket = {
   lkpCNJ: string;
   lkpGDS: string;
   lkpCCType: string;
-  txtCarrier: string;
+  txtCarrierCode: string;
   txtFareBasis: string;
   lkpMerchant: string;
   lkpFOP: string;
@@ -213,6 +213,8 @@ export type LoadedTicket = {
   txtRef3: string;
   txtRef4: string;
   lines: LoadedTicketLine[];
+  // the Sales Conjunction popup (CNJ. = Yes): the conjunction ticket of the ticket, one row at most
+  cnjRows: { txtCnjTktSlNo: string; txtCnjRoute: string; txtCnjCarrier: string; txtCnjClass: string }[];
 };
 
 export const getTicketSales = (p: {
@@ -312,6 +314,8 @@ export type CustomerRecord = {
   fcsaccountname: string | null;
   fbussinesstype?: string | null; // the business type of the customer (B.Type of the grid)
   fisservicechargepolicy?: boolean; // the customer has a service charge policy
+  fkbaccountid?: string | null; // the KB account of the customer (tblaccountcs.fkbaccountid): the KB. Account of the ticket
+  fkbaccountname?: string | null; // its name (tblaccount)
 };
 
 export type ServiceChargePolicyRecord = {

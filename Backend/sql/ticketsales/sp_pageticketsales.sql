@@ -40,7 +40,7 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsales
     IN    p_lkptkttype        varchar(4),
     IN    p_txttktslno        varchar(12),
     IN    p_txtslno           smallint      DEFAULT 1,
-    IN    p_txtrevno          smallint      DEFAULT 1,
+    IN    p_txtrevno          smallint      DEFAULT 0,
     IN    p_lkpairlineno      varchar(3)    DEFAULT NULL,
     IN    p_lkpbranch         varchar(3)    DEFAULT NULL,
     IN    p_lkpiata           varchar(8)    DEFAULT NULL,
@@ -70,7 +70,7 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsales
     IN    p_lkpcnj            boolean       DEFAULT false,
     IN    p_lkpgds            varchar(2)    DEFAULT NULL,
     IN    p_lkpcctype         varchar(5)    DEFAULT NULL,
-    IN    p_txtcarrier        varchar(8)    DEFAULT NULL,
+    IN    p_txtcarriercode    varchar(8)    DEFAULT NULL,
     IN    p_txtfarebasis      varchar(8)    DEFAULT NULL,
     IN    p_lkpmerchant       varchar(4)    DEFAULT NULL,
     IN    p_lkpfop            varchar(10)   DEFAULT NULL,
@@ -128,11 +128,11 @@ BEGIN
         SELECT t.*
           FROM dbo.tblticketsales AS t
          WHERE t.fcoid = p_pstrcoid
-           AND t.fyear = p_pstryear
            AND t.fbrid = p_lkpbranch
            AND t.ftickettypeid = p_lkptkttype
            AND t.fticketslno = p_txttktslno AND t.fslno = p_txtslno
-           AND t.frevno = p_txtrevno;
+           AND t.frevno = p_txtrevno
+         ORDER BY t.fyear DESC;   -- the year is not needed to get a ticket: the newest year first
 
     -- ------------------------------------------------------ SAVE / MODIFY
     ELSIF p_strmode IN ('S', 'M') THEN
@@ -141,7 +141,7 @@ BEGIN
             RAISE EXCEPTION 'Please enter ''Date''';
         END IF;
 
-        -- the service type group comes from the ticket type
+        -- the ticket type must exist (its own service type group is the fallback of the group below)
         SELECT t.fservicetypegroupid
           INTO v_group
           FROM dbo.tbltickettype AS t
@@ -152,6 +152,9 @@ BEGIN
             RAISE EXCEPTION 'Ticket Type ''%'' does not exist', p_lkptkttype;
         END IF;
         v_group := COALESCE(v_group, 'TKT');
+
+        -- fservicetypeid = the Service Type box (lkpService); fservicetypegroupid is fetched from tblservicetype by that id
+        v_group := COALESCE(dbo.getservicetypegroupid(p_pstrcoid, p_lkpservice), v_group);
 
         -- the airline code (e.g. SV) belongs to the airline
         IF COALESCE(BTRIM(p_lkpairlineno), '') <> '' THEN
@@ -178,15 +181,15 @@ BEGIN
             END IF;
 
             INSERT INTO dbo.tblticketsales
-                   (fcoid, fyear, ftickettypeid, fticketslno, fslno, frevno, fservicetypegroupid, fairlineno,
+                   (fcoid, fyear, ftickettypeid, fticketslno, fslno, frevno, fservicetypeid, fservicetypegroupid, fairlineno,
                     fairlinecode, fbrid, fiatacode, fdate, fbspdate, ftraveldate, freturndate, fpnr, fdi,
                     fsupplierid, fpaysupplierid, fpaxname, fstaffid, fbgdsstaffid, fpaxtype, fpaxid, fvoid,
                     fserviceid, fgdsstaffid, fmobileno, femail, ftrip, ftourcode, froute, fclass, fdestid, fcnj,
-                    fgdsid, fcctype, fcarrier, ffarebasis, fmerchant, ffop, fiataamt, fsupfee, fsupfeevatamt,
+                    fgdsid, fcctype, fcarrier, fnacarriercode, ffarebasis, fmerchant, ffop, fiataamt, fsupfee, fsupfeevatamt,
                     fsupplieramtcash, fsellingamt, fcommtype, fcommper, fscommamt, fsupplieramtcc, ftaxamt, fcommamt,
                     fcommvatamt, fsupplieramtep, fpvatamt, fsupplieramt, fkbamt, fkbaccountid, finvnote, fnote,
                     fuserid, fuserdate, fcuserid, fcuserdate)
-            VALUES (p_pstrcoid, p_pstryear, p_lkptkttype, p_txttktslno, COALESCE(p_txtslno, 1), p_txtrevno, v_group,
+            VALUES (p_pstrcoid, p_pstryear, p_lkptkttype, p_txttktslno, COALESCE(p_txtslno, 1), p_txtrevno, NULLIF(BTRIM(p_lkpservice), ''), v_group,
                     NULLIF(BTRIM(p_lkpairlineno), ''), v_airlinecode, p_lkpbranch, NULLIF(BTRIM(p_lkpiata), ''),
                     p_dtpdate, v_bspdate, p_dtpflightdate, p_dtpreturndate, NULLIF(BTRIM(p_txtpnrno), ''),
                     NULLIF(BTRIM(p_lkpdi), ''), NULLIF(BTRIM(p_lkpsupplier), ''),
@@ -197,7 +200,8 @@ BEGIN
                     NULLIF(BTRIM(p_txtmobile), ''), NULLIF(BTRIM(p_txtemail), ''), NULLIF(BTRIM(p_lkptrip), ''),
                     NULLIF(BTRIM(p_txttourcode), ''), NULLIF(BTRIM(p_txtroute), ''), NULLIF(BTRIM(p_txtclass), ''),
                     NULLIF(BTRIM(p_txtdestination), ''), COALESCE(p_lkpcnj, false), NULLIF(BTRIM(p_lkpgds), ''),
-                    NULLIF(BTRIM(p_lkpcctype), ''), NULLIF(BTRIM(p_txtcarrier), ''),
+                    NULLIF(BTRIM(p_lkpcctype), ''), NULLIF(BTRIM(p_txtcarriercode), ''),
+                    NULLIF(LEFT(BTRIM(p_txtcarriercode), 2), ''),
                     NULLIF(BTRIM(p_txtfarebasis), ''), NULLIF(BTRIM(p_lkpmerchant), ''), NULLIF(BTRIM(p_lkpfop), ''),
                     p_txtgfare, p_txtsupfee, p_txtfeevat, p_txtfopcash, p_txtsfare, NULLIF(BTRIM(p_lkpalcom), ''),
                     v_commper, p_txtsupcom, p_txtfopcc, p_txttax, v_commamt, p_txtalcvat, p_txtfopep, p_txtk7,
@@ -215,7 +219,8 @@ BEGIN
             END IF;
 
             UPDATE dbo.tblticketsales
-               SET fservicetypegroupid = v_group,
+               SET fservicetypeid      = NULLIF(BTRIM(p_lkpservice), ''),
+                   fservicetypegroupid = v_group,
                    fairlineno          = NULLIF(BTRIM(p_lkpairlineno), ''),
                    fairlinecode        = v_airlinecode,
                    fiatacode           = NULLIF(BTRIM(p_lkpiata), ''),
@@ -245,7 +250,8 @@ BEGIN
                    fcnj                = COALESCE(p_lkpcnj, false),
                    fgdsid              = NULLIF(BTRIM(p_lkpgds), ''),
                    fcctype             = NULLIF(BTRIM(p_lkpcctype), ''),
-                   fcarrier            = NULLIF(BTRIM(p_txtcarrier), ''),
+                   fcarrier            = NULLIF(BTRIM(p_txtcarriercode), ''),
+                   fnacarriercode      = NULLIF(LEFT(BTRIM(p_txtcarriercode), 2), ''),
                    ffarebasis          = NULLIF(BTRIM(p_txtfarebasis), ''),
                    fmerchant           = NULLIF(BTRIM(p_lkpmerchant), ''),
                    ffop                = NULLIF(BTRIM(p_lkpfop), ''),

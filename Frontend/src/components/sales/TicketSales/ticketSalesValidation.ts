@@ -34,6 +34,7 @@ export type HeaderInput = {
   pax: string;
   staff: string | null;
   trip: string | null;
+  returnDate: string; // Return Date (DD-MM-YYYY): required when the Trip is Round Trip (RT)
   route: string;
   destination: string;
   gds: string | null;
@@ -69,9 +70,9 @@ const dateNumber = (d: { day: number; month: number; year: number }) => d.year *
 const isBspType = (type: string | null) => type === "B" || type === "BS" || type === "M";
 const isCardFop = (fop: string | null) => fop === "CC" || fop === "CASH+CC";
 
-/* Route: airport codes of 3 characters with a space between them (COK BEH, BHK SAU COK), up to 3 codes, upper case.
-   The space is put in while typing: "cok beh" -> "COK BEH", "bhksaucok" -> "BHK SAU COK". */
-export const ROUTE_MAX_CODES = 3;
+/* Route: airport codes of 3 characters with a space between them (COK BEH, COK BOM DXB RUH), up to 4 codes, upper case.
+   The space is put in while typing: "cok beh" -> "COK BEH", "cokbomdxbruh" -> "COK BOM DXB RUH". */
+export const ROUTE_MAX_CODES = 4;
 export const ROUTE_MAX_LENGTH = ROUTE_MAX_CODES * 4 - 1;
 export const formatRoute = (value: string): string => {
   const letters = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, ROUTE_MAX_CODES * 3);
@@ -114,6 +115,11 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
   if (!flightDate) return fail("Please select 'Flight Date'", "dtpFlightDate");
   if (dateNumber(date) > dateNumber(flightDate)) {
     return fail("'Flight Date' should be greater than or equal to 'Date'", "dtpFlightDate");
+  }
+
+  // a Round Trip has a Return Date
+  if (i.trip === "RT" && !parseDate(i.returnDate)) {
+    return fail("Please select 'Return Date'", "dtpReturnDate");
   }
 
   // ---- by the ticket type
@@ -162,9 +168,9 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
     return fail("'Destination' should be 3 characters, like BHA", "txtDestination");
   }
 
-  // the Route is 2 or 3 airport codes of 3 characters (COK BEH, BHK SAU COK)
-  if (i.route.trim() !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,2}$/.test(i.route.trim().toUpperCase())) {
-    return fail("'Route' should be 2 or 3 airport codes of 3 characters with a space between them, like BHK SAU COK", "txtRoute");
+  // the Route is 2 to 4 airport codes of 3 characters (COK BEH, COK BOM DXB RUH)
+  if (i.route.trim() !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,3}$/.test(i.route.trim().toUpperCase())) {
+    return fail("'Route' should be 2 to 4 airport codes of 3 characters with a space between them, like COK BOM DXB RUH", "txtRoute");
   }
 
   // ---- payment

@@ -285,30 +285,30 @@ const toNumber = (value: string) => {
 };
 
 type DetailForm = {
-  ref1: string;
-  ref2: string;
-  ref3: string;
-  ref4: string;
-  postNo: string; // read-only
-  kbAmt: string;
-  kbAccount: string | null;
-  invNote: string;
-  note: string;
+  txtRef1: string;
+  txtRef2: string;
+  txtRef3: string;
+  txtRef4: string;
+  txtPostNo: string; // read-only
+  txtKbAmt: string;
+  lkpKbAccount: string | null;
+  txtInvNote: string;
+  txtNote: string;
 };
 type SetDetail = <K extends keyof DetailForm>(
   key: K,
   value: DetailForm[K],
 ) => void;
 const initialDetail = (): DetailForm => ({
-  ref1: "",
-  ref2: "",
-  ref3: "",
-  ref4: "",
-  postNo: "",
-  kbAmt: "0",
-  kbAccount: null,
-  invNote: "",
-  note: "",
+  txtRef1: "",
+  txtRef2: "",
+  txtRef3: "",
+  txtRef4: "",
+  txtPostNo: "",
+  txtKbAmt: "0",
+  lkpKbAccount: null,
+  txtInvNote: "",
+  txtNote: "",
 });
 
 const formatNumber = (value: number, decimals = 2) =>
