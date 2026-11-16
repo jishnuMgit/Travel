@@ -34,6 +34,7 @@ export type HeaderInput = {
   pax: string;
   staff: string | null;
   trip: string | null;
+  returnDate: string; // Return Date (DD-MM-YYYY): required when the Trip is Round Trip (RT)
   route: string;
   destination: string;
   gds: string | null;
@@ -114,6 +115,11 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
   if (!flightDate) return fail("Please select 'Flight Date'", "dtpFlightDate");
   if (dateNumber(date) > dateNumber(flightDate)) {
     return fail("'Flight Date' should be greater than or equal to 'Date'", "dtpFlightDate");
+  }
+
+  // a Round Trip has a Return Date
+  if (i.trip === "RT" && !parseDate(i.returnDate)) {
+    return fail("Please select 'Return Date'", "dtpReturnDate");
   }
 
   // ---- by the ticket type

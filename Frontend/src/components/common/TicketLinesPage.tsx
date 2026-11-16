@@ -61,7 +61,16 @@ type PairOption = {
    the grid cells the list should line up with. */
 type Columns = { first?: string; second?: string };
 const customerIdColumns: Columns = { first: "var(--first-col, 100px)" };
-const customerNameColumns: Columns = { second: "var(--second-col, 84px)" };
+// the ID column is the width of the Division cell + CUSTOMER_LIST_EXTRA, so the heading "Customer ID" is not cut; the list is
+// that much wider too, so the Customer Name column still ends exactly where the Customer Name cell ends
+const CUSTOMER_LIST_EXTRA = 24;
+// the first column is fixed too: exactly the width of the Customer Name cell (--first-col), so the Customer ID column
+// starts where the Customer Name cell ends
+// (the ID column takes the rest of the list, which is the Division cell + CUSTOMER_LIST_EXTRA wide, so nothing sticks out
+// and there is no sideways scrollbar)
+const customerNameColumns: Columns = {
+  first: "var(--first-col, 100px)",
+};
 const divisionColumns: Columns = { first: "var(--first-col, 84px)" };
 
 const columnStyle = (width?: string) =>
@@ -97,8 +106,8 @@ const makePairMenuList = (
   return PairMenuList;
 };
 
-const CustomerIdMenuList = makePairMenuList("ID", "Name", customerIdColumns);
-const CustomerNameMenuList = makePairMenuList("Name", "ID", customerNameColumns);
+const CustomerIdMenuList = makePairMenuList("Customer ID", "Customer Name", customerIdColumns);
+const CustomerNameMenuList = makePairMenuList("Customer Name", "Customer ID", customerNameColumns);
 const DivisionMenuList = makePairMenuList("ID", "Name", divisionColumns);
 
 /* A row of a list: two columns with a divider. */
@@ -412,7 +421,8 @@ const TicketLinesGrid: React.FC<{
   const pairClassNames = {
     ...cellSelectProps.classNames,
     // tall enough for the heading + the customers, no scrollbar for a short list
-    menuList: () => "!p-0 !max-h-[260px]",
+    // no sideways scrollbar: the two columns can be a pixel or two wider than the list (its border)
+    menuList: () => "!p-0 !max-h-[260px] !overflow-x-hidden",
     option: ({
       isFocused,
       isSelected,
@@ -570,7 +580,8 @@ const TicketLinesGrid: React.FC<{
                       )
                     }
                     styles={{
-                      menu: (base) => listMenuStyle(base, nameList),
+                      menu: (base) =>
+                        listMenuStyle(base, { ...nameList, width: nameList.width + CUSTOMER_LIST_EXTRA }),
                     }}
                     {...cellSelectProps}
                     classNames={pairClassNames}
