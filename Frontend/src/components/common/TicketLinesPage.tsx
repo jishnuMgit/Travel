@@ -921,15 +921,11 @@ const TicketLinesActions: React.FC<{
           label="Attach"
           onClick={() => onAction("attach")}
         /> */}
+        {/* Clear (it was Cancel): clears the whole screen. There is no Close button on this screen. */}
         <ActionButton
-          id="btnCancel"
-          label="Cancel"
+          id="btnClear"
+          label="Clear"
           onClick={() => onAction("cancel")}
-        />
-        <ActionButton
-          id="btnClose"
-          label="Close"
-          onClick={() => onAction("close")}
         />
       </div>
 
