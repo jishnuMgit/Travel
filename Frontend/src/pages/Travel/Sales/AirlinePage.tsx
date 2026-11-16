@@ -271,8 +271,7 @@ const CoID = (
       StrAirlineCode: airlineCode || null,
       ChkVatOnCommission: chkVatOnCommision,
       PstrUserID: PstrUserID || localStorage.getItem("PstrUserID") || null,
-      userdate: new Date().toISOString(),
-      
+      dtpUserDate: new Date().toISOString(),
     };
 
     try { 
