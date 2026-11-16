@@ -74,7 +74,11 @@ const TicketLinesFields: React.FC<{
   set: SetDetail;
   profitAmt: number;
   onAction?: (name: "customerAttach" | "supplierAttach") => void;
-}> = ({ form, set, profitAmt, onAction }) => (
+  /** the KB. Account list; without it the sample list is shown (the other screens) */
+  kbAccountOptions?: Option[];
+  /** KB. Amt. cannot be typed (Ticket Sales: the customer has no KB account) */
+  kbAmtDisabled?: boolean;
+}> = ({ form, set, profitAmt, onAction, kbAccountOptions: kbAccountList, kbAmtDisabled = false }) => (
   <div
     className={`${panelClass} grid grid-cols-1 items-center gap-x-4 gap-y-2.5 md:grid-cols-2 lg:grid-cols-12`}
   >
@@ -144,12 +148,14 @@ const TicketLinesFields: React.FC<{
           id="txtKbAmt"
           inputMode="numeric"
           value={form.txtKbAmt}
+          readOnly={kbAmtDisabled}
+          tabIndex={kbAmtDisabled ? -1 : undefined}
           onFocus={(event) => event.target.select()}
           onChange={(event) => {
             if (/^\d*\.?\d{0,2}$/.test(event.target.value))
               set("txtKbAmt", event.target.value);
           }}
-          className={`${inputClass} text-right`}
+          className={`${inputClass} text-right ${kbAmtDisabled ? "!bg-[#eef1f4]" : ""}`}
         />
       </Field>
     </div>
@@ -159,8 +165,8 @@ const TicketLinesFields: React.FC<{
           inputId="lkpKbAccount"
           instanceId="lkpKbAccount"
           components={selectComponents}
-          options={kbAccountOptions}
-          value={kbAccountOptions.find((o) => o.value === form.lkpKbAccount) ?? null}
+          options={kbAccountList ?? kbAccountOptions}
+          value={(kbAccountList ?? kbAccountOptions).find((o) => o.value === form.lkpKbAccount) ?? null}
           onChange={(option) => set("lkpKbAccount", option?.value ?? null)}
           {...fieldSelectProps}
         />

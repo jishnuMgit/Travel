@@ -1127,6 +1127,20 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   const sumRows = (pick: (row: LineRow) => number) =>
     filledRows.reduce((total, row) => total + pick(row), 0);
 
+  /* KB. Account list: the KB account of the customer of the first line (and the one the ticket was saved with, so a loaded
+     ticket still shows it). A customer without a KB account has no list and KB. Amt. cannot be typed. */
+  const kbCustomer = customers.find((c) => c.fcsaccountid === rows.find((row) => row.lkpLineCustomer)?.lkpLineCustomer);
+  const kbAccountOptions: { value: string; label: string }[] = [];
+  if (kbCustomer?.fkbaccountid) {
+    kbAccountOptions.push({
+      value: kbCustomer.fkbaccountid,
+      label: kbCustomer.fkbaccountname ?? kbCustomer.fkbaccountid,
+    });
+  }
+  if (detail.lkpKbAccount && !kbAccountOptions.some((o) => o.value === detail.lkpKbAccount)) {
+    kbAccountOptions.push({ value: detail.lkpKbAccount, label: detail.lkpKbAccount });
+  }
+
   // the old CalcProfitAmt is worked out only when the grid has a customer line (else it stays 0)
   const profitAmt = context && rows.some((row) => row.lkpLineCustomer)
     ? calcProfitAmt({
@@ -1320,6 +1334,16 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
       true,
     );
 
+    // KB. Account = the KB account of the customer (tblaccountcs.fkbaccountid); a customer without one has no KB. Amt.
+    if (context && isFirstLine) {
+      const kbAccountId = customers.find((c) => c.fcsaccountid === customerId)?.fkbaccountid ?? null;
+      setDetail((prev) => ({
+        ...prev,
+        lkpKbAccount: kbAccountId,
+        txtKbAmt: kbAccountId ? prev.txtKbAmt : "0",
+      }));
+    }
+
     if (!customerId) return;
 
     // already loaded for this customer: fill the division straight away
@@ -1474,6 +1498,8 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         set={set}
         profitAmt={profitAmt}
         onAction={handleAction}
+        kbAccountOptions={context ? kbAccountOptions : undefined}
+        kbAmtDisabled={context !== undefined && !kbCustomer?.fkbaccountid}
       />
       <TicketLinesActions
         onAction={handleAction}

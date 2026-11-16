@@ -1266,10 +1266,10 @@ CREATE TABLE dbo.tbltickettype (
 ALTER TABLE dbo.tbltickettype OWNER TO postgres;
 
 --
--- Name: tbltlparam; Type: TABLE; Schema: dbo; Owner: postgres
+-- Name: tblttpram; Type: TABLE; Schema: dbo; Owner: postgres
 --
 
-CREATE TABLE dbo.tbltlparam (
+CREATE TABLE dbo.tblttpram (
     fptype character varying(6) NOT NULL,
     fpositionno smallint DEFAULT 0 NOT NULL,
     fpid character varying(4) NOT NULL,
@@ -1279,7 +1279,7 @@ CREATE TABLE dbo.tbltlparam (
 );
 
 
-ALTER TABLE dbo.tbltlparam OWNER TO postgres;
+ALTER TABLE dbo.tblttpram OWNER TO postgres;
 
 --
 -- Name: tbluseraudit; Type: TABLE; Schema: dbo; Owner: postgres
@@ -1651,10 +1651,10 @@ COPY dbo.tbltickettype (fcoid, ftickettypeid, ftickttypename, fservicetypegroupi
 
 
 --
--- Data for Name: tbltlparam; Type: TABLE DATA; Schema: dbo; Owner: postgres
+-- Data for Name: tblttpram; Type: TABLE DATA; Schema: dbo; Owner: postgres
 --
 
-COPY dbo.tbltlparam (fptype, fpositionno, fpid, fpname, fuserid, fuserdate) FROM stdin;
+COPY dbo.tblttpram (fptype, fpositionno, fpid, fpname, fuserid, fuserdate) FROM stdin;
 AMTP	1	C	ACM	\N	\N
 AMTP	1	D	ADM	\N	\N
 AXTP	1	C	CTA	\N	\N
@@ -1966,10 +1966,10 @@ ALTER TABLE ONLY dbo.tbltickettype
 
 
 --
--- Name: tbltlparam pk_tbltlparam; Type: CONSTRAINT; Schema: dbo; Owner: postgres
+-- Name: tblttpram pk_tbltlparam; Type: CONSTRAINT; Schema: dbo; Owner: postgres
 --
 
-ALTER TABLE ONLY dbo.tbltlparam
+ALTER TABLE ONLY dbo.tblttpram
     ADD CONSTRAINT pk_tbltlparam PRIMARY KEY (fptype, fpositionno, fpid);
 
 

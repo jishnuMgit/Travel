@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
-import { formatRoute } from "./ticketSalesValidation";
+import { formatRoute, ROUTE_MAX_LENGTH } from "./ticketSalesValidation";
 
 /* Sales Conjunction (the old frmTktSalesCnj): opens when CNJ. is Yes (or from the CNJ button). The conjunction ticket of this
    ticket: CNJ Ticket No., Route, Carrier, Class. One conjunction ticket per ticket (the table has one row per ticket), so the
@@ -31,7 +31,7 @@ const upper = (value: string) => value.toUpperCase();
 
 const COLUMNS: Column[] = [
   { key: "txtCnjTktSlNo", label: "CNJ Ticket No.", width: "w-[26%]", maxLength: 12 },
-  { key: "txtCnjRoute", label: "Route", width: "w-[30%]", maxLength: 11, format: formatRoute },
+  { key: "txtCnjRoute", label: "Route", width: "w-[30%]", maxLength: ROUTE_MAX_LENGTH, format: formatRoute },
   { key: "txtCnjCarrier", label: "Carrier", width: "w-[24%]", maxLength: 8, format: upper },
   { key: "txtCnjClass", label: "Class", width: "w-[20%]", maxLength: 8, format: upper },
 ];

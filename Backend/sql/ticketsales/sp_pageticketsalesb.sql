@@ -34,7 +34,7 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsalesb
     IN    p_lkptkttype        varchar(4),
     IN    p_txttktslno        varchar(12),
     IN    p_txtslno           smallint      DEFAULT 1,
-    IN    p_txtrevno          smallint      DEFAULT 1,
+    IN    p_txtrevno          smallint      DEFAULT 0,
     IN    p_lkpbranch         varchar(3)    DEFAULT NULL,
     IN    p_dtpdate           date          DEFAULT NULL,
     IN    p_lkplinecustomer   varchar(12)   DEFAULT NULL,
@@ -65,6 +65,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_group  varchar(4);
+    v_type   varchar(4);
     v_now    timestamp := dbo.getserverdate();   -- the common server date (sql/common/fn_getserverdate.sql)
 BEGIN
 
@@ -80,11 +81,11 @@ BEGIN
         SELECT b.*
           FROM dbo.tblticketsalesb AS b
          WHERE b.fcoid = p_pstrcoid
-           AND b.fyear = p_pstryear
            AND b.fbrid = p_lkpbranch
            AND b.ftickettypeid = p_lkptkttype
            AND b.fticketslno = p_txttktslno AND b.fslno = p_txtslno
-           AND b.frevno = p_txtrevno;
+           AND b.frevno = p_txtrevno
+         ORDER BY b.fyear DESC;   -- the year is not needed to get a ticket: the newest year first
 
     -- --------------------------------------------------------------- SAVE
     ELSIF p_strmode = 'S' THEN
@@ -94,8 +95,8 @@ BEGIN
         END IF;
 
         -- the ticket is saved first; its service type group goes to the line
-        SELECT t.fservicetypegroupid
-          INTO v_group
+        SELECT t.fservicetypeid, t.fservicetypegroupid
+          INTO v_type, v_group
           FROM dbo.tblticketsales AS t
          WHERE t.fcoid = p_pstrcoid
            AND t.fyear = p_pstryear
@@ -115,12 +116,12 @@ BEGIN
         END IF;
 
         INSERT INTO dbo.tblticketsalesb
-               (fcoid, fyear, ftickettypeid, fticketslno, fslno, frevno, fbrid, fservicetypegroupid, fdate,
+               (fcoid, fyear, ftickettypeid, fticketslno, fslno, frevno, fbrid, fservicetypeid, fservicetypegroupid, fdate,
                 fcustomerid, fdivid, fbusinesstypeid, ftotfare, ftaxamt, fagencycharge, fvatamt, fscvatamt,
                 fbillingamt, fvatper, fh_agencycharge, fh_scvatamt, fmf, fmfwovat, fmfvatamt, fservicechargetype,
                 fservicechargeper, frefno, frefno2, frefno3, frefno4, fcuserid, fcuserdate)
         VALUES (p_pstrcoid, p_pstryear, p_lkptkttype, p_txttktslno, COALESCE(p_txtslno, 1), p_txtrevno, p_lkpbranch,
-                COALESCE(v_group, 'TKT'), p_dtpdate, BTRIM(p_lkplinecustomer), NULLIF(BTRIM(p_lkplinedivision), ''),
+                v_type, COALESCE(v_group, 'TKT'), p_dtpdate, BTRIM(p_lkplinecustomer), NULLIF(BTRIM(p_lkplinedivision), ''),
                 NULLIF(BTRIM(p_txtlinebtype), ''), p_txtlinefare, p_txtlinetax, p_txtlineschg, p_txtlinevatamt,
                 p_txtlineschgv, p_txtlineinvamt, p_txtlinevatper, p_txtlinehcharge, p_txtlinehscvatamt, p_txtlinemf,
                 p_txtlinemfwovat, p_txtlinemfvatamt, NULLIF(BTRIM(p_txtlineschgtype), ''), p_txtlineschgper,
@@ -141,8 +142,18 @@ BEGIN
                             p_lkptkttype, p_txttktslno;
         END IF;
 
+        -- the Service Type and its group are the ticket's (the ticket is modified first)
+        SELECT t.fservicetypeid, t.fservicetypegroupid
+          INTO v_type, v_group
+          FROM dbo.tblticketsales AS t
+         WHERE t.fcoid = p_pstrcoid AND t.fyear = p_pstryear AND t.fbrid = p_lkpbranch
+           AND t.ftickettypeid = p_lkptkttype AND t.fticketslno = p_txttktslno AND t.fslno = p_txtslno
+           AND t.frevno = p_txtrevno;
+
         UPDATE dbo.tblticketsalesb
-           SET fdate               = p_dtpdate,
+           SET fservicetypeid      = v_type,
+               fservicetypegroupid = COALESCE(v_group, 'TKT'),
+               fdate               = p_dtpdate,
                fcustomerid         = BTRIM(p_lkplinecustomer),
                fdivid              = NULLIF(BTRIM(p_lkplinedivision), ''),
                fbusinesstypeid     = NULLIF(BTRIM(p_txtlinebtype), ''),

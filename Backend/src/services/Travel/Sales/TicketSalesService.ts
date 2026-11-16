@@ -90,7 +90,7 @@ type TicketSalesValues = {
   lkpCNJ?: boolean;
   lkpGDS?: string | null;
   lkpCCType?: string | null;
-  txtCarrier?: string | null;
+  txtCarrierCode?: string | null;
   txtFareBasis?: string | null;
   lkpMerchant?: string | null;
   lkpFOP?: string | null;
@@ -194,7 +194,7 @@ async function callSpTicketSalesPage(
       p_lkpcnj             => $34::boolean,
       p_lkpgds             => $35::varchar,
       p_lkpcctype          => $36::varchar,
-      p_txtcarrier         => $37::varchar,
+      p_txtcarriercode         => $37::varchar,
       p_txtfarebasis       => $38::varchar,
       p_lkpmerchant        => $39::varchar,
       p_lkpfop             => $40::varchar,
@@ -228,7 +228,7 @@ async function callSpTicketSalesPage(
       p.lkpTktType ?? null,
       p.txtTktSLNo ?? null,
       p.txtSlNo ?? 1,
-      p.txtRevNo ?? 1,
+      p.txtRevNo ?? 0,
       p.lkpAirlineNo ?? null,
       p.lkpBranch ?? null,
       p.lkpIATA ?? null,
@@ -258,7 +258,7 @@ async function callSpTicketSalesPage(
       p.lkpCNJ ?? false,
       p.lkpGDS ?? null,
       p.lkpCCType ?? null,
-      p.txtCarrier ?? null,
+      p.txtCarrierCode ?? null,
       p.txtFareBasis ?? null,
       p.lkpMerchant ?? null,
       p.lkpFOP ?? null,
@@ -335,7 +335,7 @@ async function callSpTicketSalesBPage(
       p.PstrYear,
       p.lkpTktType ?? null,
       p.txtTktSLNo ?? null,
-      p.txtRevNo ?? 1,
+      p.txtRevNo ?? 0,
       p.lkpBranch ?? null,
       p.dtpDate ?? null,
       p.lkpLineCustomer ?? null,
@@ -404,7 +404,7 @@ async function callSpTicketSalesCnjPage(
       p.lkpTktType ?? null,
       p.txtTktSLNo ?? null,
       p.txtSlNo ?? 1,
-      p.txtRevNo ?? 1,
+      p.txtRevNo ?? 0,
       p.lkpBranch ?? null,
       p.txtCnjTktSlNo ?? null,
       p.txtCnjRoute ?? null,
@@ -520,7 +520,7 @@ const cleanTicketSales = (payload: SaveTicketSalesPayload) => {
     lkpCNJ: text(payload.lkpCNJ) === "Yes",
     lkpGDS: textOrNull(payload.lkpGDS, 2, "GDS"),
     lkpCCType: textOrNull(payload.lkpCCType, 5, "CC Type"),
-    txtCarrier: textOrNull(payload.txtCarrier, 8, "Carrier"),
+    txtCarrierCode: textOrNull(payload.txtCarrierCode, 8, "Carrier"),
     txtFareBasis: textOrNull(payload.txtFareBasis, 8, "Fare Basis"),
     lkpMerchant: textOrNull(payload.lkpMerchant, 4, "Merchant"),
     lkpFOP: textOrNull(payload.lkpFOP, 10, "FOP"),
@@ -792,7 +792,7 @@ const mapTicketRow = (r: Bag) => ({
   lkpCNJ: toYesNo(r.fcnj),
   lkpGDS: toText(r.fgdsid),
   lkpCCType: toText(r.fcctype),
-  txtCarrier: toText(r.fcarrier),
+  txtCarrierCode: toText(r.fcarrier),
   txtFareBasis: toText(r.ffarebasis),
   lkpMerchant: toText(r.fmerchant),
   lkpFOP: toText(r.ffop),
@@ -885,10 +885,10 @@ export const fetchTicketSalesWith = async (
   const found = await db.query(
     `SELECT fbrid, fslno
        FROM dbo.tblticketsales
-      WHERE fcoid = $1 AND fyear = $2 AND ftickettypeid = $3 AND fticketslno = $4
-        AND ($5::smallint IS NULL OR fslno = $5::smallint)
-      ORDER BY fslno, fbrid`,
-    [PstrCoID, PstrYear, lkpTktType, txtTktSLNo, givenSlNo],
+      WHERE fcoid = $1 AND ftickettypeid = $2 AND fticketslno = $3
+        AND ($4::smallint IS NULL OR fslno = $4::smallint)
+      ORDER BY fslno, fbrid`, // the year is not needed to get a ticket (the procedures give the newest year first)
+    [PstrCoID, lkpTktType, txtTktSLNo, givenSlNo],
   );
   if (found.rows.length === 0) return null;
 
@@ -1051,7 +1051,7 @@ const AUDIT_LABELS: Record<string, string> = {
   lkpStaffID: "Staff", txtBookingGDSLogin: "Booking GDS Login", lkpPaxType: "Pax Type", txtPaxNameId: "Pax ID", lkpVoid: "Void",
   lkpService: "Service Type", txtSalesGDSLogin: "Sales GDS Login", txtMobile: "Mobile", txtEmail: "E-mail", lkpTrip: "Trip",
   txtTourCode: "Tour Code", txtRoute: "Route", txtClass: "Class", txtDestination: "Destination", lkpCNJ: "CNJ", lkpGDS: "GDS",
-  lkpCCType: "CC Type", txtCarrier: "Carrier", txtFareBasis: "Fare Basis", lkpMerchant: "Merchant", lkpFOP: "FOP",
+  lkpCCType: "CC Type", txtCarrierCode: "Carrier", txtFareBasis: "Fare Basis", lkpMerchant: "Merchant", lkpFOP: "FOP",
   txtGFare: "G. Fare", txtSupFee: "Sup. Fee", txtFeeVat: "Fee VAT", txtFopCash: "FOP Cash", txtSFare: "S. Fare",
   lkpALCom: "A/L Com. Type", txtALCom: "A/L Com.", txtSupCom: "Sup. Com.", txtFopCc: "FOP CC", txtTax: "Tax",
   txtALComAmt: "A/L Com. Amt.", txtALCVat: "A/L C. VAT", txtFopEp: "FOP EP", txtK7: "K7", txtSupplierAmt: "Supplier Amt.",

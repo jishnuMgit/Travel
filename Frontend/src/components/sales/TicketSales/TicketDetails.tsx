@@ -108,7 +108,7 @@ type FormState = {
   lkpCNJ: string | null;
   lkpGDS: string | null;
   lkpCCType: string | null;
-  txtCarrier: string;
+  txtCarrierCode: string;
   txtFareBasis: string;
   lkpMerchant: string | null;
   txtFopCash: string;
@@ -235,7 +235,7 @@ const initialForm = (): FormState => ({
   txtBookingGDSLogin: "",
 
   txtMobile: "",
-  lkpPaxType: "A", // Adult (fpid of tbltlparam PXTP)
+  lkpPaxType: "A", // Adult (fpid of tblttpram PXTP)
   lkpService: "TKT",
   txtSalesGDSLogin: "",
   txtPNRNo: "",
@@ -253,7 +253,7 @@ const initialForm = (): FormState => ({
   lkpCNJ: "No",
   lkpGDS: null,
   lkpCCType: "NA",
-  txtCarrier: "",
+  txtCarrierCode: "",
   txtFareBasis: "",
   lkpMerchant: "NA",
   txtFopCash: "0.00",
@@ -311,7 +311,7 @@ const formFromTicket = (t: LoadedTicket, tktName: string): Partial<FormState> =>
   lkpCNJ: t.lkpCNJ,
   lkpGDS: orNull(t.lkpGDS),
   lkpCCType: orNull(t.lkpCCType),
-  txtCarrier: t.txtCarrier,
+  txtCarrierCode: t.txtCarrierCode,
   txtFareBasis: t.txtFareBasis,
   lkpMerchant: orNull(t.lkpMerchant),
 
@@ -579,7 +579,7 @@ const TicketTopBar: React.FC<
   const [ticketNoWrapRef, ticketNoWrapWidth] = useElementWidth<HTMLDivElement>();
 
   return (
-  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(385px,1.4fr)_1.5fr_1.3fr_1.5fr]">
+  <div className="grid w-full grid-cols-1 items-center gap-x-4 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(300px,1.4fr)_1.5fr_1.3fr_1.5fr]">
 
     {/* Ticket No */}
     <Field
@@ -597,6 +597,7 @@ const TicketTopBar: React.FC<
           className="w-16.25 shrink-0"
           disabled={keyLocked}
           isSearchable
+          fontSize={16}
         />
 
         <input
@@ -612,24 +613,23 @@ const TicketTopBar: React.FC<
               onSearch();
             }
           }}
-          className={`input-style w-full min-w-[104px] ${keyLocked ? "!bg-[#eef1f4]" : ""}`} // room for 10 digits
+          className={`input-style w-[124px] shrink-0 !text-[16px] ${keyLocked ? "!bg-[#eef1f4]" : ""}`} // room for 10 digits
         />
 
         {/* Sl. No. (fSlNo): 1 to start with */}
-        <Field label="Sl. No. :" htmlFor="txtSlNo" className="shrink-0 whitespace-nowrap">
-          <input
-            id="txtSlNo"
-            inputMode="numeric"
-            maxLength={3}
-            value={form.txtSlNo}
-            onFocus={(event) => event.target.select()}
-            onBlur={onSlNoLeave}
-            onChange={(event) => {
-              if (/^\d{0,3}$/.test(event.target.value)) set("txtSlNo", event.target.value);
-            }}
-            className="input-style w-9 shrink-0 text-center"
-          />
-        </Field>
+        <input
+          id="txtSlNo"
+          aria-label="Sl. No."
+          inputMode="numeric"
+          maxLength={1}
+          value={form.txtSlNo}
+          onFocus={(event) => event.target.select()}
+          onBlur={onSlNoLeave}
+          onChange={(event) => {
+            if (/^\d{0,3}$/.test(event.target.value)) set("txtSlNo", event.target.value);
+          }}
+          className="input-style w-8 min-w-[24px] shrink-0 field-sizing-content !px-1.5 text-center !text-[16px]"
+        />
       </div>
     </Field>
 
@@ -1061,8 +1061,8 @@ const greyBoxClass =
   "h-[30px] w-[30px] shrink-0 rounded-[2px] border border-[#cbd2dc] bg-[#e5e7eb]";
 
 const TicketRoutePanel: React.FC<
-  PartProps & { gdsOptions: Option[]; merchantOptions: Option[]; onCnjChange: (value: string | null) => void }
-> = ({ form, set, gdsOptions, merchantOptions, onCnjChange }) => (
+  PartProps & { onCnjChange: (value: string | null) => void }
+> = ({ form, set, onCnjChange }) => (
   <div className="@container min-w-0">
     <div
       className={`${panelClass} grid h-full grid-cols-1 items-center gap-x-4 gap-y-2 @md:grid-cols-2`}
@@ -1092,7 +1092,7 @@ const TicketRoutePanel: React.FC<
         <input
           id="txtClass"
           value={form.txtClass}
-          maxLength={8}
+          maxLength={4}
           autoCapitalize="characters"
           onChange={(e) => set("txtClass", e.target.value.toUpperCase())}
           className={inputClassforTicketRoutePanel}
@@ -1112,9 +1112,9 @@ const TicketRoutePanel: React.FC<
             maxLength={3}
             autoCapitalize="characters"
             onChange={(e) => set("txtDestination", formatAirportCode(e.target.value))}
-            className={`${inputClassforTicketRoutePanel} flex-1`}
+            className="input-style w-[64px] shrink-0 uppercase" // room for 3 letters and a little space
           />
-          <Field label="CNJ. :" className="shrink-0">
+          <Field label="CNJ. :" className="ml-auto mr-5 shrink-0">
             <Combo
               id="lkpCNJ"
               fitMenuToBox
@@ -1128,55 +1128,17 @@ const TicketRoutePanel: React.FC<
         </div>
       </Field>
 
-      <Field label="GDS :" labelClassName={L1} className="min-w-0">
-        <div className="flex w-full min-w-0 items-center gap-1">
-          <Combo
-            id="lkpGDS"
-            secondColumnExtra={48}
-            firstHeader="Name"
-            secondHeader="ID"
-            options={gdsOptions}
-            value={form.lkpGDS}
-            onChange={(v) => set("lkpGDS", v)}
-            className="min-w-0 flex-1"
-            isSearchable
-          />
-          <input
-            id="txtGdsCode"
-            readOnly
-            tabIndex={-1}
-            aria-label="GDS code"
-            value=""
-            className={greyBoxClass}
-          />
-        </div>
-      </Field>
-
       <Field
-        label="Carrier :"
-        htmlFor="txtCarrier"
+        label="Carrier Code :"
+        htmlFor="txtCarrierCode"
         labelClassName={L1}
         className="min-w-0"
       >
         <input
-          id="txtCarrier"
-          value={form.txtCarrier}
-          onChange={(e) => set("txtCarrier", e.target.value)}
+          id="txtCarrierCode"
+          value={form.txtCarrierCode}
+          onChange={(e) => set("txtCarrierCode", e.target.value)}
           className={inputClassforTicketRoutePanel}
-        />
-      </Field>
-
-      <Field label="Merchant :" labelClassName={L1} className="min-w-0">
-        <Combo
-          id="lkpMerchant"
-          secondColumnExtra={56}
-          firstHeader="Name"
-          secondHeader="ID"
-          options={merchantOptions}
-          value={form.lkpMerchant}
-          onChange={(v) => set("lkpMerchant", v)}
-          className="w-full min-w-0"
-          isSearchable
         />
       </Field>
     </div>
@@ -1197,11 +1159,13 @@ const TicketAmountsPanel: React.FC<
     computed: Computed;
     fopOptions: Option[];
     alComTypeOptions: Option[];
+    merchantOptions: Option[];
+    gdsOptions: Option[];
   }
-> = ({ form, set, computed, fopOptions, alComTypeOptions }) => (
+> = ({ form, set, computed, fopOptions, alComTypeOptions, merchantOptions, gdsOptions }) => (
   <div className="@container min-w-0">
     <div
-      className={`${panelClass} grid h-full grid-cols-1 items-center gap-x-3 gap-y-2 @md:grid-cols-2 @2xl:grid-cols-[1.35fr_1fr_1.5fr_1fr]`}
+      className={`${panelClass} grid h-full grid-cols-1 content-start items-center gap-x-3 gap-y-2 @md:grid-cols-2 @2xl:grid-cols-[1.35fr_1fr_1.5fr_1fr]`}
     >
       {/* Row 1 */}
       <Field label="FOP :" labelClassName={A1} className="min-w-0">
@@ -1390,6 +1354,46 @@ const TicketAmountsPanel: React.FC<
       <Field label="Net :" labelClassName={A4} className="min-w-0">
         <MoneyReadOnly id="txtNet" value={computed.net} alwaysRed />
       </Field>
+
+      {/* Row 5: GDS and Merchant, side by side (each takes two of the four columns on a wide panel) */}
+      <Field label="GDS :" labelClassName={A1} className="min-w-0">
+        {/* the dropdown ends where the FOP EP box above it ends; the small grey box sits just after it, in the empty cell to its right */}
+        <div className="relative w-full min-w-0">
+          <Combo
+            id="lkpGDS"
+            secondColumnExtra={48}
+            firstHeader="Name"
+            secondHeader="ID"
+            options={gdsOptions}
+            value={form.lkpGDS}
+            onChange={(v) => set("lkpGDS", v)}
+            className="w-full min-w-0"
+            isSearchable
+          />
+          <input
+            id="txtGdsCode"
+            readOnly
+            tabIndex={-1}
+            aria-label="GDS code"
+            value=""
+            className={`${greyBoxClass} absolute left-full top-0 ml-1`}
+          />
+        </div>
+      </Field>
+
+      <Field label="Merchant :" labelClassName={A3} className="min-w-0 @2xl:col-start-3">
+        <Combo
+          id="lkpMerchant"
+          secondColumnExtra={56}
+          firstHeader="Name"
+          secondHeader="ID"
+          options={merchantOptions}
+          value={form.lkpMerchant}
+          onChange={(v) => set("lkpMerchant", v)}
+          className="w-full min-w-0"
+          isSearchable
+        />
+      </Field>
     </div>
   </div>
 );
@@ -1519,7 +1523,7 @@ console.log(onClose);
     };
   }, []);
 
-  /* A/L Com. type lookup (tbltlparam, fptype = COMTP): value = fpid (P, A).
+  /* A/L Com. type lookup (tblttpram, fptype = COMTP): value = fpid (P, A).
      A plain list of the ids; P = Percentage, A = Amount. */
   const [alComTypeOptions, setAlComTypeOptions] = useState<Option[]>([]);
 
@@ -1547,7 +1551,7 @@ console.log(onClose);
     };
   }, []);
 
-  /* Pax type lookup (tbltlparam, fptype = PXTP): value = fpid (A, C, I). The box
+  /* Pax type lookup (tblttpram, fptype = PXTP): value = fpid (A, C, I). The box
      shows the name; the list reads "Name | ID". */
   const [paxTypeOptions, setPaxTypeOptions] = useState<Option[]>([]);
 
@@ -1577,7 +1581,7 @@ console.log(onClose);
     };
   }, []);
 
-  /* D/I lookup (tbltlparam, fptype = DITP): value = fpid (D, I). The box shows
+  /* D/I lookup (tblttpram, fptype = DITP): value = fpid (D, I). The box shows
      the id; the list reads "Name | ID". */
   const [diOptions, setDiOptions] = useState<Option[]>([]);
 
@@ -1606,7 +1610,7 @@ console.log(onClose);
     };
   }, []);
 
-  /* Merchant lookup (tbltlparam, fptype = MERC): value = fpid. The box shows the
+  /* Merchant lookup (tblttpram, fptype = MERC): value = fpid. The box shows the
      name; the list reads "Name | ID". */
   const [merchantOptions, setMerchantOptions] = useState<Option[]>([]);
 
@@ -1963,8 +1967,8 @@ console.log(onClose);
 
     // the CNJ Route is airport codes of 3 characters with a space between them (IND BHA), as the Route
     const cnjRoute = cnjRows[0]?.txtCnjRoute.trim() ?? "";
-    if (form.lkpCNJ === "Yes" && cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,2}$/.test(cnjRoute.toUpperCase())) {
-      toast.error("'Route' of the conjunction ticket should be 2 or 3 airport codes of 3 characters, like IND BHA");
+    if (form.lkpCNJ === "Yes" && cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,3}$/.test(cnjRoute.toUpperCase())) {
+      toast.error("'Route' of the conjunction ticket should be 2 to 4 airport codes of 3 characters, like IND BHA");
       setCnjOpen(true);
       return false;
     }
@@ -2066,7 +2070,7 @@ console.log(onClose);
         lkpCNJ: form.lkpCNJ,
         lkpGDS: form.lkpGDS,
         lkpCCType: form.lkpCCType,
-        txtCarrier: form.txtCarrier,
+        txtCarrierCode: form.txtCarrierCode,
         txtFareBasis: form.txtFareBasis,
         lkpMerchant: form.lkpMerchant,
         lkpFOP: form.lkpFOP,
@@ -2341,8 +2345,6 @@ console.log(onClose);
               <TicketRoutePanel
                 form={form}
                 set={set}
-                gdsOptions={gdsOptions}
-                merchantOptions={merchantOptions}
                 onCnjChange={handleCnjChange}
               />
               <TicketAmountsPanel
@@ -2351,6 +2353,8 @@ console.log(onClose);
                 computed={computed}
                 fopOptions={fopOptions}
                 alComTypeOptions={alComTypeOptions}
+                merchantOptions={merchantOptions}
+                gdsOptions={gdsOptions}
               />
             </div>
 

@@ -33,7 +33,7 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsalescnj
     IN    p_lkptkttype        varchar(4),
     IN    p_txttktslno        varchar(12),
     IN    p_txtslno           smallint      DEFAULT 1,
-    IN    p_txtrevno          smallint      DEFAULT 1,
+    IN    p_txtrevno          smallint      DEFAULT 0,
     IN    p_lkpbranch         varchar(3)    DEFAULT NULL,
     IN    p_txtcnjtktslno     varchar(12)   DEFAULT NULL,
     IN    p_txtroute          varchar(19)   DEFAULT NULL,
@@ -45,6 +45,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_group  varchar(4);
+    v_type   varchar(4);
 BEGIN
 
     IF COALESCE(BTRIM(p_lkptkttype), '') = '' OR COALESCE(BTRIM(p_txttktslno), '') = ''
@@ -59,11 +60,11 @@ BEGIN
         SELECT c.*
           FROM dbo.tblticketsalescnj AS c
          WHERE c.fcoid = p_pstrcoid
-           AND c.fyear = p_pstryear
            AND c.fbrid = p_lkpbranch
            AND c.ftickettypeid = p_lkptkttype
            AND c.ftktslno = p_txttktslno AND c.fslno = p_txtslno
-           AND c.frevno = p_txtrevno;
+           AND c.frevno = p_txtrevno
+         ORDER BY c.fyear DESC;   -- the year is not needed to get a ticket: the newest year first
 
     -- --------------------------------------------------------------- SAVE
     ELSIF p_strmode = 'S' THEN
@@ -73,8 +74,8 @@ BEGIN
         END IF;
 
         -- the ticket is saved first; its service type group goes to the row
-        SELECT t.fservicetypegroupid
-          INTO v_group
+        SELECT t.fservicetypeid, t.fservicetypegroupid
+          INTO v_type, v_group
           FROM dbo.tblticketsales AS t
          WHERE t.fcoid = p_pstrcoid
            AND t.fyear = p_pstryear
@@ -95,9 +96,9 @@ BEGIN
 
         INSERT INTO dbo.tblticketsalescnj
                (fcoid, fyear, fbrid, ftickettypeid, ftktslno, fslno, frevno, fcnjtktslno, fcnjtktno,
-                fservicetypegroupid, froute, fclass, fcarrier)
+                fservicetypeid, fservicetypegroupid, froute, fclass, fcarrier)
         VALUES (p_pstrcoid, p_pstryear, p_lkpbranch, p_lkptkttype, p_txttktslno, COALESCE(p_txtslno, 1), p_txtrevno,
-                BTRIM(p_txtcnjtktslno), BTRIM(p_txtcnjtktslno), COALESCE(v_group, 'TKT'),
+                BTRIM(p_txtcnjtktslno), BTRIM(p_txtcnjtktslno), v_type, COALESCE(v_group, 'TKT'),
                 NULLIF(UPPER(BTRIM(p_txtroute)), ''), NULLIF(UPPER(BTRIM(p_txtclass)), ''),
                 NULLIF(UPPER(BTRIM(p_txtcarrier)), ''));
 
