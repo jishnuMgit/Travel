@@ -1,67 +1,58 @@
-import { useState } from "react";
-import Select from "react-select";
-import { PairCombo, type Option } from "../../../components/common/Combo";
+import { useEffect, useMemo, useRef, useState } from "react";
+import CustomLinkedPairSelect, {
+  type PairSelectOption,
+} from "../../../components/common/CustomLinkedPairSelect";
+import  {
+  type TableSelectOption,
+} from "../../../components/common/CommonTableSelect";
 import Header from "../../../components/common/Header";
-import selectComponents from "../../../components/common/selectComponents";
+import {
+  getTicketSalesCustomers,
+  type CustomerRecord,
+} from "../../../utils/airlineApi";
+import { runServiceChargePolicy, type ServiceChargePolicyApiRow } from "../../../utils/ServiceChargePolicyApi";
+import TablesingleSelect from "../../../components/common/TablesingleSelect";
+import { toast } from "react-toastify";
 
 type PolicyTab = "Sales" | "Refund";
 type ChargeType = "A" | "P";
 type ChargeField =
-  | "domesticType"
-  | "domesticPercent"
-  | "domesticMinimum"
-  | "domesticAmount"
-  | "internationalType"
-  | "internationalPercent"
-  | "internationalMinimum"
-  | "internationalAmount";
+  | "lkpDSCType"
+  | "txtDSCPre"
+  | "txtMinDSCAmt"
+  | "txtDSCAmt"
+  | "lkpISCType"
+  | "txtISCPer"
+  | "txtIMinSCAmt"
+  | "txtISCAmt";
 
 type ServiceChargeRow = {
-  id: string;
-  service: string;
+  txtServiceTypeID: string;
+  txtServiceType: string;
+  slNo: number;
+  originalSlNo: number;
 } & {
-  [Field in ChargeField]: Field extends "domesticType" | "internationalType"
+  [Field in ChargeField]: Field extends "lkpDSCType" | "lkpISCType"
     ? ChargeType
     : string;
 };
 
-const customerOptions: Option[] = [
-  { value: "C001", label: "Customer One" },
-  { value: "C002", label: "Customer Two" },
+const chargeTypeOptions: TableSelectOption[] = [
+  { value: "A", label: "A", id: "A", type: "By Amount" },
+  { value: "P", label: "P", id: "P", type: "By Percentage" },
 ];
 
-const customerIdOptions: Option[] = customerOptions.map(({ value }) => ({
-  value,
-  label: value,
-}));
-
-const chargeTypeOptions: Option[] = [
-  { value: "A", label: "A" },
-  { value: "P", label: "P" },
+const chargeTypeColumns = [
+  {
+    key: "id",
+    label: "ID",
+    width: "50px",
+    align: "center" as const,
+    borderRight: "1px solid black",
+  
+  },
+  { key: "type", label: "Type", width: "140px", align: "left" as const },
 ];
-
-const chargeTypeSelectClassNames = {
-  control: ({ isFocused }: { isFocused: boolean }) =>
-    `!h-[30px] !min-h-[30px] !rounded-none !border-0 !shadow-none ${
-      isFocused ? "!bg-emerald-50" : "!bg-transparent"
-    }`,
-  valueContainer: () => "!px-2 !py-0",
-  singleValue: () => "!m-0 !text-[12px] !text-slate-700",
-  indicatorsContainer: () => "!h-[28px]",
-  dropdownIndicator: () => "!p-[2px] !text-slate-500",
-  indicatorSeparator: () => "!hidden",
-  menu: () =>
-    "!z-[999999] !mt-1 !rounded-md !border !border-slate-200 !shadow-lg",
-  menuList: () => "!p-1",
-  option: ({ isFocused, isSelected }: { isFocused: boolean; isSelected: boolean }) =>
-    `!rounded !px-2 !py-1 !text-[12px] ${
-      isSelected
-        ? "!bg-slate-200 !text-slate-800"
-        : isFocused
-          ? "!bg-slate-100 !text-slate-800"
-          : "!bg-white !text-slate-700"
-    }`,
-};
 
 const ChargeTypeSelect: React.FC<{
   id: string;
@@ -69,62 +60,64 @@ const ChargeTypeSelect: React.FC<{
   value: ChargeType;
   onChange: (value: ChargeType) => void;
 }> = ({ id, label, value, onChange }) => (
-  <Select<Option, false>
+  <TablesingleSelect
     inputId={id}
-    instanceId={id}
-    components={selectComponents}
-    aria-label={label}
     options={chargeTypeOptions}
     value={chargeTypeOptions.find((option) => option.value === value) ?? null}
     onChange={(option) => {
-      if (option) onChange(option.value as ChargeType);
+      if (option?.value === "A" || option?.value === "P") {
+        onChange(option.value);
+      }
     }}
-    isSearchable={true}
-    isClearable={false}
-    classNames={chargeTypeSelectClassNames}
-    menuPosition="fixed"
-    menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
-    styles={{
-      menuPortal: (base) => ({ ...base, zIndex: 999999 }),
-      control: (base) => ({ ...base, cursor: "pointer" }),
-    }}
+    columns={chargeTypeColumns}
+    width="100%"
+    menuWidth="220px"
+    placeholder=""
+    headerFontSize="12px"
+    isSearchable={false}
+    ariaLabel={label}
   />
 );
 
-const initialRows: ServiceChargeRow[] = [
-  ["TKT", "Air Ticket"],
-  ["VOID", "Void"],
-  ["EMD", "EMD"],
-  ["REI", "Re-Issue"],
-  ["TOFF", "Air Ticket Offline"],
-  ["TON", "Air Ticket Online"],
-  ["TONA", "Air Ticket Online (Assisted)"],
-  ["TONN", "Air Ticket Online (Not Assisted)"],
-  ["LCC", "LLC Tickets"],
-  ["HTL", "Hotel"],
-  ["CAR", "Car Rental"],
-  ["LIM", "Limousine"],
-  ["MA", "Meet & Assist"],
-  ["TOUR", "Tourism"],
-  ["CR", "Cruise/Ferries"],
-  ["RT", "Rail Ticket"],
-  ["INS", "Insurance"],
-  ["IDL", "International Driving License"],
-].map(([id, service]): ServiceChargeRow => ({
-  id,
-  service,
-  domesticType: "A",
-  domesticPercent: "0.00",
-  domesticMinimum: "0.00",
-  domesticAmount: "0.00",
-  internationalType: "A",
-  internationalPercent: "0.00",
-  internationalMinimum: "0.00",
-  internationalAmount: "0.00",
-}));
+const amountValue = (value: number | string | null | undefined) =>
+  Number(value ?? 0).toFixed(2);
+
+const mapPolicyRows = (
+  items: ServiceChargePolicyApiRow[],
+): ServiceChargeRow[] =>
+  items.map((item, index) => {
+    const slNo = Number(item.fslno ?? item.fpositionno ?? index + 1);
+    return {
+      txtServiceTypeID: item.fserviceid,
+      txtServiceType: item.fservicename ?? item.fserviceid,
+      slNo,
+      originalSlNo: slNo,
+      lkpDSCType: item.fd_servicechargetype === "P" ? "P" : "A",
+      txtDSCPre: amountValue(item.fd_servicechgper),
+      txtMinDSCAmt: amountValue(item.fd_minservicechgamt),
+      txtDSCAmt: amountValue(item.fd_servicechgamt),
+      lkpISCType: item.fi_servicechargetype === "P" ? "P" : "A",
+      txtISCPer: amountValue(item.fi_servicechgper),
+      txtIMinSCAmt: amountValue(item.fi_minservicechgamt),
+      txtISCAmt: amountValue(item.fi_servicechgamt),
+    };
+  });
+
+const blankPolicyRows = (items: ServiceChargePolicyApiRow[]) =>
+  mapPolicyRows(items).map((row) => ({
+    ...row,
+    lkpDSCType: "A" as const,
+    txtDSCPre: "0.00",
+    txtMinDSCAmt: "0.00",
+    txtDSCAmt: "0.00",
+    lkpISCType: "A" as const,
+    txtISCPer: "0.00",
+    txtIMinSCAmt: "0.00",
+    txtISCAmt: "0.00",
+  }));
 
 const cellInputClass =
-  "h-[30px] w-full min-w-[72px] border-0 bg-transparent px-2 text-right text-[12px] text-slate-700 outline-none focus:bg-emerald-50 focus:ring-1 focus:ring-inset focus:ring-emerald-400";
+  "h-[30px] w-full min-w-[72px] border-0 bg-transparent px-2 text-right text-[12px] text-slate-700 outline-none focus:bg-emerald-50 focus:ring-1 focus:ring-inset focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
 const headCellClass =
   "whitespace-nowrap border border-slate-400 bg-[#EEFBF4] px-2 py-2 text-left text-[11px] font-semibold text-slate-600";
 
@@ -152,14 +145,114 @@ const PolicyTabButton: React.FC<{
 
 const ServiceChargePolicy: React.FC = () => {
   const [activeTab, setActiveTab] = useState<PolicyTab>("Sales");
-  const [customer, setCustomer] = useState<string | null>(null);
+  const [lkpCustomerID, setLkpCustomerID] = useState<string | null>(null);
   const [merchantFee, setMerchantFee] = useState("0.00");
-  const [rows, setRows] = useState<ServiceChargeRow[]>(initialRows);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [services, setServices] = useState<ServiceChargePolicyApiRow[]>([]);
+  const [rows, setRows] = useState<ServiceChargeRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const requestSequence = useRef(0);
+  const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
+  const customerPairOptions = useMemo<PairSelectOption[]>(
+    () =>
+      customers.map((item) => ({
+        value: item.fcsaccountid,
+        firstLabel: item.fcsaccountid,
+        secondLabel: item.fcsaccountname ?? item.fcsaccountid,
+      })),
+    [customers],
+  );
+
+  useEffect(() => {
+    let Clearled = false;
+
+    const loadInitialData = async () => {
+      if (!PstrCoID) {
+        setError("Company ID (PstrCoID) was not found in localStorage.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [customerData, serviceResponse] = await Promise.all([
+          getTicketSalesCustomers(PstrCoID),
+          runServiceChargePolicy({ StrMode: "GST", PstrCoID: PstrCoID }),
+        ]);
+        if (!serviceResponse.success) throw new Error(serviceResponse.message);
+        if (!Clearled) {
+          setCustomers(customerData);
+          setServices(serviceResponse.data);
+          setRows(blankPolicyRows(serviceResponse.data));
+        }
+      } catch (loadError) {
+        if (!Clearled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load service charge policy data.",
+          );
+        }
+      } finally {
+        if (!Clearled) setLoading(false);
+      }
+    };
+
+    void loadInitialData();
+    return () => {
+      Clearled = true;
+    };
+  }, [PstrCoID]);
+
+  const loadCustomerPolicy = async (
+    lkpCustomerID: string,
+    tab: PolicyTab,
+  ) => {
+    const sequence = ++requestSequence.current;
+    setLoading(true);
+    setError("");
+    setStatus("");
+    const SorR = tab === "Sales" ? "S" : "R";
+    try {
+      const [gridResponse, headerResponse] = await Promise.all([
+        runServiceChargePolicy({
+          StrSOrR: SorR,
+          StrMode: tab === "Sales" ? "GS" : "GR",
+          PstrCoID: PstrCoID,
+          StrCustomerID: lkpCustomerID,
+        }),
+        runServiceChargePolicy({
+          StrSOrR: SorR,
+          StrMode: "GHD",
+          PstrCoID: PstrCoID,
+          StrCustomerID: lkpCustomerID,
+        }),
+      ]);
+      if (!gridResponse.success) throw new Error(gridResponse.message);
+      if (!headerResponse.success) throw new Error(headerResponse.message);
+      if (sequence !== requestSequence.current) return;
+
+      setRows(mapPolicyRows(gridResponse.data));
+      setMerchantFee(amountValue(headerResponse.data[0]?.fmerchantfeeper));
+    } catch (loadError) {
+      if (sequence === requestSequence.current) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load the selected customer's policy.",
+        );
+      }
+    } finally {
+      if (sequence === requestSequence.current) setLoading(false);
+    }
+  };
 
   const updateRow = (rowId: string, field: ChargeField, value: string) => {
     setRows((currentRows) =>
       currentRows.map((row) =>
-        row.id === rowId ? { ...row, [field]: value } : row,
+        row.txtServiceTypeID === rowId ? { ...row, [field]: value } : row,
       ),
     );
   };
@@ -170,64 +263,112 @@ const ServiceChargePolicy: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
-    console.log("Service Charge Policy:", {
-      tab: activeTab,
-      customer,
-      merchantFee,
-      rows,
-    });
+  const handleSave = async () => {
+    if (!PstrCoID) {
+      setError("Company ID (PstrCoID) was not found in localStorage.");
+      return;
+    }
+    if (!lkpCustomerID) {
+      setError("Select a customer before saving.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setStatus("");
+    try {
+      const response = await runServiceChargePolicy<Record<string, unknown>>({
+        StrMode: activeTab === "Sales" ? "S" : "SR",
+        PstrCoID: PstrCoID,
+        StrCustomerID: lkpCustomerID,
+        StrSOrR: activeTab === "Sales" ? "S" : "R",
+        NumMerchantFeePer: Number(merchantFee || 0),
+        StrMenuName: "Service Charge Policy",
+        Rows: rows.map((row) => ({
+          intSlNo: row.slNo,
+          Original_fSlNo: row.originalSlNo,
+          StrServiceTypeID: row.txtServiceTypeID,
+          lkpDSCType: row.lkpDSCType,
+          StrDSCPre: row.txtDSCPre,
+          StrMinDSCAmt: row.txtMinDSCAmt,
+          StrDSCAmt: row.txtDSCAmt,
+          lkpISCType: row.lkpISCType,
+          StrISCPer: row.txtISCPer,
+          StrIMinSCAmt: row.txtIMinSCAmt,
+          StrISCAmt: row.txtISCAmt,
+        })),
+      });
+      if (!response.success) throw new Error(response.message);
+      setStatus(response.message);
+      toast.success("Saved")
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to save the service charge policy.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleCancel = () => {
+  const handleClear = () => {
+    requestSequence.current += 1;
     setActiveTab("Sales");
-    setCustomer(null);
+    setLkpCustomerID(null);
     setMerchantFee("0.00");
-    setRows(initialRows);
+    setRows(blankPolicyRows(services));
+    setError("");
+    setStatus("");
   };
 
   return (
     <div className="min-h-screen w-full bg-slate-100 p-3 sm:p-5">
-      <main className="mx-auto w-full max-w-375 overflow-hidden border border-slate-400 bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-250 overflow-hidden border border-slate-400 bg-white shadow-sm">
         <Header Name="Service Charge Policy"/>
 
         <section className="space-y-4 p-4 sm:p-5">
           <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
             <div className="flex min-w-0 flex-1 basis-112.5 items-center gap-3">
               <label
-                htmlFor="servicePolicyCustomerId"
+                htmlFor="lkpCustomerID"
                 className="shrink-0 text-sm font-medium text-slate-600"
               >
                 Customer:
               </label>
-              <PairCombo
-                idId="servicePolicyCustomerId"
-                nameId="servicePolicyCustomerName"
-                idOptions={customerIdOptions}
-                nameOptions={customerOptions}
-                value={customer}
-                onChange={setCustomer}
-                idWidth="w-[120px]"
-                nameWidth="w-[450px]"
-                containerClassName="grid min-w-0 flex-1 grid-cols-[120px_minmax(0,1fr)] gap-2"
-              />
+              <div className="min-w-0 flex-1">
+                <CustomLinkedPairSelect
+                  firstInputId="lkpCustomerID"
+                  secondInputId="lkpCustomerName"
+                  options={customerPairOptions}
+                  firstValue={lkpCustomerID}
+                  secondValue={lkpCustomerID}
+                  firstHeader="Customer ID"
+                  secondHeader="Customer Name"
+                  firstWidth={120}
+                  secondWidth={450}
+                  gap={4}
+                  headerFontSize="12px"
+                  isDisabled={loading}
+                  onChange={(option) => {
+                    const selectedCustomerID = option?.value ?? null;
+                    setLkpCustomerID(selectedCustomerID);
+                    if (selectedCustomerID) {
+                      void loadCustomerPolicy(selectedCustomerID, activeTab);
+                    } else {
+                      requestSequence.current += 1;
+                      setMerchantFee("0.00");
+                      setRows(blankPolicyRows(services));
+                      setLoading(false);
+                      setError("");
+                      setStatus("");
+                    }
+                  }}
+                />
+              </div>
             </div>
 
-            <label className="flex items-center gap-3 text-sm font-medium text-slate-600">
-              Merchant Fee %:
-              <input
-                id="servicePolicyMerchantFee"
-                aria-label="Merchant Fee percentage"
-                inputMode="decimal"
-                value={merchantFee}
-                onChange={(event) => {
-                  if (/^\d*\.?\d{0,2}$/.test(event.target.value)) {
-                    setMerchantFee(event.target.value);
-                  }
-                }}
-                className="h-7.5 w-25 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
-              />
-            </label>
+           
           </div>
 
           <div className="-mb-0.5">
@@ -241,11 +382,33 @@ const ServiceChargePolicy: React.FC = () => {
                   key={tab}
                   tab={tab}
                   active={activeTab === tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    if (lkpCustomerID) {
+                      void loadCustomerPolicy(lkpCustomerID, tab);
+                    }
+                  }}
                 />
               ))}
+               <label className="flex items-center gap-3 text-sm font-medium text-slate-600 ml-[10%] mb-[5px]">
+              Merchant Fee %:
+              <input
+                id="servicePolicyMerchantFee"
+                aria-label="Merchant Fee percentage"
+                inputMode="decimal"
+                value={merchantFee}
+                onChange={(event) => {
+                  if (/^\d*\.?\d{0,2}$/.test(event.target.value)) {
+                    setMerchantFee(event.target.value);
+                  }
+                }}
+                className="h-7.5 w-12 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
+              />
+            </label>
             </div>
+            
           </div>
+          
 
           <section
             id="service-charge-policy-panel"
@@ -254,18 +417,33 @@ const ServiceChargePolicy: React.FC = () => {
             className="overflow-hidden border border-slate-200"
           >
             <div className="overflow-x-auto">
-              <table className="w-full min-w-280 table-fixed border-collapse">
+              {/* {loading && (
+                <p className="px-3 py-2 text-sm text-slate-500">
+                  Loading service charge policies...
+                </p>
+              )}
+              {error && (
+                <p role="alert" className="px-3 py-2 text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+              {status && (
+                <p role="status" className="px-3 py-2 text-sm text-emerald-700">
+                  {status}
+                </p>
+              )} */}
+              <table className="w-full table-fixed border-collapse">
                 <colgroup>
                   <col className="w-52.5" />
-                  <col className="w-18.75" />
-                  <col className="w-17.5" />
-                  <col className="w-27.5" />
-                  <col className="w-30" />
-                  <col className="w-30" />
-                  <col className="w-17.5" />
-                  <col className="w-27.5" />
-                  <col className="w-30" />
-                  <col className="w-30" />
+                  <col className="w-14" />
+                  <col className="w-12" />
+                  <col className="w-20" />
+                  <col className="w-22" />
+                  <col className="w-22" />
+                  <col className="w-12" />
+                  <col className="w-20" />
+                  <col className="w-22" />
+                  <col className="w-22" />
                 </colgroup>
                 <thead>
                   <tr className="border border-gray-400">
@@ -288,136 +466,152 @@ const ServiceChargePolicy: React.FC = () => {
                   </tr>
                   <tr className="bg-[#EEFBF4]">
                     <th id="txtServiceType" className={headCellClass}>Service Type</th>
-                    <th id="txtID" className={headCellClass}>ID</th>
-                    <th id="lkpType" className={headCellClass}>Type</th>
-                    <th id="txtSCharge" className={`${headCellClass} text-right`}>S. Charge %</th>
-                    <th id="txtMinSCharge" className={`${headCellClass} text-right`}>Min. S. Charge</th>
-                    <th id="txtSChargeAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
-                   <th id="lkpType" className={headCellClass}>Type</th>
-                    <th id="txtSCharge" className={`${headCellClass} text-right`}>S. Charge %</th>
-                    <th id="txtMinSCharge" className={`${headCellClass} text-right`}>Min. S. Charge</th>
-                    <th id="txtSChargeAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
+                    <th id="txtServiceTypeID" className={headCellClass}>ID</th>
+                    <th id="lkpDSCType" className={headCellClass}>Type</th>
+                    <th id="txtDSCPre" className={`${headCellClass} text-right`}>S. Charge %</th>
+                    <th id="txtMinDSCAmt" className={`${headCellClass} text-right`}>Min. S. Charge</th>
+                    <th id="txtDSCAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
+                    <th id="lkpISCType" className={headCellClass}>Type</th>
+                    <th id="txtISCPer" className={`${headCellClass} text-right`}>S. Charge %</th>
+                    <th id="txtIMinSCAmt" className={`${headCellClass} text-right`}>Min. S. Charge</th>
+                    <th id="txtISCAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
-                    <tr key={row.id} className="odd:bg-white even:bg-slate-50/60">
+                    <tr key={row.txtServiceTypeID} className="odd:bg-white even:bg-slate-50/60">
                       <th
                         scope="row"
+                        id={`txtServiceType-${row.txtServiceTypeID}`}
                         className="border border-slate-400 px-2.5 py-1 text-left text-xs font-medium text-slate-700"
                       >
-                        {row.service}
+                        {row.txtServiceType}
                       </th>
-                      <td className="border border-slate-400 px-2 py-1 text-xs text-slate-500">
-                        {row.id}
+                      <td
+                        id={`txtServiceTypeID-${row.txtServiceTypeID}`}
+                        className="border border-slate-400 px-2 py-1 text-xs text-slate-500"
+                      >
+                        {row.txtServiceTypeID}
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
                         <ChargeTypeSelect
-                          id={`${row.id}-domestic-charge-type`}
-                          label={`${row.service} domestic charge type`}
-                          value={row.domesticType}
+                          id={`lkpDSCType-${row.txtServiceTypeID}`}
+                          label={`${row.txtServiceType} domestic charge type`}
+                          value={row.lkpDSCType}
                           onChange={(value) =>
-                            updateRow(row.id, "domesticType", value)
+                            updateRow(row.txtServiceTypeID, "lkpDSCType", value)
                           }
                         />
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
                         <input
-                          aria-label={`${row.service} domestic service charge percentage`}
+                          id={`txtDSCPre-${row.txtServiceTypeID}`}
+                          aria-label={`${row.txtServiceType} domestic service charge percentage`}
                           inputMode="decimal"
-                          value={row.domesticPercent}
+                          value={row.txtDSCPre}
                           onChange={(event) =>
                             updateAmount(
-                              row.id,
-                              "domesticPercent",
+                              row.txtServiceTypeID,
+                              "txtDSCPre",
                               event.target.value,
                             )
                           }
+                          disabled={row.lkpDSCType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
                         <input
-                          aria-label={`${row.service} domestic minimum service charge`}
+                          id={`txtMinDSCAmt-${row.txtServiceTypeID}`}
+                          aria-label={`${row.txtServiceType} domestic minimum service charge`}
                           inputMode="decimal"
-                          value={row.domesticMinimum}
+                          value={row.txtMinDSCAmt}
                           onChange={(event) =>
                             updateAmount(
-                              row.id,
-                              "domesticMinimum",
+                              row.txtServiceTypeID,
+                              "txtMinDSCAmt",
                               event.target.value,
                             )
                           }
+                          disabled={row.lkpDSCType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
                         <input
-                          aria-label={`${row.service} domestic service charge amount`}
+                          id={`txtDSCAmt-${row.txtServiceTypeID}`}
+                          aria-label={`${row.txtServiceType} domestic service charge amount`}
                           inputMode="decimal"
-                          value={row.domesticAmount}
+                          value={row.txtDSCAmt}
                           onChange={(event) =>
                             updateAmount(
-                              row.id,
-                              "domesticAmount",
+                              row.txtServiceTypeID,
+                              "txtDSCAmt",
                               event.target.value,
                             )
                           }
+                          disabled={row.lkpDSCType !== "A"}
                           className={cellInputClass}
                         />
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
                         <ChargeTypeSelect
-                          id={`${row.id}-international-charge-type`}
-                          label={`${row.service} international charge type`}
-                          value={row.internationalType}
+                          id={`lkpISCType-${row.txtServiceTypeID}`}
+                          label={`${row.txtServiceType} international charge type`}
+                          value={row.lkpISCType}
                           onChange={(value) =>
-                            updateRow(row.id, "internationalType", value)
+                            updateRow(row.txtServiceTypeID, "lkpISCType", value)
                           }
                         />
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
                         <input
-                          aria-label={`${row.service} international service charge percentage`}
+                          id={`txtISCPer-${row.txtServiceTypeID}`}
+                          aria-label={`${row.txtServiceType} international service charge percentage`}
                           inputMode="decimal"
-                          value={row.internationalPercent}
+                          value={row.txtISCPer}
                           onChange={(event) =>
                             updateAmount(
-                              row.id,
-                              "internationalPercent",
+                              row.txtServiceTypeID,
+                              "txtISCPer",
                               event.target.value,
                             )
                           }
+                          disabled={row.lkpISCType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#FEE4C3]   ">
                         <input
-                          aria-label={`${row.service} international minimum service charge`}
+                          id={`txtIMinSCAmt-${row.txtServiceTypeID}`}
+                          aria-label={`${row.txtServiceType} international minimum service charge`}
                           inputMode="decimal"
-                          value={row.internationalMinimum}
+                          value={row.txtIMinSCAmt}
                           onChange={(event) =>
                             updateAmount(
-                              row.id,
-                              "internationalMinimum",
+                              row.txtServiceTypeID,
+                              "txtIMinSCAmt",
                               event.target.value,
                             )
                           }
+                          disabled={row.lkpISCType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
                       <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
                         <input
-                          aria-label={`${row.service} international service charge amount`}
+                          id={`txtISCAmt-${row.txtServiceTypeID}`}
+                          aria-label={`${row.txtServiceType} international service charge amount`}
                           inputMode="decimal"
-                          value={row.internationalAmount}
+                          value={row.txtISCAmt}
                           onChange={(event) =>
                             updateAmount(
-                              row.id,
-                              "internationalAmount",
+                              row.txtServiceTypeID,
+                              "txtISCAmt",
                               event.target.value,
                             )
                           }
+                          disabled={row.lkpISCType !== "A"}
                           className={cellInputClass}
                         />
                       </td>
@@ -438,15 +632,21 @@ const ServiceChargePolicy: React.FC = () => {
               Copy
             </button>
             <div className="flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={handleSave} className="btn-style" name="btnSave">
-                Save
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+                name="btnSave"
+              >
+                {saving ? "Saving..." : "Save"}
               </button>
               <button
                 type="button"
                 onClick={() =>
                   console.log("Attach service charge policy", {
                     tab: activeTab,
-                    customer,
+                    lkpCustomerID,
                   })
                 }
                 className="btn-style"
@@ -454,17 +654,10 @@ const ServiceChargePolicy: React.FC = () => {
               >
                 Attach
               </button>
-              <button type="button" onClick={handleCancel} className="btn-style" name="btnCancel">
-                Cancel
+              <button type="button" onClick={handleClear} className="btn-style" name="btnClear">
+                Clear
               </button>
-              <button
-                type="button"
-                name="btnClose"
-                onClick={() => window.history.back()}
-                className="btn-style"
-              >
-                Close
-              </button>
+
             </div>
           </footer>
         </section>

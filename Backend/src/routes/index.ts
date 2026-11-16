@@ -6,6 +6,7 @@ import yearRouter from "./YearRouter";
 import ServiceTypeRouter from "./Travel/Setup/ServiceTypeRouter";
 import AirlineRouter from "./Travel/Sales/AirlineRoutes";
 import TicketSalesRouter from "./Travel/Sales/TicketSalesRoutes";
+import ServiceChargePolicyPolicy from './Travel/Setup/ServiceChargePolicyRouter'
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/years", yearRouter);
 router.use("/service-types", ServiceTypeRouter);
 router.use("/airlines", AirlineRouter);
 router.use("/ticket-sales", TicketSalesRouter);
+router.use("/ServiceChargePolicy",ServiceChargePolicyPolicy)
 
 export default router;
