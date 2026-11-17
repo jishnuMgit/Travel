@@ -21,6 +21,8 @@ import ServiceTypePage from "../pages/Travel/Setup/ServiceTypePage";
 import LoginPage from "../pages/Auth/LoginPage";
 import CustomerDivisionPage from "../pages/Travel/Setup/Customerdivisionpage";
 import BudgetPage from "../pages/Travel/Sales/Budgetpage";
+import HotelSalesAttachPage from "../pages/Travel/Setup/HotelSalesAttachPage";
+import SupplierInvoiceAttachPage from "../pages/Travel/Setup/SupplierInvoiceAttachPage";
 
 const AppRoutes = () => (
   <Routes>
@@ -69,6 +71,8 @@ const AppRoutes = () => (
     <Route path="/Setup/ServiceType" element={<ServiceTypePage />} />
     <Route path="/Setup/Customerdivision" element={<CustomerDivisionPage />} />
     <Route path="/dev/BudgetPage" element={<BudgetPage />} />
+    <Route path="/dev/HotelSalesAttach" element={<HotelSalesAttachPage/>}/>
+    <Route path="/dev/SupplierInvoiceAttachPage" element={<SupplierInvoiceAttachPage/>}/>
   </Routes>
 );
 

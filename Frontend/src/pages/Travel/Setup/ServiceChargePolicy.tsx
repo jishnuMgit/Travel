@@ -10,9 +10,14 @@ import {
   getTicketSalesCustomers,
   type CustomerRecord,
 } from "../../../utils/airlineApi";
-import { runServiceChargePolicy, type ServiceChargePolicyApiRow } from "../../../utils/ServiceChargePolicyApi";
+import {
+  copyServiceChargePolicy,
+  runServiceChargePolicy,
+  type ServiceChargePolicyApiRow,
+} from "../../../utils/ServiceChargePolicyApi";
 import TablesingleSelect from "../../../components/common/TablesingleSelect";
 import { toast } from "react-toastify";
+import { IoMdClose } from "react-icons/io";
 
 type PolicyTab = "Sales" | "Refund";
 type ChargeType = "A" | "P";
@@ -152,6 +157,9 @@ const ServiceChargePolicy: React.FC = () => {
   const [rows, setRows] = useState<ServiceChargeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyTargetCustomerID, setCopyTargetCustomerID] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const requestSequence = useRef(0);
@@ -164,6 +172,10 @@ const ServiceChargePolicy: React.FC = () => {
         secondLabel: item.fcsaccountname ?? item.fcsaccountid,
       })),
     [customers],
+  );
+  const copyTargetOptions = useMemo(
+    () => customerPairOptions.filter((option) => option.value !== lkpCustomerID),
+    [customerPairOptions, lkpCustomerID],
   );
 
   useEffect(() => {
@@ -312,10 +324,48 @@ const ServiceChargePolicy: React.FC = () => {
     }
   };
 
+  const handleCopy = async () => {
+    if (!lkpCustomerID || !copyTargetCustomerID) return;
+    if (!PstrCoID) {
+      setError("Company ID (PstrCoID) was not found in localStorage.");
+      return;
+    }
+
+    setCopying(true);
+    setError("");
+    setStatus("");
+    try {
+      const response = await copyServiceChargePolicy({
+        PstrCoID,
+        StrCustomerID: copyTargetCustomerID,
+        StrSourceCustomerID: lkpCustomerID,
+        StrMenuName: "Service Charge Policy",
+      });
+      if (!response.success) throw new Error(response.message);
+
+      setCopyModalOpen(false);
+      setCopyTargetCustomerID(null);
+      setLkpCustomerID(copyTargetCustomerID);
+      toast.success(response.message || "Service charge policy copied.");
+      await loadCustomerPolicy(copyTargetCustomerID, activeTab);
+    } catch (copyError) {
+      const message =
+        copyError instanceof Error
+          ? copyError.message
+          : "Failed to copy the service charge policy.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setCopying(false);
+    }
+  };
+
   const handleClear = () => {
     requestSequence.current += 1;
     setActiveTab("Sales");
     setLkpCustomerID(null);
+    setCopyModalOpen(false);
+    setCopyTargetCustomerID(null);
     setMerchantFee("0.00");
     setRows(blankPolicyRows(services));
     setError("");
@@ -416,22 +466,17 @@ const ServiceChargePolicy: React.FC = () => {
             aria-labelledby={`service-charge-tab-${activeTab.toLowerCase()}`}
             className="overflow-hidden border border-slate-200"
           >
+            {/* {error && (
+              <p role="alert" className="px-3 py-2 text-sm text-red-600">
+                {error}
+              </p>
+            )}
+            {status && (
+              <p role="status" className="px-3 py-2 text-sm text-emerald-700">
+                {status}
+              </p>
+            )} */}
             <div className="overflow-x-auto">
-              {/* {loading && (
-                <p className="px-3 py-2 text-sm text-slate-500">
-                  Loading service charge policies...
-                </p>
-              )}
-              {error && (
-                <p role="alert" className="px-3 py-2 text-sm text-red-600">
-                  {error}
-                </p>
-              )}
-              {status && (
-                <p role="status" className="px-3 py-2 text-sm text-emerald-700">
-                  {status}
-                </p>
-              )} */}
               <table className="w-full table-fixed border-collapse">
                 <colgroup>
                   <col className="w-52.5" />
@@ -625,7 +670,11 @@ const ServiceChargePolicy: React.FC = () => {
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
             <button
               type="button"
-              disabled
+              onClick={() => {
+                setCopyTargetCustomerID(null);
+                setCopyModalOpen(true);
+              }}
+              disabled={!lkpCustomerID || loading || saving || copying}
               name="btnCopy"
               className="btn-style min-w-22.5 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -662,6 +711,70 @@ const ServiceChargePolicy: React.FC = () => {
           </footer>
         </section>
       </main>
+      {copyModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !copying) {
+              setCopyModalOpen(false);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="copy-service-charge-title"
+            className="w-full max-w-xl border border-slate-400 bg-white  shadow-lg"
+          >
+           <header className="flex h-8.25 items-center bg-[#9fdfbc] text-gray-800 relative">
+                <h1 className="ml-4 text-[17x] font-semibold ">
+                  Copy Service Charge Policy
+               </h1>
+          
+               <button className="absolute right-3  hover:bg-red-100 p-0.5 rounded-full cursor-pointer"  onClick={() => setCopyModalOpen(false)} ><IoMdClose size={20}/></button>
+             </header>
+           <div className="flex justify-center items-center  gap-2 mt-3 ml-3 mr-3 flex-nowrap">
+             <label
+              htmlFor="copyServiceChargeCustomer"
+              className=" block text-[14px] text-slate-600 whitespace-nowrap"
+            >
+              customer :
+            </label>
+            <CustomLinkedPairSelect
+              firstInputId="copyServiceChargeCustomer"
+              secondInputId="copyServiceChargeCustomerName"
+              options={copyTargetOptions}
+              firstValue={copyTargetCustomerID}
+              secondValue={copyTargetCustomerID}
+              firstHeader="Customer ID"
+              secondHeader="Customer Name"
+              firstWidth={120}
+              secondWidth={360}
+              gap={4}
+              headerFontSize="12px"
+              isDisabled={copying || copyTargetOptions.length === 0}
+              onChange={(option) => setCopyTargetCustomerID(option?.value ?? null)}
+            />
+           </div>
+            {copyTargetOptions.length === 0 && (
+              <p className="mt-3 text-sm text-slate-500">
+                No other customers are available to copy to.
+              </p>
+            )}
+            <div className="mt-5 mb-3 flex justify-center gap-2">
+           
+              <button
+                type="button"
+                onClick={() => void handleCopy()}
+                disabled={!copyTargetCustomerID || copying}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {copying ? "Copying..." : "Save"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };
