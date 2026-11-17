@@ -291,3 +291,67 @@ console.log("======================================");
 };
 
 
+
+
+export const copyServiceChargePolicy = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  const {
+    PstrCoID,
+    StrCustomerID,
+    StrSourceCustomerID,
+    StrMenuName = "Service Charge Policy",
+  } = req.body;
+
+  if (!PstrCoID || !StrCustomerID || !StrSourceCustomerID) {
+    res.status(400).json({
+      success: false,
+      message: "Company ID, destination customer, and source customer are required",
+    });
+    return;
+  }
+
+  
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await client.query(
+      `CALL dbo.sp_pageservicechargepolicycopy(
+        $1, $2, $3, $4, $5
+      )`,
+      [
+        PstrCoID,
+        StrCustomerID,
+        StrSourceCustomerID,
+        req.user?.userId ?? null,
+        StrMenuName,
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    res.status(200).json({
+      success: true,
+      message: "Service Charge Policy copied successfully",
+    });
+
+  } catch (error: unknown) {
+    await client.query("ROLLBACK");
+
+    console.error("Copy Service Charge Policy Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to copy Service Charge Policy",
+      error: error instanceof Error ? error.message : "Internal server error",
+    });
+
+  } finally {
+    client.release();
+  }
+};
+

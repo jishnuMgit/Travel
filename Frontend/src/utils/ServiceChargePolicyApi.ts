@@ -25,6 +25,13 @@ export type ServiceChargePolicyRequest = {
   Rows?: ServiceChargePolicySaveRow[];
 };
 
+export type CopyServiceChargePolicyRequest = {
+  PstrCoID: string;
+  StrCustomerID: string;
+  StrSourceCustomerID: string;
+  StrMenuName?: string | null;
+};
+
 export type ServiceChargePolicySaveRow = {
   intSlNo: number;
   Original_fSlNo: number;
@@ -71,3 +78,14 @@ export const runServiceChargePolicy = <T = ServiceChargePolicyApiRow[]>(
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+export const copyServiceChargePolicy = (
+  payload: CopyServiceChargePolicyRequest,
+) =>
+  request<Pick<ServiceChargePolicyResponse, "success" | "message">>(
+    "/ServiceChargePolicy/copyServiceChargePolicy",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
