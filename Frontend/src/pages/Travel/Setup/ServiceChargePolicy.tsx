@@ -230,13 +230,13 @@ const ServiceChargePolicy: React.FC = () => {
     try {
       const [gridResponse, headerResponse] = await Promise.all([
         runServiceChargePolicy({
-          StrSOrR: SorR,
+          StrSR: SorR,
           StrMode: tab === "Sales" ? "GS" : "GR",
           PstrCoID: PstrCoID,
           StrCustomerID: lkpCustomerID,
         }),
         runServiceChargePolicy({
-          StrSOrR: SorR,
+          StrSR: SorR,
           StrMode: "GHD",
           PstrCoID: PstrCoID,
           StrCustomerID: lkpCustomerID,
@@ -293,7 +293,7 @@ const ServiceChargePolicy: React.FC = () => {
         StrMode: activeTab === "Sales" ? "S" : "SR",
         PstrCoID: PstrCoID,
         StrCustomerID: lkpCustomerID,
-        StrSOrR: activeTab === "Sales" ? "S" : "R",
+        StrSR: activeTab === "Sales" ? "S" : "R",
         NumMerchantFeePer: Number(merchantFee || 0),
         StrMenuName: "Service Charge Policy",
         Rows: rows.map((row) => ({

@@ -18,7 +18,7 @@ export type ServiceChargePolicyRequest = {
   StrMode: string;
   PstrCoID: string;
   StrCustomerID?: string | null;
-  StrSOrR?: "S" | "R" | null;
+  StrSR?: "S" | "R" | null;
   NumMerchantFeePer?: number;
   StrUserID?: string | null;
   StrMenuName?: string | null;
