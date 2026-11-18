@@ -45,7 +45,7 @@ export const handleServiceChargePolicy = async (
     PstrCoID,
     StrCustomerID = null,
     intSlNo = 0,
-    StrSOrR = null,
+    StrSR = null,
     NumMerchantFeePer = 0,
     StrServiceID = null,
     StrModuleID = null,
@@ -112,7 +112,7 @@ export const handleServiceChargePolicy = async (
   // Validate Sales / Refund type
 //   if (
 //     ["GS", "GR", ...rowSaveModes, "D", "D1"].includes(StrMode) &&
-//     !["S", "R"].includes(StrSOrR)
+//     !["S", "R"].includes(StrSR)
 //   ) {
 //     res.status(400).json({
 //       success: false,
@@ -162,7 +162,7 @@ console.log("Mode:", mode);
 console.log("Company:", PstrCoID);
 console.log("Customer:", StrCustomerID);
 console.log("Serial No:", row?.intSlNo ?? intSlNo);
-console.log("Sales/Refund:", StrSOrR);
+console.log("Sales/Refund:", StrSR);
 console.log("Merchant Fee:", NumMerchantFeePer);
 console.log("Service ID:", row?.StrServiceTypeID ?? StrServiceID);
 console.log("Original Serial:", row?.Original_fSlNo ?? Original_fSlNo);
@@ -196,7 +196,7 @@ console.log("======================================");
           PstrCoID,
           StrCustomerID,
           row?.intSlNo ?? intSlNo,
-          StrSOrR,
+          StrSR,
           NumMerchantFeePer,
           row?.StrServiceTypeID ?? StrServiceID,
           row?.StrModuleID ?? StrModuleID,
@@ -230,20 +230,20 @@ console.log("======================================");
                FROM dbo.tblservicechargepolicy
                WHERE fcoid = $1
                  AND fcustomerid = $2
-                 AND fsorr = $3
+                 AND fsr = $3
                  AND fslno = $4
                  AND fserviceid = $5
              ) AS policy_exists`,
             [
               PstrCoID,
               StrCustomerID,
-              StrSOrR,
+              StrSR,
               row.Original_fSlNo ?? row.intSlNo,
               row.StrServiceTypeID,
             ],
           );
           if (existingPolicy.rows[0]?.policy_exists) {
-            procedureMode = StrSOrR === "S" ? "M1" : "MR1";
+            procedureMode = StrSR === "S" ? "M1" : "MR1";
           }
         }
 
