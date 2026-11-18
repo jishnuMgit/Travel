@@ -399,7 +399,7 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="flex w-59 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
     <PanelGroup
       name="rdgSR"
-      options={["Sales", "Refund", "Net","Sales & Refund"]}
+      options={["Sales", "Refund", "Sales & Refund","Net"]}
       value={form.saleMode}
       onChange={(v) => set("saleMode", v)}
       className="w-33.25 self-end max-[640px]:self-start"

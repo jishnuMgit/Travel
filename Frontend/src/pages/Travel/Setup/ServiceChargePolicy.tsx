@@ -738,7 +738,7 @@ const ServiceChargePolicy: React.FC = () => {
               htmlFor="copyServiceChargeCustomer"
               className=" block text-[14px] text-slate-600 whitespace-nowrap"
             >
-              customer :
+              Customer :
             </label>
             <CustomLinkedPairSelect
               firstInputId="copyServiceChargeCustomer"
