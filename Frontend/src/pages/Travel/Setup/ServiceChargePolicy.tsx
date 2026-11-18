@@ -123,21 +123,26 @@ const blankPolicyRows = (items: ServiceChargePolicyApiRow[]) =>
 
 const cellInputClass =
   "h-[30px] w-full min-w-[72px] border-0 bg-transparent px-2 text-right text-[12px] text-slate-700 outline-none focus:bg-emerald-50 focus:ring-1 focus:ring-inset focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
+const editableCellClass =
+  "focus-within:z-20 focus-within:shadow-[inset_0_0_0_3px_#15803d]";
 const headCellClass =
   "whitespace-nowrap border border-slate-400 bg-[#EEFBF4] px-2 py-2 text-left text-[11px] font-semibold text-slate-600";
 
 const PolicyTabButton: React.FC<{
   tab: PolicyTab;
   active: boolean;
-  onClick: () => void;
-}> = ({ tab, active, onClick }) => (
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+}> = ({ tab, active, onClick, onKeyDown }) => (
   <button
     type="button"
     role="tab"
     id={`service-charge-tab-${tab.toLowerCase()}`}
     aria-selected={active}
     aria-controls="service-charge-policy-panel"
+    tabIndex={active ? 0 : -1}
     onClick={onClick}
+    onKeyDown={onKeyDown}
     className={`rounded-t-lg border px-5 py-2  text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
       active
         ? "border-emerald-200 border-b-white  text-emerald-800 bg-green-200"
@@ -163,6 +168,7 @@ const ServiceChargePolicy: React.FC = () => {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const requestSequence = useRef(0);
+  const initialCustomerFocusSet = useRef(false);
   const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
   const customerPairOptions = useMemo<PairSelectOption[]>(
     () =>
@@ -177,6 +183,13 @@ const ServiceChargePolicy: React.FC = () => {
     () => customerPairOptions.filter((option) => option.value !== lkpCustomerID),
     [customerPairOptions, lkpCustomerID],
   );
+
+  useEffect(() => {
+    if (!loading && !initialCustomerFocusSet.current) {
+      initialCustomerFocusSet.current = true;
+      document.getElementById("lkpCustomerID")?.focus();
+    }
+  }, [loading]);
 
   useEffect(() => {
     let Clearled = false;
@@ -272,6 +285,71 @@ const ServiceChargePolicy: React.FC = () => {
   const updateAmount = (rowId: string, field: ChargeField, value: string) => {
     if (/^\d*\.?\d{0,2}$/.test(value)) {
       updateRow(rowId, field, value);
+    }
+  };
+
+  const focusMerchantFee = () => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("servicePolicyMerchantFee")?.focus();
+    });
+  };
+
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (
+      event.key === "Enter" &&
+      !event.defaultPrevented &&
+      (event.target as HTMLElement).id === "lkpCustomerID"
+    ) {
+      event.preventDefault();
+      document.getElementById("service-charge-tab-sales")?.focus();
+    }
+  };
+
+  const handleTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tab: PolicyTab,
+  ) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const nextTab = tab === "Sales" ? "Refund" : "Sales";
+    document
+      .getElementById(`service-charge-tab-${nextTab.toLowerCase()}`)
+      ?.focus();
+  };
+
+  const getEnabledGridControls = () => {
+    const panel = document.getElementById("service-charge-policy-panel");
+    if (!panel) return [];
+
+    return Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), select:not([disabled])',
+      ),
+    ).filter((control) => control.closest("td") !== null);
+  };
+
+  const focusFirstEnabledCell = () => {
+    getEnabledGridControls()[0]?.focus();
+  };
+
+  const handleGridKeyDownCapture = (
+    event: React.KeyboardEvent<HTMLElement>,
+  ) => {
+    if (event.key !== "Enter") return;
+
+    const target = event.target as HTMLElement;
+    if (target.getAttribute("aria-expanded") === "true") return;
+
+    const controls = getEnabledGridControls();
+    const currentIndex = controls.indexOf(target);
+    if (currentIndex === -1) return;
+
+    event.preventDefault();
+    const nextControl = controls[currentIndex + 1];
+    if (nextControl) {
+      nextControl.focus();
+    } else {
+      document.querySelector<HTMLButtonElement>('button[name="btnSave"]')?.focus();
     }
   };
 
@@ -377,7 +455,10 @@ const ServiceChargePolicy: React.FC = () => {
       <main className="mx-auto w-full max-w-250 overflow-hidden border border-slate-400 bg-white shadow-sm">
         <Header Name="Service Charge Policy"/>
 
-        <section className="space-y-4 p-4 sm:p-5">
+        <section
+          className="space-y-4 p-4 sm:p-5"
+          onKeyDown={handleFormKeyDown}
+        >
           <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
             <div className="flex min-w-0 flex-1 basis-112.5 items-center gap-3">
               <label
@@ -404,7 +485,13 @@ const ServiceChargePolicy: React.FC = () => {
                     const selectedCustomerID = option?.value ?? null;
                     setLkpCustomerID(selectedCustomerID);
                     if (selectedCustomerID) {
-                      void loadCustomerPolicy(selectedCustomerID, activeTab);
+                      void loadCustomerPolicy(selectedCustomerID, activeTab).then(
+                        () => {
+                          window.requestAnimationFrame(() => {
+                            document.getElementById("lkpCustomerID")?.focus();
+                          });
+                        },
+                      );
                     } else {
                       requestSequence.current += 1;
                       setMerchantFee("0.00");
@@ -432,10 +519,18 @@ const ServiceChargePolicy: React.FC = () => {
                   key={tab}
                   tab={tab}
                   active={activeTab === tab}
-                  onClick={() => {
+                  onKeyDown={(event) => handleTabKeyDown(event, tab)}
+                  onClick={(event) => {
                     setActiveTab(tab);
+                    const activatedByKeyboard = event.detail === 0;
                     if (lkpCustomerID) {
-                      void loadCustomerPolicy(lkpCustomerID, tab);
+                      void loadCustomerPolicy(lkpCustomerID, tab).then(() => {
+                        if (activatedByKeyboard) {
+                          focusMerchantFee();
+                        }
+                      });
+                    } else if (activatedByKeyboard) {
+                      focusMerchantFee();
                     }
                   }}
                 />
@@ -452,6 +547,12 @@ const ServiceChargePolicy: React.FC = () => {
                     setMerchantFee(event.target.value);
                   }
                 }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.defaultPrevented) {
+                    event.preventDefault();
+                    focusFirstEnabledCell();
+                  }
+                }}
                 className="h-7.5 w-12 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
               />
             </label>
@@ -465,6 +566,7 @@ const ServiceChargePolicy: React.FC = () => {
             role="tabpanel"
             aria-labelledby={`service-charge-tab-${activeTab.toLowerCase()}`}
             className="overflow-hidden border border-slate-200"
+            onKeyDownCapture={handleGridKeyDownCapture}
           >
             {/* {error && (
               <p role="alert" className="px-3 py-2 text-sm text-red-600">
@@ -538,7 +640,7 @@ const ServiceChargePolicy: React.FC = () => {
                       >
                         {row.txtServiceTypeID}
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <ChargeTypeSelect
                           id={`lkpDSCType-${row.txtServiceTypeID}`}
                           label={`${row.txtServiceType} domestic charge type`}
@@ -548,7 +650,7 @@ const ServiceChargePolicy: React.FC = () => {
                           }
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <input
                           id={`txtDSCPre-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic service charge percentage`}
@@ -565,7 +667,7 @@ const ServiceChargePolicy: React.FC = () => {
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <input
                           id={`txtMinDSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic minimum service charge`}
@@ -582,7 +684,7 @@ const ServiceChargePolicy: React.FC = () => {
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <input
                           id={`txtDSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic service charge amount`}
@@ -599,7 +701,7 @@ const ServiceChargePolicy: React.FC = () => {
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <ChargeTypeSelect
                           id={`lkpISCType-${row.txtServiceTypeID}`}
                           label={`${row.txtServiceType} international charge type`}
@@ -609,7 +711,7 @@ const ServiceChargePolicy: React.FC = () => {
                           }
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <input
                           id={`txtISCPer-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international service charge percentage`}
@@ -626,7 +728,7 @@ const ServiceChargePolicy: React.FC = () => {
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3]   ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <input
                           id={`txtIMinSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international minimum service charge`}
@@ -643,7 +745,7 @@ const ServiceChargePolicy: React.FC = () => {
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <input
                           id={`txtISCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international service charge amount`}

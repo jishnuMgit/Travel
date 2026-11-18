@@ -498,7 +498,7 @@ const SupplierInvoiceAttachPage: React.FC<SupplierInvoiceAttachPageProps> = ({
                 <thead className="sticky top-0 z-10">
                   <tr>
                     <th className={thClass} />
-                    <th id="txtBRID" className={`${thClass} text-left`}>Br. ID</th>
+                    <th id="txtBrID" className={`${thClass} text-left`}>Br. ID</th>
                     <th id="txtEntryNumber" className={`${thClass} text-left`}>Entry No.</th>
                     <th id="txtDI" className={`${thClass} text-left`}>D/I</th>
                     <th id="dtpDate" className={`${thClass} text-left`}>Date</th>

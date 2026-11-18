@@ -129,17 +129,19 @@ const TablesingleSelect = ({
   };
 
   const styles: StylesConfig<TableSelectOption, false> = {
-    control: (base) => ({
+    control: (base, state) => ({
       ...base,
       minHeight: "31px",
       height: "31px",
       width: width,
-      borderColor: "#CBD5E1",
+      borderColor: state.isFocused ? "#75E9C2" : "#CBD5E1",
       borderRadius: "0px",
-      boxShadow: "none",
+      boxShadow: state.isFocused ? "inset 0 0 0 1px #75E9C2" : "none",
       fontSize: "13px",
+      position: "relative",
+      zIndex: state.isFocused ? 2 : 0,
       "&:hover": {
-        borderColor: "#94A3B8",
+        borderColor: state.isFocused ? "#75E9C2" : "#94A3B8",
       },
     }),
 
