@@ -385,6 +385,7 @@ const RptAirlinePage: React.FC = () => {
                   options={[
                     { value: "Sales", label: "Sales" },
                     { value: "Refund", label: "Refund" },
+                    { value: "Sales&Refund", label: "Sales & Refund" },
                     { value: "Net", label: "Net" },
                   ]}
                 />

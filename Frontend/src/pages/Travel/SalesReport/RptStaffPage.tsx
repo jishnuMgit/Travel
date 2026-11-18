@@ -316,7 +316,7 @@ const StaffSalesPage: React.FC = () => {
                     checked={paymentType === "All"}
                     onChange={() => setPaymentType("All")}    />
                      </RadioPanel>
-                <RadioPanel className="w-27.5 min-h-21.25">
+                <RadioPanel className="w-31.25 min-h-21.25">
                   <CustomRadio
                     name="rdgSR"
                     value="Sales"
@@ -329,6 +329,14 @@ const StaffSalesPage: React.FC = () => {
                     label="Refund"
                     checked={resultType === "Refund"}
                     onChange={() => setResultType("Refund")}   />
+                    <CustomRadio
+                    name="rdgSR"
+                    
+                    value="Sales&Refund"
+                    label="Sales & Refund"
+                    checked={resultType === "Sales&Refund"}
+                    onChange={() => setResultType("Sales&Refund")}
+                  />
                   <CustomRadio
                     name="rdgSR"
                     value="Net"
