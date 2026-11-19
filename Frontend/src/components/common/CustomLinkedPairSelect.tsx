@@ -28,6 +28,7 @@ interface CustomLinkedPairSelectProps {
   placeholder?: string;
   headerFontSize?: string;
   optionFontSize?: string;
+  menuMaxHeight?: number;
   isDisabled?: boolean;
   isSearchable?: boolean;
 }
@@ -47,10 +48,17 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
   placeholder = "",
   headerFontSize = "12px",
   optionFontSize = "12px",
+  menuMaxHeight = 200,
   isDisabled = false,
   isSearchable = true,
 }) => {
   const menuWidth = firstWidth + gap + secondWidth;
+  const nameSortedOptions = [...options].sort((a, b) =>
+    a.secondLabel.localeCompare(b.secondLabel, undefined, {
+      sensitivity: "base",
+      numeric: true,
+    }),
+  );
 
   // The blank middle grid column preserves the physical gap between the inputs.
   const normalColumns = `${firstWidth}px ${gap}px minmax(0, 1fr)`;
@@ -169,7 +177,7 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
     menuList: (base) => ({
       ...base,
       padding: 0,
-      maxHeight: "200px",
+      maxHeight: `${menuMaxHeight}px`,
       overflowX: "hidden",
     }),
     option: (base, state) => ({
@@ -225,7 +233,7 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
       <div className="relative shrink-0" style={{ width: secondWidth }}>
         <Select<PairSelectOption, false>
           inputId={secondInputId}
-          options={options}
+          options={nameSortedOptions}
           value={selectedSecond}
           onChange={onChange}
           components={{ ...selectComponents, ...createComponents(true) }}

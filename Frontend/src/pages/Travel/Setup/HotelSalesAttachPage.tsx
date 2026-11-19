@@ -1,26 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../../../components/common/Header";
 import { MdAttachFile, MdClose, MdVisibility } from "react-icons/md";
-import { TbDotsCircleHorizontal } from "react-icons/tb";
-
 import { toast } from "react-toastify";
+import type {
+  ServiceChargePolicyAttachment,
+  ServiceChargePolicyAttachmentSave,
+} from "../../../utils/ServiceChargePolicyApi";
 
 type AttachRow = {
   key: number;
   file: File | null;
-  /** Object URL used for the preview, created when a file is picked. */
+  fileName: string;
   previewUrl: string | null;
   note: string;
+  storedDox: string | null;
+  original: ServiceChargePolicyAttachment | null;
+  rowState: "added" | "modified" | "unchanged";
 };
 
-export type AttachSavePayload = {
-  line: number;
-  file: File | null;
-  note: string;
-}[];
+export type AttachSavePayload = ServiceChargePolicyAttachmentSave[];
 
 type HotelSalesAttachPageProps = {
   onClose?: () => void;
+  attachments?: ServiceChargePolicyAttachment[];
   onSave?: (rows: AttachSavePayload) => void | Promise<void>;
 };
 
@@ -31,14 +33,35 @@ const nextKey = () => ++keyCounter;
 const emptyRow = (): AttachRow => ({
   key: nextKey(),
   file: null,
+  fileName: "",
   previewUrl: null,
   note: "",
+  storedDox: null,
+  original: null,
+  rowState: "added",
 });
 
-const isEmptyRow = (row: AttachRow) => !row.file && !row.note.trim();
+const isEmptyRow = (row: AttachRow) =>
+  !row.fileName && !row.note.trim();
 
-const initialRows = (): AttachRow[] =>
-  Array.from({ length: MIN_ROWS }, emptyRow);
+const initialRows = (
+  attachments: ServiceChargePolicyAttachment[],
+): AttachRow[] => [
+  ...attachments.map((attachment) => ({
+    key: nextKey(),
+    file: null,
+    fileName: attachment.fDoxName ?? "",
+    previewUrl: attachment.dataUrl,
+    note: attachment.fNote ?? "",
+    storedDox: attachment.fDox,
+    original: attachment,
+    rowState: "unchanged" as const,
+  })),
+  ...Array.from(
+    { length: Math.max(MIN_ROWS - attachments.length, 1) },
+    emptyRow,
+  ),
+];
 
 const niceScrollbar = [
   "[&::-webkit-scrollbar]:h-2.5",
@@ -57,12 +80,45 @@ const niceScrollbar = [
 const thClass =
   "h-[30px] border border-[#B7ECD0] bg-[#E7F7ED] px-2 font-normal text-[#405066]";
 
-const isImage = (file: File) => file.type.startsWith("image/");
-const isPdf = (file: File) =>
-  file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+const isImage = (row: AttachRow) =>
+  row.file?.type.startsWith("image/") ||
+  row.original?.mimeType.startsWith("image/");
+const isPdf = (row: AttachRow) =>
+  row.file?.type === "application/pdf" ||
+  row.original?.mimeType === "application/pdf" ||
+  row.fileName.toLowerCase().endsWith(".pdf");
 
-const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, onSave }) => {
-  const [rows, setRows] = useState<AttachRow[]>(initialRows);
+const fileToBase64 = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error(`Unable to read ${file.name}.`));
+        return;
+      }
+      const separator = reader.result.indexOf(",");
+      if (separator < 0) {
+        reject(new Error(`Unable to encode ${file.name}.`));
+        return;
+      }
+      resolve(reader.result.slice(separator + 1));
+    };
+    reader.onerror = () =>
+      reject(reader.error ?? new Error(`Unable to read ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+
+const fileExtension = (fileName: string) => {
+  const extensionStart = fileName.lastIndexOf(".");
+  return extensionStart < 0 ? "" : fileName.slice(extensionStart + 1).toLowerCase();
+};
+
+const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
+  onClose,
+  attachments = [],
+  onSave,
+}) => {
+  const [rows, setRows] = useState<AttachRow[]>(() => initialRows(attachments));
   const [selectedKey, setSelectedKey] = useState<number | null>(rows[0]?.key ?? null);
   const [previewRow, setPreviewRow] = useState<AttachRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -86,7 +142,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
   );
 
   const releaseUrl = (url: string | null) => {
-    if (!url) return;
+    if (!url || !urlsRef.current.has(url)) return;
     URL.revokeObjectURL(url);
     urlsRef.current.delete(url);
   };
@@ -111,7 +167,14 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
       previous.map((row) => {
         if (row.key !== key) return row;
         releaseUrl(row.previewUrl);
-        return { ...row, file, previewUrl: url };
+        return {
+          ...row,
+          file,
+          fileName: file.name,
+          previewUrl: url,
+          storedDox: null,
+          rowState: row.original ? "modified" : "added",
+        };
       }),
     );
   };
@@ -121,7 +184,14 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
       previous.map((row) => {
         if (row.key !== key) return row;
         releaseUrl(row.previewUrl);
-        return { ...row, file: null, previewUrl: null };
+        return {
+          ...row,
+          file: null,
+          fileName: "",
+          previewUrl: null,
+          storedDox: null,
+          rowState: row.original ? "modified" : "added",
+        };
       }),
     );
     setPreviewRow((current) => (current?.key === key ? null : current));
@@ -129,34 +199,68 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
 
   const updateNote = (key: number, note: string) => {
     setRows((previous) =>
-      previous.map((row) => (row.key === key ? { ...row, note } : row)),
+      previous.map((row) => {
+        if (row.key !== key) return row;
+        const rowState = row.original
+          ? note === (row.original.fNote ?? "") &&
+            !row.file &&
+            row.fileName === (row.original.fDoxName ?? "")
+            ? "unchanged"
+            : "modified"
+          : "added";
+        return { ...row, note, rowState };
+      }),
     );
   };
 
   const handleSave = async () => {
-    const filled = rows
-      .map((row, index) => ({ line: index + 1, file: row.file, note: row.note.trim() }))
-      .filter((row) => row.file || row.note);
+    let nextSlNo =
+      Math.max(0, ...rows.map((row) => row.original?.fSlNo ?? 0)) + 1;
+    const changedRows = rows
+      .map((row) => ({ row }))
+      .filter(
+        ({ row }) =>
+          row.rowState !== "unchanged" &&
+          (row.original || row.fileName || row.note.trim()),
+      );
 
-    if (filled.length === 0) {
+    if (changedRows.length === 0) {
       toast.error("Attach a file or add a note before saving.");
       return;
     }
 
     setSaving(true);
+    let saved = false;
     try {
-      await onSave?.(filled);
+      const payload = await Promise.all(
+        changedRows.map(async ({ row }) => ({
+          fSlNo: row.original?.fSlNo ?? nextSlNo++,
+          fNote: row.note.trim() || null,
+          fDoxName: row.fileName || null,
+          fDoxType: row.file
+            ? fileExtension(row.file.name)
+            : row.fileName
+              ? row.original?.fDoxType ?? fileExtension(row.fileName)
+              : null,
+          fDox: row.file ? await fileToBase64(row.file) : row.storedDox,
+          ...(row.original ? { originalSlNo: row.original.fSlNo } : {}),
+          rowState: row.original ? row.rowState : "added",
+        })),
+      );
+      await onSave?.(payload);
       toast.success("Saved successfully");
+      saved = true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to save documents.");
     } finally {
       setSaving(false);
+      if (saved) onClose?.();
     }
   };
 
   const handleCancel = () => {
     rows.forEach((row) => releaseUrl(row.previewUrl));
-    const fresh = initialRows();
+    const fresh = initialRows(attachments);
     setRows(fresh);
     setSelectedKey(fresh[0].key);
     setPreviewRow(null);
@@ -183,7 +287,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
             >
               <table className="w-full table-fixed border-collapse text-[13px] text-[#24364d]">
                 <colgroup>
-                  <col className="w-5.5" />
+                  <col className="w-4.5" />
                   <col className="w-14" />
                   <col className="w-62.5" />
                   <col className="w-16" />
@@ -194,12 +298,12 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
                   <tr>
                     <th className={thClass} />
                     <th className={`${thClass} text-right`}>Line</th>
-                    <th className={`${thClass} text-left`}>File</th>
+                    <th id="file" className={`${thClass} text-left`}>File</th>
 <th className={`${thClass} text-center`}>
   {/* <MdAttachFile size={17} className="mx-auto block" /> */}
 </th>                    {/* <th className={`${thClass} text-center`} aria-label="Choose file" > </th> */}
                     <th className={`${thClass} text-center`}>View</th>
-                    <th className={`${thClass} text-left`}>Note</th>
+                    <th id="txtNote" className={`${thClass} text-left`}>Note</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -224,14 +328,14 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
                           <div className="flex items-center gap-1">
                             <span
                               className="min-w-0 flex-1 truncate"
-                              title={row.file?.name ?? ""}
+                              title={row.fileName}
                             >
-                              {row.file?.name ?? ""}
+                              {row.fileName}
                             </span>
-                            {row.file && (
+                            {row.fileName && (
                               <button
                                 type="button"
-                                title={`Remove ${row.file.name}`}
+                                title={`Remove ${row.fileName}`}
                                 aria-label={`Remove file from line ${index + 1}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -261,10 +365,10 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
                         </td>
 
                         <td className="border border-[#B7ECD0] text-center">
-                          {row.file && (
+                          {row.fileName && row.previewUrl && (
                             <button
                               type="button"
-                              title={`Preview ${row.file.name}`}
+                              title={`Preview ${row.fileName}`}
                               aria-label={`Preview file on line ${index + 1}`}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -308,13 +412,23 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
               <button id="btnCancel" type="button" disabled={saving} onClick={handleCancel} className="btn-style">
                 Clear
               </button>
-             
+              {onClose && (
+                <button
+                  id="btnClose"
+                  type="button"
+                  disabled={saving}
+                  onClick={handleClose}
+                  className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </section>
         </main>
       </div>
 
-      {previewRow?.file && previewRow.previewUrl && (
+      {previewRow?.fileName && previewRow.previewUrl && (
         <div
           className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
           onMouseDown={(event) => {
@@ -332,7 +446,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
                 id="attach-preview-title"
                 className="truncate text-[14px] font-semibold text-[#24364d]"
               >
-                Preview - {previewRow.file.name}
+                Preview - {previewRow.fileName}
               </h2>
               <button
                 type="button"
@@ -345,15 +459,15 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
             </div>
 
             <div className={`min-h-75 flex-1 overflow-auto bg-[#fafbfc] p-3 ${niceScrollbar}`}>
-              {isImage(previewRow.file) ? (
+              {isImage(previewRow) ? (
                 <img
                   src={previewRow.previewUrl}
-                  alt={previewRow.file.name}
+                  alt={previewRow.fileName}
                   className="mx-auto max-h-[70vh] max-w-full object-contain"
                 />
-              ) : isPdf(previewRow.file) ? (
+              ) : isPdf(previewRow) ? (
                 <iframe
-                  title={previewRow.file.name}
+                  title={previewRow.fileName}
                   src={previewRow.previewUrl}
                   className="h-[70vh] w-full border border-[#B7ECD0] bg-white"
                 />
@@ -362,7 +476,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
                   <p>Preview is not available for this file type.</p>
                   <a
                     href={previewRow.previewUrl}
-                    download={previewRow.file.name}
+                    download={previewRow.fileName}
                     className="btn-style inline-flex items-center"
                   >
                     Download
