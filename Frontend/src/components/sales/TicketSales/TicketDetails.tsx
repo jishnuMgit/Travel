@@ -1975,19 +1975,33 @@ console.log(onClose);
      The first rule that fails stops the save: its message is shown and the cursor goes to its box. The rules that
      only warn are shown and the save goes on. The customer lines have their own rules in the grid. */
   const validateForm = (lines: TicketLinePayload[], detail: TicketDetailPayload): boolean => {
-    // CNJ. = Yes needs the conjunction ticket of the popup
-    if (form.lkpCNJ === "Yes" && !cnjRows.some((row) => row.txtCnjTktSlNo.trim() !== "")) {
-      toast.error("Please input the 'CNJ Ticket No.'");
-      setCnjOpen(true);
-      return false;
-    }
+    // CNJ. = Yes: the conjunction tickets of the popup (a row for each CNJ Ticket No.)
+    if (form.lkpCNJ === "Yes") {
+      const filled = cnjRows.filter((row) => !isEmptyCnjRow(row));
+      const cnjIssue = (message: string) => {
+        toast.error(message);
+        setCnjOpen(true);
+        return false;
+      };
 
-    // the CNJ Route is airport codes of 3 characters with a space between them (IND BHA), as the Route
-    const cnjRoute = cnjRows[0]?.txtCnjRoute.trim() ?? "";
-    if (form.lkpCNJ === "Yes" && cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,3}$/.test(cnjRoute.toUpperCase())) {
-      toast.error("'Route' of the conjunction ticket should be 2 to 4 airport codes of 3 characters, like IND BHA");
-      setCnjOpen(true);
-      return false;
+      if (filled.length === 0) return cnjIssue("Please input the 'CNJ Ticket No.'");
+
+      const seen = new Set<string>();
+      for (const row of filled) {
+        const no = row.txtCnjTktSlNo.trim();
+        if (no === "") return cnjIssue("Please input the 'CNJ Ticket No.'");
+        // the conjunction ticket is another ticket
+        if (no === form.txtTktSLNo.trim()) return cnjIssue(`'CNJ Ticket No.' cannot be the same as the 'Ticket No.' (${no})`);
+        // each CNJ Ticket No. once
+        if (seen.has(no)) return cnjIssue(`'CNJ Ticket No.' ${no} is entered twice`);
+        seen.add(no);
+
+        // the CNJ Route is airport codes of 3 characters with a space between them (IND BHA), as the Route
+        const cnjRoute = row.txtCnjRoute.trim();
+        if (cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,4}$/.test(cnjRoute.toUpperCase())) {
+          return cnjIssue("'Route' of the conjunction ticket should be 2 to 5 airport codes of 3 characters, like IND BHA");
+        }
+      }
     }
 
     const result = validateTicketHeader({
@@ -2019,6 +2033,9 @@ console.log(onClose);
       tax: toNumber(form.txtTax),
       supFee: toNumber(form.txtSupFee),
       k7: toNumber(form.txtK7),
+      fopCash: toNumber(form.txtFopCash),
+      fopCc: toNumber(form.txtFopCc),
+      fopEp: toNumber(form.txtFopEp),
       supplierAmt: computed.supplierAmt,
       kbAmt: detail.txtKbAmt,
       kbAccount: detail.lkpKbAccount,
@@ -2117,7 +2134,10 @@ console.log(onClose);
         ...detail,
       });
       toast.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
-      setSavedKey(ticketKey); // the ticket exists now: the button is Modify from here
+      // a modify clears the screen but keeps the Ticket Type and the Ticket No.: type a Sl. No. to load a ticket again;
+      // a new ticket stays on the screen and the button is Modify from here
+      if (isModify) clearAfterModify();
+      else setSavedKey(ticketKey);
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -2243,6 +2263,28 @@ console.log(onClose);
     lastAutoKey.current = "";
     setClearVersion((v) => v + 1);
     ticketNoRef.current?.focus();
+  };
+
+  /* After a Modify: the screen is cleared except the Ticket Type and the Ticket No. The Sl. No. is 1 again; leaving the Sl. No.
+     box (or typing another Sl. No.) loads that Sl. No. of the ticket. */
+  const clearAfterModify = () => {
+    const type = form.lkpTktType;
+    setForm({
+      ...initialForm(),
+      lkpTktType: type,
+      txtTktTypeName: form.txtTktTypeName,
+      txtTktSLNo: form.txtTktSLNo,
+      lkpBranch: branchIdOptions[0]?.value ?? null,
+      lkpIATA: iataIdOptions[0]?.value ?? null,
+      lkpAirlineNo: airlineIdOptions[0]?.value ?? null,
+    });
+    setSavedKey("");
+    setLoaded(undefined);
+    setCnjRows([]);
+    setCnjOpen(false);
+    lastAutoKey.current = ""; // so leaving the Sl. No. box loads the ticket
+    setClearVersion((v) => v + 1);
+    setTimeout(() => document.getElementById("txtSlNo")?.focus(), 0);
   };
 
   const handleDelete = async () => {
@@ -2415,7 +2457,7 @@ console.log(onClose);
           />
         </main>
         {dialog}
-        <CnjModal open={cnjOpen} rows={cnjRows} onChange={setCnjRows} onClose={closeCnj} />
+        <CnjModal open={cnjOpen} rows={cnjRows} mainTicketNo={form.txtTktSLNo} onChange={setCnjRows} onClose={closeCnj} />
       </div>
     </div>
   );

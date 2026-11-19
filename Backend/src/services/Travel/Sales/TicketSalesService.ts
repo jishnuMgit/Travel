@@ -578,22 +578,31 @@ const cleanTicketSales = (payload: SaveTicketSalesPayload) => {
     lkpBranch: key.lkpBranch ?? "",
   };
 
-  // the conjunction ticket (the Sales Conjunction popup): only when CNJ. is Yes, one row, with its CNJ Ticket No.
+  // the conjunction tickets (the Ticket Sales-Conjunction popup): only when CNJ. is Yes, one row for each CNJ Ticket No.
   const cnjRows = ((Array.isArray(payload.cnjRows) ? payload.cnjRows : []) as Bag[]).filter(
     (row) => text(row.txtCnjTktSlNo) !== "" || text(row.txtCnjRoute) !== "" || text(row.txtCnjCarrier) !== "" || text(row.txtCnjClass) !== "",
   );
-  let cnj: TicketSalesCnjValues | null = null;
+  const cnj: TicketSalesCnjValues[] = [];
   if (text(payload.lkpCNJ) === "Yes") {
     if (cnjRows.length === 0) throw new ApiError(400, "Please input the 'CNJ Ticket No.'");
-    if (cnjRows.length > 1) throw new ApiError(400, "Only one conjunction ticket can be saved for a ticket");
-    const row = cnjRows[0];
-    if (text(row.txtCnjTktSlNo) === "") throw new ApiError(400, "Please input the 'CNJ Ticket No.'");
-    cnj = {
-      txtCnjTktSlNo: textOrNull(row.txtCnjTktSlNo, 12, "CNJ Ticket No.") ?? "",
-      txtCnjRoute: textOrNull(row.txtCnjRoute, 19, "CNJ Route"),
-      txtCnjCarrier: textOrNull(row.txtCnjCarrier, 8, "CNJ Carrier"),
-      txtCnjClass: textOrNull(row.txtCnjClass, 8, "CNJ Class"),
-    };
+    for (const row of cnjRows) {
+      if (text(row.txtCnjTktSlNo) === "") throw new ApiError(400, "Please input the 'CNJ Ticket No.'");
+      const cnjNo = textOrNull(row.txtCnjTktSlNo, 12, "CNJ Ticket No.") ?? "";
+      // the conjunction ticket is another ticket
+      if (cnjNo === (key.txtTktSLNo ?? "")) {
+        throw new ApiError(400, `'CNJ Ticket No.' cannot be the same as the 'Ticket No.' (${cnjNo})`);
+      }
+      // each CNJ Ticket No. once for the ticket
+      if (cnj.some((other) => other.txtCnjTktSlNo === cnjNo)) {
+        throw new ApiError(400, `'CNJ Ticket No.' ${cnjNo} is entered twice`);
+      }
+      cnj.push({
+        txtCnjTktSlNo: cnjNo,
+        txtCnjRoute: textOrNull(row.txtCnjRoute, 19, "CNJ Route"),
+        txtCnjCarrier: textOrNull(row.txtCnjCarrier, 8, "CNJ Carrier"),
+        txtCnjClass: textOrNull(row.txtCnjClass, 8, "CNJ Class"),
+      });
+    }
   }
 
   return { key, ticket, customerLine, cnj, saved };
@@ -622,7 +631,7 @@ export const saveTicketSalesWith = async (
   // 1) the ticket, 2) its customer line (it needs the ticket), 3) its conjunction ticket (CNJ. = Yes)
   await callSpTicketSalesPage(db, { strmode: "S", ...key, ...ticket, PstrUserID });
   await callSpTicketSalesBPage(db, { strmode: "S", ...key, ...customerLine, PstrUserID });
-  if (cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...cnj });
+  for (const row of cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...row });
 
   // the user audit (S): what was saved
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
@@ -685,7 +694,7 @@ export const modifyTicketSalesWith = async (
 
   // the conjunction ticket is replaced: the old one is deleted, the new one (CNJ. = Yes) is saved
   await callSpTicketSalesCnjPage(db, { strmode: "D", ...key });
-  if (cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...cnj });
+  for (const row of cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...row });
 
   // the user audit (M): what changed, field by field
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
@@ -1076,13 +1085,21 @@ type AuditView = Record<string, string | number>;
 // the ticket, its refs and its customer line as one list of boxes
 const auditView = (ticket: LoadedTicketSales): AuditView => {
   const { lines, cnjRows, PstrCoID: _co, PstrYear: _year, ...boxes } = ticket;
-  return { ...boxes, ...(lines[0] ?? {}), ...(cnjRows[0] ?? {}) } as AuditView;
+  const cnjBoxes: AuditView = {};
+  cnjRows.forEach((row, i) => {
+    // the first conjunction row has the plain keys; the others a number after the key (CNJ Ticket No. (2) ...)
+    for (const [key, value] of Object.entries(row)) cnjBoxes[i === 0 ? key : `${key}#${i + 1}`] = value;
+  });
+  return { ...boxes, ...(lines[0] ?? {}), ...cnjBoxes } as AuditView;
 };
 
 const auditShow = (key: string, value: string | number | undefined): string =>
   typeof value === "number" ? (key === "txtSlNo" ? String(value) : value.toFixed(2)) : String(value ?? "");
 
-const auditLabel = (key: string) => AUDIT_LABELS[key] ?? key;
+const auditLabel = (key: string) => {
+  const [base, nth] = key.split("#");
+  return (AUDIT_LABELS[base] ?? base) + (nth ? ` (${nth})` : "");
+};
 
 // save / delete: the main boxes
 const auditSavedNote = (ticket: LoadedTicketSales): string => {
