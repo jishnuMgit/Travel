@@ -286,8 +286,8 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
                   firstHeader="Customer ID"
                   secondHeader="Customer Name"
                   firstWidth={120}
-                  secondWidth={400}
-                  gap={4}
+                  secondWidth={450}
+                  gap={10}
                   headerFontSize="12px"
                   isDisabled={loadingCustomers || loadingDivisions || saving}
                   onChange={(option) => void loadCustomer(option?.value ?? null)}
@@ -417,15 +417,7 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
               >
                 <u>C</u>lear
               </button>
-              <button
-                id="btnClose"
-                type="button"
-                onClick={handleClose}
-                disabled={saving}
-                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <u>C</u>lose
-              </button>
+             
             </div>
           </section>
         </main>
