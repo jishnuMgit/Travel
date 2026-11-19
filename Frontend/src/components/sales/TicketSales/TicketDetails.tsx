@@ -633,7 +633,7 @@ const TicketTopBar: React.FC<
           onChange={(event) => {
             if (/^\d{0,3}$/.test(event.target.value)) set("txtSlNo", event.target.value);
           }}
-          className="input-style w-8 min-w-[24px] shrink-0 field-sizing-content !px-1.5 text-center !text-[16px]"
+          className="input-style -ml-2 w-7 min-w-[22px] shrink-0 field-sizing-content !px-1 text-center !text-[16px]"
         />
       </div>
     </Field>
@@ -842,7 +842,7 @@ const TicketDetailsFields: React.FC<
           }
         }}
         idWidth="w-[110px]"
-        idFirstHeader="SupplierID"
+        idFirstHeader="Supplier ID"
         idSecondHeader="Supplier Name"
         nameWidth="flex-1"
         fitMenuToPair
@@ -866,13 +866,13 @@ const TicketDetailsFields: React.FC<
         value={form.lkpPaySupplierID}
         onChange={(v) => set("lkpPaySupplierID", v)}
         idWidth="w-[110px]"
-        idFirstHeader="PaymentID"
+        idFirstHeader="Payment ID"
         idSecondHeader="Payment Name"
         nameWidth="flex-1"
         fitMenuToPair
         nameSecondColumnExtra={84}
         nameFirstHeader="Payment Name"
-        nameSecondHeader="PaymentID"
+        nameSecondHeader="Payment ID"
         isSearchable
         containerClassName="flex flex-1 gap-2"
       />
@@ -922,7 +922,8 @@ const TicketDetailsFields: React.FC<
         maxLength={6}
         value={form.txtBookingGDSLogin}
         onChange={(e) => set("txtBookingGDSLogin", e.target.value)}
-        className={inputClass}
+        disabled
+        className={`${inputClass} !bg-[#eef1f4]`}
       />
     </Field>
 
@@ -996,7 +997,8 @@ const TicketDetailsFields: React.FC<
         maxLength={6}
         value={form.txtSalesGDSLogin}
         onChange={(e) => set("txtSalesGDSLogin", e.target.value)}
-        className={inputClass}
+        disabled
+        className={`${inputClass} !bg-[#eef1f4]`}
       />
     </Field>
 
@@ -1164,10 +1166,10 @@ const TicketRoutePanel: React.FC<
    Columns: 1 = FOP, 2 = fares, 3 = supplier / A/L, 4 = VAT / net.
    Labels are fixed width, inputs fill the rest of the column.
    1 column on small, 2 on medium, 4 on wide (by panel width).          */
-const A1 = "w-[90px] shrink-0 @2xl:w-[60px]";
+const A1 = "w-[90px] shrink-0 @2xl:w-[66px]";
 const A2 = "w-[90px] shrink-0 @2xl:w-[52px]";
 const A3 = "w-[90px] shrink-0";
-const A4 = "w-[90px] shrink-0 @2xl:w-[64px]";
+const A4 = "w-[90px] shrink-0 @2xl:w-[88px]"; // room for "Sup. Fee VAT :"
 
 const TicketAmountsPanel: React.FC<
   PartProps & {
@@ -1180,7 +1182,7 @@ const TicketAmountsPanel: React.FC<
 > = ({ form, set, computed, fopOptions, alComTypeOptions, merchantOptions, gdsOptions }) => (
   <div className="@container min-w-0">
     <div
-      className={`${panelClass} grid h-full grid-cols-1 content-start items-center gap-x-3 gap-y-2 @md:grid-cols-2 @2xl:grid-cols-[1.35fr_1fr_1.5fr_1fr]`}
+      className={`${panelClass} grid h-full grid-cols-1 content-start items-center gap-x-3 gap-y-2 @md:grid-cols-2 @2xl:grid-cols-[1.05fr_1fr_1.3fr_1.45fr]`}
     >
       {/* Row 1 */}
       <Field label="FOP :" labelClassName={A1} className="min-w-0">
@@ -1225,7 +1227,7 @@ const TicketAmountsPanel: React.FC<
         />
       </Field>
 
-      <Field label="Fee VAT :" labelClassName={A4} className="min-w-0">
+      <Field label="Sup. Fee VAT :" labelClassName={A4} className="min-w-0">
         <MoneyReadOnly id="txtFeeVat" value={computed.feeVat} />
       </Field>
 
