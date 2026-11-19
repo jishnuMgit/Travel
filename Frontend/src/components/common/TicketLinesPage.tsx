@@ -681,7 +681,8 @@ const TicketLinesGrid: React.FC<{
                 {/* S. Chg. V. and Inv. Amt. The old "S. Chg. V." column (fAgencyChargeWVAT) is the service charge WITH its
                     VAT (S. Chg. + the VAT of it); the VAT alone (the hidden fSCVATAmt) is what is saved in fscvatamt. */}
                 {(["txtLineSChgV", "txtLineInvAmt"] as MoneyField[]).map((field) =>
-                  calculated ? (
+                  // Inv. Amt. shows the calculated amount but can be typed over once the line has a customer
+                  calculated && !(field === "txtLineInvAmt" && row.lkpLineCustomer) ? (
                     <React.Fragment key={field}>
                       <td className={`${td} bg-[#eef1f4] text-right`}>
                         {isEmptyLine(row)
@@ -1495,7 +1496,12 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         onCustomerChange={handleCustomerChange}
         onDivisionChange={(key, division) => updateRow(key, { lkpLineDivision: division })}
         onMoneyChange={(key, field, value) =>
-          updateRow(key, { [field]: value }, field === "txtLineFare" || field === "txtLineTax")
+          field === "txtLineInvAmt" && context
+            ? // a typed Inv. Amt. is kept as typed (it is not worked out again until another amount of the line changes)
+              setRows((prev) =>
+                padLines(prev.map((row) => (row.key === key ? { ...row, txtLineInvAmt: value } : row))),
+              )
+            : updateRow(key, { [field]: value }, field === "txtLineFare" || field === "txtLineTax")
         }
         calculated={context !== undefined}
         onTypeChange={(key, type) => updateRow(key, { txtLineBType: type })}

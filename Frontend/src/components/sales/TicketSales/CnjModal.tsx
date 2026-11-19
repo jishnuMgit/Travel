@@ -94,7 +94,7 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, onChange, onClose }) =>
       >
         <div className="flex h-7.5 items-center justify-between border-b border-slate-300 bg-[#a5e0c3] px-3">
           <h2 id="cnj-modal-title" className="text-[15px] font-semibold text-slate-700">
-            Sales Conjunction
+            Ticket Sales-Conjunction
           </h2>
           <button
             type="button"
@@ -159,12 +159,6 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, onChange, onClose }) =>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="mt-3 flex justify-center">
-            <button type="button" id="btnCnjClose" onClick={onClose} className="btn-style">
-              Close
-            </button>
           </div>
         </div>
       </div>
