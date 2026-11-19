@@ -47,6 +47,26 @@ export type CopyServiceChargePolicyResponse = {
   requiresOverwriteConfirmation?: boolean;
 };
 
+export type ServiceChargePolicyAttachment = {
+  fSlNo: number;
+  fNote: string | null;
+  fDoxName: string | null;
+  fDoxType: string | null;
+  mimeType: string;
+  fDox: string | null;
+  dataUrl: string | null;
+};
+
+export type ServiceChargePolicyAttachmentSave = {
+  fSlNo: number;
+  fNote: string | null;
+  fDoxName: string | null;
+  fDoxType: string | null;
+  fDox: string | null;
+  originalSlNo?: number;
+  rowState: "added" | "modified" | "deleted" | "unchanged";
+};
+
 export type ServiceChargePolicySaveRow = {
   intSlNo: number;
   Original_fSlNo: number;
@@ -99,6 +119,31 @@ export const copyServiceChargePolicy = (
 ) =>
   request<CopyServiceChargePolicyResponse>(
     "/ServiceChargePolicy/copyServiceChargePolicy",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+
+export const getServiceChargePolicyAttachments = (
+  PstrCoID: string,
+  StrCustomerID: string,
+  StrSR: "S" | "R",
+) => {
+  const query = new URLSearchParams({ PstrCoID, StrCustomerID, StrSR });
+  return request<ServiceChargePolicyAttachment[]>(
+    `/ServiceChargePolicy/attachments?${query.toString()}`,
+  );
+};
+
+export const saveServiceChargePolicyAttachments = (payload: {
+  PstrCoID: string;
+  StrCustomerID: string;
+  StrSR: "S" | "R";
+  Rows: ServiceChargePolicyAttachmentSave[];
+}) =>
+  request<{ success: boolean; message: string }>(
+    "/ServiceChargePolicy/attachments",
     {
       method: "POST",
       body: JSON.stringify(payload),

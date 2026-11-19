@@ -12,13 +12,19 @@ import {
 } from "../../../utils/airlineApi";
 import {
   copyServiceChargePolicy,
+  getServiceChargePolicyAttachments,
   runServiceChargePolicy,
+  saveServiceChargePolicyAttachments,
+  type ServiceChargePolicyAttachment,
   type ServiceChargePolicyApiRow,
 } from "../../../utils/ServiceChargePolicyApi";
 import TablesingleSelect from "../../../components/common/TablesingleSelect";
 import { toast } from "react-toastify";
 import { IoMdClose } from "react-icons/io";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import HotelSalesAttachPage, {
+  type AttachSavePayload,
+} from "./HotelSalesAttachPage";
 
 type PolicyTab = "Sales" | "Refund";
 type ChargeType = "A" | "P";
@@ -157,11 +163,13 @@ const headCellClass =
 const PolicyTabButton: React.FC<{
   tab: PolicyTab;
   active: boolean;
+  disabled?: boolean;
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
-}> = ({ tab, active, onClick, onKeyDown }) => (
+}> = ({ tab, active, disabled = false, onClick, onKeyDown }) => (
   <button
     type="button"
+    disabled={disabled}
     role="tab"
     id={`service-charge-tab-${tab.toLowerCase()}`}
     aria-selected={active}
@@ -169,7 +177,7 @@ const PolicyTabButton: React.FC<{
     tabIndex={active ? 0 : -1}
     onClick={onClick}
     onKeyDown={onKeyDown}
-    className={`rounded-t-lg border px-5 py-2  text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+    className={`rounded-t-lg border px-5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 ${
       active
         ? "border-emerald-200 border-b-white  text-emerald-800 bg-green-200"
         : "border-slate-400 bg-slate-50 text-slate-600 hover:bg-emerald-50"
@@ -191,6 +199,9 @@ const ServiceChargePolicy: React.FC = () => {
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [copyTargetCustomerID, setCopyTargetCustomerID] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
+  const [attachModalOpen, setAttachModalOpen] = useState(false);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachments, setAttachments] = useState<ServiceChargePolicyAttachment[]>([]);
   const [, setError] = useState("");
   const [, setStatus] = useState("");
   const { confirm, dialog: overwriteDialog } = useConfirmModal();
@@ -499,12 +510,50 @@ const ServiceChargePolicy: React.FC = () => {
     }
   };
 
+  const handleOpenAttachments = async () => {
+    if (!lkpCustomerID || !PstrCoID) return;
+
+    setAttachmentsLoading(true);
+    try {
+      const attachmentRows = await getServiceChargePolicyAttachments(
+        PstrCoID,
+        lkpCustomerID,
+        activeTab === "Sales" ? "S" : "R",
+      );
+      setAttachments(attachmentRows);
+      setAttachModalOpen(true);
+    } catch (attachmentError) {
+      toast.error(
+        attachmentError instanceof Error
+          ? attachmentError.message
+          : "Failed to load service charge policy attachments.",
+      );
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  };
+
+  const handleSaveAttachments = async (attachmentRows: AttachSavePayload) => {
+    if (!lkpCustomerID || !PstrCoID) {
+      throw new Error("Select a customer before attaching files.");
+    }
+
+    const response = await saveServiceChargePolicyAttachments({
+      PstrCoID,
+      StrCustomerID: lkpCustomerID,
+      StrSR: activeTab === "Sales" ? "S" : "R",
+      Rows: attachmentRows,
+    });
+    if (!response.success) throw new Error(response.message);
+  };
+
   const handleClear = () => {
     requestSequence.current += 1;
     setActiveTab("Sales");
     setLkpCustomerID(null);
     setCopyModalOpen(false);
     setCopyTargetCustomerID(null);
+    setAttachModalOpen(false);
     setMerchantFee("0.00");
     setRows(blankPolicyRows(services));
     setError("");
@@ -542,7 +591,7 @@ const ServiceChargePolicy: React.FC = () => {
                   gap={4}
                   headerFontSize="12px"
                   menuMaxHeight={400}
-                  isDisabled={loading}
+                  isDisabled={loading || attachmentsLoading}
                   onChange={(option) => {
                     const selectedCustomerID = option?.value ?? null;
                     setLkpCustomerID(selectedCustomerID);
@@ -581,6 +630,7 @@ const ServiceChargePolicy: React.FC = () => {
                   key={tab}
                   tab={tab}
                   active={activeTab === tab}
+                  disabled={attachmentsLoading}
                   onKeyDown={(event) => handleTabKeyDown(event, tab)}
                   onClick={(event) => {
                     setActiveTab(tab);
@@ -922,7 +972,13 @@ const ServiceChargePolicy: React.FC = () => {
                 setCopyTargetCustomerID(null);
                 setCopyModalOpen(true);
               }}
-              disabled={!lkpCustomerID || loading || saving || copying}
+              disabled={
+                !lkpCustomerID ||
+                loading ||
+                saving ||
+                copying ||
+                attachmentsLoading
+              }
               name="btnCopy"
               className="btn-style min-w-22.5 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -932,7 +988,7 @@ const ServiceChargePolicy: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || loading}
+                disabled={saving || loading || attachmentsLoading}
                 className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
                 name="btnSave"
               >
@@ -940,18 +996,26 @@ const ServiceChargePolicy: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  console.log("Attach service charge policy", {
-                    tab: activeTab,
-                    lkpCustomerID,
-                  })
+                onClick={() => void handleOpenAttachments()}
+                disabled={
+                  !lkpCustomerID ||
+                  loading ||
+                  saving ||
+                  copying ||
+                  attachmentsLoading
                 }
-                className="btn-style"
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
                 name="btnAttach"
               >
-                Attach
+                {attachmentsLoading ? "Loading..." : "Attach"}
               </button>
-              <button type="button" onClick={handleClear} className="btn-style" name="btnClear">
+              <button
+                type="button"
+                onClick={handleClear}
+                disabled={attachmentsLoading}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+                name="btnClear"
+              >
                 Clear
               </button>
 
@@ -1021,6 +1085,23 @@ const ServiceChargePolicy: React.FC = () => {
                 {copying ? "Copying..." : "Save"}
               </button>
             </div>
+          </section>
+        </div>
+      )}
+      {attachModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Service charge policy attachments"
+            className="max-h-[95vh] w-full max-w-[1050px] overflow-auto bg-white shadow-xl"
+          >
+            <HotelSalesAttachPage
+              key={`${lkpCustomerID}-${activeTab}`}
+              attachments={attachments}
+              onClose={() => setAttachModalOpen(false)}
+              onSave={handleSaveAttachments}
+            />
           </section>
         </div>
       )}
