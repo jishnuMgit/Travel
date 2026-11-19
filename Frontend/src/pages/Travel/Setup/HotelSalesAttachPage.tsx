@@ -183,7 +183,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
             >
               <table className="w-full table-fixed border-collapse text-[13px] text-[#24364d]">
                 <colgroup>
-                  <col className="w-5.5" />
+                  <col className="w-4.5" />
                   <col className="w-14" />
                   <col className="w-62.5" />
                   <col className="w-16" />
@@ -194,12 +194,12 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({ onClose, on
                   <tr>
                     <th className={thClass} />
                     <th className={`${thClass} text-right`}>Line</th>
-                    <th className={`${thClass} text-left`}>File</th>
+                    <th id="file" className={`${thClass} text-left`}>File</th>
 <th className={`${thClass} text-center`}>
   {/* <MdAttachFile size={17} className="mx-auto block" /> */}
 </th>                    {/* <th className={`${thClass} text-center`} aria-label="Choose file" > </th> */}
                     <th className={`${thClass} text-center`}>View</th>
-                    <th className={`${thClass} text-left`}>Note</th>
+                    <th id="txtNote" className={`${thClass} text-left`}>Note</th>
                   </tr>
                 </thead>
                 <tbody>

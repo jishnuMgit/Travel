@@ -1,16 +1,24 @@
 export type ServiceChargePolicyApiRow = {
-  fserviceid: string;
-  fservicename?: string | null;
+  fservicetypeid: string;
+  fservicetypename?: string | null;
   fslno?: number | string | null;
   fpositionno?: number | string | null;
+  fmf?: number | string | null;
   fmerchantfeeper?: number | string | null;
   fd_servicechargetype?: string | null;
+  fd_servicechargeper?: number | string | null;
   fd_servicechgper?: number | string | null;
+  fd_servicecchargeper?: number | string | null;
+  fd_minservicechargeamt?: number | string | null;
   fd_minservicechgamt?: number | string | null;
+  fd_servicechargeamt?: number | string | null;
   fd_servicechgamt?: number | string | null;
   fi_servicechargetype?: string | null;
+  fi_servicechargeper?: number | string | null;
   fi_servicechgper?: number | string | null;
+  fi_minservicechargeamt?: number | string | null;
   fi_minservicechgamt?: number | string | null;
+  fi_servicechargeamt?: number | string | null;
   fi_servicechgamt?: number | string | null;
 };
 
@@ -30,20 +38,27 @@ export type CopyServiceChargePolicyRequest = {
   StrCustomerID: string;
   StrSourceCustomerID: string;
   StrMenuName?: string | null;
+  OverwriteExisting?: boolean;
+};
+
+export type CopyServiceChargePolicyResponse = {
+  success: boolean;
+  message: string;
+  requiresOverwriteConfirmation?: boolean;
 };
 
 export type ServiceChargePolicySaveRow = {
   intSlNo: number;
   Original_fSlNo: number;
   StrServiceTypeID: string;
-  lkpDSCType: "A" | "P";
-  StrDSCPre: string;
-  StrMinDSCAmt: string;
-  StrDSCAmt: string;
-  lkpISCType: "A" | "P";
-  StrISCPer: string;
-  StrIMinSCAmt: string;
-  StrISCAmt: string;
+  lkpDServiceChargeType: "A" | "P";
+  StrDServiceChargePre: string;
+  StrDMinServiceChargeAmt: string;
+  StrDServiceChargeAmt: string;
+  lkpIServiceChargeType: "A" | "P";
+  StrIServiceChargePer: string;
+  StrIMinServiceChargeAmt: string;
+  StrIServiceChargeAmt: string;
 };
 
 export type ServiceChargePolicyResponse<T = ServiceChargePolicyApiRow[]> = {
@@ -82,7 +97,7 @@ export const runServiceChargePolicy = <T = ServiceChargePolicyApiRow[]>(
 export const copyServiceChargePolicy = (
   payload: CopyServiceChargePolicyRequest,
 ) =>
-  request<Pick<ServiceChargePolicyResponse, "success" | "message">>(
+  request<CopyServiceChargePolicyResponse>(
     "/ServiceChargePolicy/copyServiceChargePolicy",
     {
       method: "POST",

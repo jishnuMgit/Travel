@@ -20,21 +20,23 @@ const validModes = [
 const readModes = ["GST", "GS", "GR", "GHD"];
 const rowSaveModes = ["S", "SR", "M1", "MR1"];
 
+
 type ServiceChargePolicySaveRow = {
   intSlNo?: number | string;
   Original_fSlNo?: number | string;
   StrServiceTypeID?: string | null;
-  StrModuleID?: string | null;
-  StrCarrierCode?: string | null;
-  lkpDSCType?: string | null;
-  StrDSCPre?: number | string | null;
-  StrMinDSCAmt?: number | string | null;
-  StrDSCAmt?: number | string | null;
-  lkpISCType?: string | null;
-  StrISCPer?: number | string | null;
-  StrIMinSCAmt?: number | string | null;
-  StrISCAmt?: number | string | null;
+  strServiceTypeGroupID?: string | null;
+  StrDivID?: string | null;
+  lkpDServiceChargeType?: string | null;
+  StrDServiceChargePre?: number | string | null;
+  StrDMinServiceChargeAmt?: number | string | null;
+  StrDServiceChargeAmt  ?: number | string | null;
+  lkpIServiceChargeType?: string | null;
+  StrIServiceChargePer?: number | string | null;
+  StrIMinServiceChargeAmt?: number | string | null;
+  StrIServiceChargeAmt?: number | string | null;
 };
+
 
 export const handleServiceChargePolicy = async (
   req: AuthenticatedRequest,
@@ -47,18 +49,17 @@ export const handleServiceChargePolicy = async (
     intSlNo = 0,
     StrSR = null,
     NumMerchantFeePer = 0,
-    StrServiceID = null,
-    StrModuleID = null,
-    StrCarrierCode = null,
+    StrServiceTypeID = null,
+    strServiceTypeGroupID = null,
     Original_fSlNo = 0,
-    lkpDSCType = null,
-    StrDSCPre = 0,
-    StrMinDSCAmt = 0,
-    StrDSCAmt = 0,
-    lkpISCType = null,
-    StrISCPer = 0,
-    StrIMinSCAmt = 0,
-    StrISCAmt = 0,
+    lkpDServiceChargeType = null,
+    StrDServiceChargePre = 0,
+    StrDMinServiceChargeAmt = 0,
+    StrDServiceChargeAmt   = 0,
+    lkpIServiceChargeType = null,
+    StrIServiceChargePer = 0,
+    StrIMinServiceChargeAmt = 0,
+    StrIServiceChargeAmt = 0,
     StrMenuName = null,
   } = req.body;
 
@@ -67,9 +68,8 @@ export const handleServiceChargePolicy = async (
 
   console.log("================= Call Service Charge Policy =================");
 
-  console.log(NumMerchantFeePer)
+  console.log(req.body)
 
-  // Validate mode
   if (!StrMode || !validModes.includes(StrMode)) {
     res.status(400).json({
       success: false,
@@ -78,7 +78,6 @@ export const handleServiceChargePolicy = async (
     return;
   }
 
-  // Validate company
   if (!PstrCoID) {
     res.status(400).json({
       success: false,
@@ -87,194 +86,168 @@ export const handleServiceChargePolicy = async (
     return;
   }
 
-   const CustomerNameResult = await pool.query(
+  try {
+    const CustomerNameResult = await pool.query(
       `SELECT * FROM dbo.filllookupcustomername($1)`,
-      [PstrCoID],
+      [PstrCoID]
     );
 
     const CustomerIDResult = await pool.query(
       `SELECT * FROM dbo.filllookupcustomerid($1)`,
-      [PstrCoID],
+      [PstrCoID]
     );
 
-  // Validate customer
-  if (
-    ["GS", "GR", "GHD", ...rowSaveModes, "D", "D1"].includes(StrMode) &&
-    !StrCustomerID
-  ) {
-    res.status(400).json({
-      success: false,
-      message: "Customer ID is required",
-    });
-    return;
-  }
-
-  // Validate Sales / Refund type
-//   if (
-//     ["GS", "GR", ...rowSaveModes, "D", "D1"].includes(StrMode) &&
-//     !["S", "R"].includes(StrSR)
-//   ) {
-//     res.status(400).json({
-//       success: false,
-//       message: "Invalid Sales / Refund type",
-//     });
-//     return;
-//   }
-
-  if (rowSaveModes.includes(StrMode)) {
-    if (!Array.isArray(Rows) || Rows.length === 0) {
+    if (
+      ["GS", "GR", "GHD", ...rowSaveModes, "D", "D1"].includes(StrMode) &&
+      !StrCustomerID
+    ) {
       res.status(400).json({
         success: false,
-        message: "At least one service row is required",
+        message: "Customer ID is required",
       });
       return;
     }
 
-    const invalidRow = Rows.find(
-      (row) =>
-        !row.StrServiceTypeID ||
-        !Number.isInteger(Number(row.intSlNo)) ||
-        !Number.isInteger(Number(row.Original_fSlNo ?? row.intSlNo)),
-    );
-    if (invalidRow) {
-      res.status(400).json({
-        success: false,
-        message: "Each service row requires a service ID and valid serial number.",
-      });
-      return;
-    }
-  }
-
-  let client: PoolClient | undefined;
-
-  try {
-    const dbClient = await pool.connect();
-    client = dbClient;
-
-    await dbClient.query("BEGIN");
-
-    const callProcedure = async (
-      mode: string,
-      row?: ServiceChargePolicySaveRow,
-    ) => {
-        console.log("========== PROCEDURE DEBUG ==========");
-console.log("Mode:", mode);
-console.log("Company:", PstrCoID);
-console.log("Customer:", StrCustomerID);
-console.log("Serial No:", row?.intSlNo ?? intSlNo);
-console.log("Sales/Refund:", StrSR);
-console.log("Merchant Fee:", NumMerchantFeePer);
-console.log("Service ID:", row?.StrServiceTypeID ?? StrServiceID);
-console.log("Original Serial:", row?.Original_fSlNo ?? Original_fSlNo);
-console.log("======================================");
-      const result = await dbClient.query(
-        `CALL dbo.sp_pageservicechargepolicy(
-          $1::varchar(5),
-          $2::varchar(3),
-          $3::varchar(12),
-          $4::smallint,
-          $5::varchar(2),
-          $6::numeric(18,2),
-          $7::varchar(4),
-          $8::varchar(3),
-          $9::varchar(3),
-          $10::smallint,
-          $11::varchar(2),
-          $12::numeric(18,2),
-          $13::numeric(18,2),
-          $14::numeric(18,2),
-          $15::varchar(2),
-          $16::numeric(18,2),
-          $17::numeric(18,2),
-          $18::numeric(18,2),
-          $19::varchar(20),
-          $20::varchar(50),
-          NULL::jsonb
-        )`,
-        [
-          mode,
-          PstrCoID,
-          StrCustomerID,
-          row?.intSlNo ?? intSlNo,
-          StrSR,
-          NumMerchantFeePer,
-          row?.StrServiceTypeID ?? StrServiceID,
-          row?.StrModuleID ?? StrModuleID,
-          row?.StrCarrierCode ?? StrCarrierCode,
-          row?.Original_fSlNo ?? Original_fSlNo,
-          row?.lkpDSCType ?? lkpDSCType,
-          row?.StrDSCPre ?? StrDSCPre,
-          row?.StrMinDSCAmt ?? StrMinDSCAmt,
-          row?.StrDSCAmt ?? StrDSCAmt,
-          row?.lkpISCType ?? lkpISCType,
-          row?.StrISCPer ?? StrISCPer,
-          row?.StrIMinSCAmt ?? StrIMinSCAmt,
-          row?.StrISCAmt ?? StrISCAmt,
-          StrUserID,
-          StrMenuName,
-        ],
-      );
-      return result.rows[0]?.p_result ?? null;
-    };
-
-    let data: unknown;
     if (rowSaveModes.includes(StrMode)) {
-      const rowResults: unknown[] = [];
+      if (!Array.isArray(Rows) || Rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: "At least one service row is required",
+        });
+        return;
+      }
 
-      for (const row of Rows ?? []) {
-        let procedureMode = StrMode;
-        if (StrMode === "S" || StrMode === "SR") {
-          const existingPolicy = await dbClient.query(
-            `SELECT EXISTS (
-               SELECT 1
-               FROM dbo.tblservicechargepolicy
-               WHERE fcoid = $1
-                 AND fcustomerid = $2
-                 AND fsr = $3
-                 AND fslno = $4
-                 AND fserviceid = $5
-             ) AS policy_exists`,
-            [
-              PstrCoID,
-              StrCustomerID,
-              StrSR,
-              row.Original_fSlNo ?? row.intSlNo,
-              row.StrServiceTypeID,
-            ],
-          );
-          if (existingPolicy.rows[0]?.policy_exists) {
-            procedureMode = StrSR === "S" ? "M1" : "MR1";
+      const invalidRow = Rows.find((row) => !row.StrServiceTypeID);
+
+      if (invalidRow) {
+        res.status(400).json({
+          success: false,
+          message: "Each service row requires a service type ID.",
+        });
+        return;
+      }
+    }
+
+    let client: PoolClient | undefined;
+
+    try {
+      const dbClient = await pool.connect();
+      client = dbClient;
+
+      await dbClient.query("BEGIN");
+
+
+const callProcedure = async (
+  mode: string,
+  row?: ServiceChargePolicySaveRow
+) => {
+  const result = await dbClient.query(
+    `CALL dbo.sp_pageservicechargepolicy(
+      $1::varchar,
+      $2::varchar,
+      $3::varchar,
+      $4::varchar,
+      $5::numeric,
+      $6::varchar,
+      $7::varchar,
+      $8::numeric,
+      $9::numeric,
+      $10::numeric,
+      $11::varchar,
+      $12::numeric,
+      $13::numeric,
+      $14::numeric,
+      $15::varchar,
+      NULL::jsonb
+    )`,
+    [
+      mode,
+      PstrCoID,
+      StrCustomerID,
+      StrSR,
+      NumMerchantFeePer,
+      row?.StrServiceTypeID ?? StrServiceTypeID,
+      row?.lkpDServiceChargeType ?? lkpDServiceChargeType,
+      row?.StrDServiceChargePre ?? StrDServiceChargePre,
+      row?.StrDMinServiceChargeAmt ?? StrDMinServiceChargeAmt,
+      row?.StrDServiceChargeAmt ?? StrDServiceChargeAmt,
+      row?.lkpIServiceChargeType ?? lkpIServiceChargeType,
+      row?.StrIServiceChargePer ?? StrIServiceChargePer,
+      row?.StrIMinServiceChargeAmt ?? StrIMinServiceChargeAmt,
+      row?.StrIServiceChargeAmt ?? StrIServiceChargeAmt,
+
+      StrUserID,
+    ]
+  );
+
+  return result.rows[0]?.p_result ?? null;
+};
+
+
+      let data: unknown;
+
+      if (rowSaveModes.includes(StrMode)) {
+        const rowResults: unknown[] = [];
+
+        for (const row of Rows ?? []) {
+          let procedureMode = StrMode;
+
+          if (StrMode === "S" || StrMode === "SR") {
+            const existingPolicy = await dbClient.query(
+              `SELECT EXISTS (
+                SELECT 1
+                FROM dbo.tblservicechargepolicy
+                WHERE fcoid = $1
+                  AND fcustomerid = $2
+                  AND fsr = $3
+                  AND fservicetypeid = $4
+              ) AS policy_exists`,
+              [
+                PstrCoID,
+                StrCustomerID,
+                StrSR,
+                row.StrServiceTypeID,
+              ]
+            );
+
+            if (existingPolicy.rows[0]?.policy_exists) {
+              procedureMode = StrSR === "S" ? "M1" : "MR1";
+            }
           }
+
+          rowResults.push(await callProcedure(procedureMode, row));
         }
 
-        rowResults.push(await callProcedure(procedureMode, row));
+        data = rowResults;
+      } else {
+        data = await callProcedure(StrMode);
       }
 
-      data = rowResults;
-    } else {
-      data = await callProcedure(StrMode);
+      await dbClient.query("COMMIT");
+
+      res.status(200).json({
+        success: true,
+        message: readModes.includes(StrMode)
+          ? "Service charge policy fetched successfully"
+          : "Service charge policy processed successfully",
+        data,
+        customerID: CustomerIDResult,
+        cutomerName: CustomerNameResult,
+      });
+    } catch (error) {
+      if (client) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackError) {
+          console.error("Service Charge Policy rollback error:", rollbackError);
+        }
+      }
+
+      throw error;
+    } finally {
+      client?.release();
     }
-
-    await dbClient.query("COMMIT");
-
-    res.status(200).json({
-      success: true,
-      message: readModes.includes(StrMode)
-        ? "Service charge policy fetched successfully"
-        : "Service charge policy processed successfully",
-      data,
-      customerID:CustomerIDResult,
-      cutomerName:CustomerNameResult
-    });
   } catch (error) {
-    if (client) {
-      try {
-        await client.query("ROLLBACK");
-      } catch (rollbackError) {
-        console.error("Service Charge Policy rollback error:", rollbackError);
-      }
-    }
-
     console.error("Service Charge Policy Error:", error);
 
     res.status(500).json({
@@ -285,10 +258,10 @@ console.log("======================================");
           ? error.message
           : "Internal server error",
     });
-  } finally {
-    client?.release();
   }
 };
+
+
 
 
 
@@ -302,6 +275,7 @@ export const copyServiceChargePolicy = async (
     StrCustomerID,
     StrSourceCustomerID,
     StrMenuName = "Service Charge Policy",
+    OverwriteExisting = false,
   } = req.body;
 
   if (!PstrCoID || !StrCustomerID || !StrSourceCustomerID) {
@@ -312,12 +286,45 @@ export const copyServiceChargePolicy = async (
     return;
   }
 
-  
+  if (typeof OverwriteExisting !== "boolean") {
+    res.status(400).json({
+      success: false,
+      message: "OverwriteExisting must be a boolean",
+    });
+    return;
+  }
+
+  if (StrCustomerID === StrSourceCustomerID) {
+    res.status(400).json({
+      success: false,
+      message: "Source and destination customers must be different",
+    });
+    return;
+  }
 
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+
+    const existingPolicy = await client.query(
+      `SELECT EXISTS (
+        SELECT 1
+        FROM dbo.tblservicechargepolicy
+        WHERE fcoid = $1 AND fcustomerid = $2
+      ) AS has_existing_policy`,
+      [PstrCoID, StrCustomerID],
+    );
+
+    if (existingPolicy.rows[0]?.has_existing_policy && !OverwriteExisting) {
+      await client.query("ROLLBACK");
+      res.status(200).json({
+        success: false,
+        requiresOverwriteConfirmation: true,
+        message: "The destination customer already has a service charge policy.",
+      });
+      return;
+    }
 
     await client.query(
       `CALL dbo.sp_pageservicechargepolicycopy(

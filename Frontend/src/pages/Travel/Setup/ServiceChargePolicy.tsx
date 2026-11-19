@@ -18,18 +18,19 @@ import {
 import TablesingleSelect from "../../../components/common/TablesingleSelect";
 import { toast } from "react-toastify";
 import { IoMdClose } from "react-icons/io";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
 
 type PolicyTab = "Sales" | "Refund";
 type ChargeType = "A" | "P";
 type ChargeField =
-  | "lkpDSCType"
-  | "txtDSCPre"
-  | "txtMinDSCAmt"
-  | "txtDSCAmt"
-  | "lkpISCType"
-  | "txtISCPer"
-  | "txtIMinSCAmt"
-  | "txtISCAmt";
+  | "lkpDServiceChargeType"
+  | "txtDServiceChargePer"
+  | "txtDMinServiceChargeAmt"
+  | "txtDServiceChargeAmt"
+  | "lkpIServiceChargeType"
+  | "txtIServiceChargePer"
+  | "txtIMinServiceChargeAmt"
+  | "txtIServiceChargeAmt";
 
 type ServiceChargeRow = {
   txtServiceTypeID: string;
@@ -37,7 +38,9 @@ type ServiceChargeRow = {
   slNo: number;
   originalSlNo: number;
 } & {
-  [Field in ChargeField]: Field extends "lkpDSCType" | "lkpISCType"
+  [Field in ChargeField]: Field extends
+    | "lkpDServiceChargeType"
+    | "lkpIServiceChargeType"
     ? ChargeType
     : string;
 };
@@ -87,31 +90,54 @@ const ChargeTypeSelect: React.FC<{
 const amountValue = (value: number | string | null | undefined) =>
   Number(value ?? 0).toFixed(2);
 
+const firstValue = (
+  ...values: (number | string | null | undefined)[]
+) => values.find((value) => value !== null && value !== undefined);
+
 const mapPolicyRows = (
   items: ServiceChargePolicyApiRow[],
 ): ServiceChargeRow[] =>
   items.map((item, index) => {
     const slNo = Number(item.fslno ?? item.fpositionno ?? index + 1);
     return {
-      txtServiceTypeID: item.fserviceid,
-      txtServiceType: item.fservicename ?? item.fserviceid,
+      txtServiceTypeID: item.fservicetypeid,
+      txtServiceType: item.fservicetypename ?? item.fservicetypeid,
       slNo,
       originalSlNo: slNo,
-      lkpDSCType: item.fd_servicechargetype === "P" ? "P" : "A",
-      txtDSCPre: amountValue(item.fd_servicechgper),
-      txtMinDSCAmt: amountValue(item.fd_minservicechgamt),
-      txtDSCAmt: amountValue(item.fd_servicechgamt),
-      lkpISCType: item.fi_servicechargetype === "P" ? "P" : "A",
-      txtISCPer: amountValue(item.fi_servicechgper),
-      txtIMinSCAmt: amountValue(item.fi_minservicechgamt),
-      txtISCAmt: amountValue(item.fi_servicechgamt),
+      lkpDServiceChargeType: item.fd_servicechargetype === "P" ? "P" : "A",
+      txtDServiceChargePer: amountValue(firstValue(
+        item.fd_servicechargeper,
+        item.fd_servicechgper,
+        item.fd_servicecchargeper,
+      )),
+      txtDMinServiceChargeAmt: amountValue(firstValue(
+        item.fd_minservicechargeamt,
+        item.fd_minservicechgamt,
+      )),
+      txtDServiceChargeAmt: amountValue(firstValue(
+        item.fd_servicechargeamt,
+        item.fd_servicechgamt,
+      )),
+      lkpIServiceChargeType: item.fi_servicechargetype === "P" ? "P" : "A",
+      txtIServiceChargePer: amountValue(firstValue(
+        item.fi_servicechargeper,
+        item.fi_servicechgper,
+      )),
+      txtIMinServiceChargeAmt: amountValue(firstValue(
+        item.fi_minservicechargeamt,
+        item.fi_minservicechgamt,
+      )),
+      txtIServiceChargeAmt: amountValue(firstValue(
+        item.fi_servicechargeamt,
+        item.fi_servicechgamt,
+      )),
     };
   });
 
 const blankPolicyRows = (items: ServiceChargePolicyApiRow[]) =>
   mapPolicyRows(items).map((row) => ({
     ...row,
-    lkpDSCType: "A" as const,
+    lkpDServiceChargeType: "A" as const,
     txtDSCPre: "0.00",
     txtMinDSCAmt: "0.00",
     txtDSCAmt: "0.00",
@@ -165,8 +191,9 @@ const ServiceChargePolicy: React.FC = () => {
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [copyTargetCustomerID, setCopyTargetCustomerID] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
-  const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
+  const [, setError] = useState("");
+  const [, setStatus] = useState("");
+  const { confirm, dialog: overwriteDialog } = useConfirmModal();
   const requestSequence = useRef(0);
   const initialCustomerFocusSet = useRef(false);
   const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
@@ -260,7 +287,10 @@ const ServiceChargePolicy: React.FC = () => {
       if (sequence !== requestSequence.current) return;
 
       setRows(mapPolicyRows(gridResponse.data));
-      setMerchantFee(amountValue(headerResponse.data[0]?.fmerchantfeeper));
+      setMerchantFee(amountValue(firstValue(
+        headerResponse.data[0]?.fmerchantfeeper,
+        headerResponse.data[0]?.fmf,
+      )));
     } catch (loadError) {
       if (sequence === requestSequence.current) {
         setError(
@@ -286,6 +316,21 @@ const ServiceChargePolicy: React.FC = () => {
     if (/^\d*\.?\d{0,2}$/.test(value)) {
       updateRow(rowId, field, value);
     }
+  };
+
+  const focusAmount = (rowId: string, field: ChargeField, value: string) => {
+    if (value !== "" && Number(value) === 0) {
+      updateRow(rowId, field, "");
+    }
+  };
+
+  const blurAmount = (rowId: string, field: ChargeField, value: string) => {
+    const amount = Number(value);
+    updateRow(
+      rowId,
+      field,
+      Number.isFinite(amount) ? amount.toFixed(2) : "0.00",
+    );
   };
 
   const focusMerchantFee = () => {
@@ -373,19 +418,18 @@ const ServiceChargePolicy: React.FC = () => {
         StrCustomerID: lkpCustomerID,
         StrSR: activeTab === "Sales" ? "S" : "R",
         NumMerchantFeePer: Number(merchantFee || 0),
-        StrMenuName: "Service Charge Policy",
         Rows: rows.map((row) => ({
           intSlNo: row.slNo,
           Original_fSlNo: row.originalSlNo,
           StrServiceTypeID: row.txtServiceTypeID,
-          lkpDSCType: row.lkpDSCType,
-          StrDSCPre: row.txtDSCPre,
-          StrMinDSCAmt: row.txtMinDSCAmt,
-          StrDSCAmt: row.txtDSCAmt,
-          lkpISCType: row.lkpISCType,
-          StrISCPer: row.txtISCPer,
-          StrIMinSCAmt: row.txtIMinSCAmt,
-          StrISCAmt: row.txtISCAmt,
+          lkpDServiceChargeType: row.lkpDServiceChargeType,
+          StrDServiceChargePre: row.txtDServiceChargePer,
+          StrDMinServiceChargeAmt: row.txtDMinServiceChargeAmt,
+          StrDServiceChargeAmt: row.txtDServiceChargeAmt,
+          lkpIServiceChargeType: row.lkpIServiceChargeType,
+          StrIServiceChargePer: row.txtIServiceChargePer,
+          StrIMinServiceChargeAmt: row.txtIMinServiceChargeAmt,
+          StrIServiceChargeAmt: row.txtIServiceChargeAmt,
         })),
       });
       if (!response.success) throw new Error(response.message);
@@ -413,12 +457,29 @@ const ServiceChargePolicy: React.FC = () => {
     setError("");
     setStatus("");
     try {
-      const response = await copyServiceChargePolicy({
-        PstrCoID,
-        StrCustomerID: copyTargetCustomerID,
-        StrSourceCustomerID: lkpCustomerID,
-        StrMenuName: "Service Charge Policy",
-      });
+      const requestCopy = (overwriteExisting: boolean) =>
+        copyServiceChargePolicy({
+          PstrCoID,
+          StrCustomerID: copyTargetCustomerID,
+          StrSourceCustomerID: lkpCustomerID,
+          StrMenuName: "Service Charge Policy",
+          OverwriteExisting: overwriteExisting,
+        });
+
+      let response = await requestCopy(false);
+      if (response.requiresOverwriteConfirmation) {
+        setCopying(false);
+        const confirmed = await confirm({
+          title: "Overwrite Service Charge Policy",
+          message: ` Do you want to overwrite the existing data?`,
+          confirmLabel: "Yes",
+          cancelLabel: "No",
+        });
+        if (!confirmed) return;
+
+        setCopying(true);
+        response = await requestCopy(true);
+      }
       if (!response.success) throw new Error(response.message);
 
       setCopyModalOpen(false);
@@ -480,6 +541,7 @@ const ServiceChargePolicy: React.FC = () => {
                   secondWidth={450}
                   gap={4}
                   headerFontSize="12px"
+                  menuMaxHeight={400}
                   isDisabled={loading}
                   onChange={(option) => {
                     const selectedCustomerID = option?.value ?? null;
@@ -553,7 +615,7 @@ const ServiceChargePolicy: React.FC = () => {
                     focusFirstEnabledCell();
                   }
                 }}
-                className="h-7.5 w-12 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
+                className="h-7.5 w-20 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
               />
             </label>
             </div>
@@ -614,7 +676,7 @@ const ServiceChargePolicy: React.FC = () => {
                   <tr className="bg-[#EEFBF4]">
                     <th id="txtServiceType" className={headCellClass}>Service Type</th>
                     <th id="txtServiceTypeID" className={headCellClass}>ID</th>
-                    <th id="lkpDSCType" className={headCellClass}>Type</th>
+                    <th id="lkpDServiceChargeType" className={headCellClass}>Type</th>
                     <th id="txtDSCPre" className={`${headCellClass} text-right`}>S. Charge %</th>
                     <th id="txtMinDSCAmt" className={`${headCellClass} text-right`}>Min. S. Charge</th>
                     <th id="txtDSCAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
@@ -642,11 +704,11 @@ const ServiceChargePolicy: React.FC = () => {
                       </td>
                       <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <ChargeTypeSelect
-                          id={`lkpDSCType-${row.txtServiceTypeID}`}
+                          id={`lkpDServiceChargeType-${row.txtServiceTypeID}`}
                           label={`${row.txtServiceType} domestic charge type`}
-                          value={row.lkpDSCType}
+                          value={row.lkpDServiceChargeType}
                           onChange={(value) =>
-                            updateRow(row.txtServiceTypeID, "lkpDSCType", value)
+                            updateRow(row.txtServiceTypeID, "lkpDServiceChargeType", value)
                           }
                         />
                       </td>
@@ -655,15 +717,29 @@ const ServiceChargePolicy: React.FC = () => {
                           id={`txtDSCPre-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic service charge percentage`}
                           inputMode="decimal"
-                          value={row.txtDSCPre}
+                          value={row.txtDServiceChargePer}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargePer",
+                              row.txtDServiceChargePer,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtDSCPre",
+                              "txtDServiceChargePer",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpDSCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargePer",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpDServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
@@ -672,15 +748,29 @@ const ServiceChargePolicy: React.FC = () => {
                           id={`txtMinDSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic minimum service charge`}
                           inputMode="decimal"
-                          value={row.txtMinDSCAmt}
+                          value={row.txtDMinServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtDMinServiceChargeAmt",
+                              row.txtDMinServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtMinDSCAmt",
+                              "txtDMinServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpDSCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtDMinServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpDServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
@@ -689,15 +779,29 @@ const ServiceChargePolicy: React.FC = () => {
                           id={`txtDSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic service charge amount`}
                           inputMode="decimal"
-                          value={row.txtDSCAmt}
+                          value={row.txtDServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargeAmt",
+                              row.txtDServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtDSCAmt",
+                              "txtDServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpDSCType !== "A"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpDServiceChargeType !== "A"}
                           className={cellInputClass}
                         />
                       </td>
@@ -705,26 +809,40 @@ const ServiceChargePolicy: React.FC = () => {
                         <ChargeTypeSelect
                           id={`lkpISCType-${row.txtServiceTypeID}`}
                           label={`${row.txtServiceType} international charge type`}
-                          value={row.lkpISCType}
+                          value={row.lkpIServiceChargeType}
                           onChange={(value) =>
-                            updateRow(row.txtServiceTypeID, "lkpISCType", value)
+                            updateRow(row.txtServiceTypeID, "lkpIServiceChargeType", value)
                           }
                         />
                       </td>
                       <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <input
-                          id={`txtISCPer-${row.txtServiceTypeID}`}
+                          id={`txtIServiceChargePer-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international service charge percentage`}
                           inputMode="decimal"
-                          value={row.txtISCPer}
+                          value={row.txtIServiceChargePer}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargePer",
+                              row.txtIServiceChargePer,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtISCPer",
+                              "txtIServiceChargePer",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpISCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargePer",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpIServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
@@ -733,15 +851,29 @@ const ServiceChargePolicy: React.FC = () => {
                           id={`txtIMinSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international minimum service charge`}
                           inputMode="decimal"
-                          value={row.txtIMinSCAmt}
+                          value={row.txtIMinServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtIMinServiceChargeAmt",
+                              row.txtIMinServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtIMinSCAmt",
+                              "txtIMinServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpISCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtIMinServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpIServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
@@ -750,15 +882,29 @@ const ServiceChargePolicy: React.FC = () => {
                           id={`txtISCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international service charge amount`}
                           inputMode="decimal"
-                          value={row.txtISCAmt}
+                          value={row.txtIServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargeAmt",
+                              row.txtIServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtISCAmt",
+                              "txtIServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpISCType !== "A"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpIServiceChargeType !== "A"}
                           className={cellInputClass}
                         />
                       </td>
@@ -854,6 +1000,7 @@ const ServiceChargePolicy: React.FC = () => {
               secondWidth={360}
               gap={4}
               headerFontSize="12px"
+              menuMaxHeight={400}
               isDisabled={copying || copyTargetOptions.length === 0}
               onChange={(option) => setCopyTargetCustomerID(option?.value ?? null)}
             />
@@ -877,6 +1024,7 @@ const ServiceChargePolicy: React.FC = () => {
           </section>
         </div>
       )}
+      {overwriteDialog}
     </div>
   );
 };
