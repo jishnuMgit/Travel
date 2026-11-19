@@ -1,9 +1,6 @@
 export type ServiceChargePolicyApiRow = {
   fservicetypeid: string;
   fservicetypename?: string | null;
-  fslno?: number | string | null;
-  fpositionno?: number | string | null;
-  fmf?: number | string | null;
   fmerchantfeeper?: number | string | null;
   fd_servicechargetype?: string | null;
   fd_servicechargeper?: number | string | null;
@@ -68,8 +65,6 @@ export type ServiceChargePolicyAttachmentSave = {
 };
 
 export type ServiceChargePolicySaveRow = {
-  intSlNo: number;
-  Original_fSlNo: number;
   StrServiceTypeID: string;
   lkpDServiceChargeType: "A" | "P";
   StrDServiceChargePre: string;
