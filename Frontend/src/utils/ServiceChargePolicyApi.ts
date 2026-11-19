@@ -1,16 +1,24 @@
 export type ServiceChargePolicyApiRow = {
-  fserviceid: string;
-  fservicename?: string | null;
+  fservicetypeid: string;
+  fservicetypename?: string | null;
   fslno?: number | string | null;
   fpositionno?: number | string | null;
+  fmf?: number | string | null;
   fmerchantfeeper?: number | string | null;
   fd_servicechargetype?: string | null;
+  fd_servicechargeper?: number | string | null;
   fd_servicechgper?: number | string | null;
+  fd_servicecchargeper?: number | string | null;
+  fd_minservicechargeamt?: number | string | null;
   fd_minservicechgamt?: number | string | null;
+  fd_servicechargeamt?: number | string | null;
   fd_servicechgamt?: number | string | null;
   fi_servicechargetype?: string | null;
+  fi_servicechargeper?: number | string | null;
   fi_servicechgper?: number | string | null;
+  fi_minservicechargeamt?: number | string | null;
   fi_minservicechgamt?: number | string | null;
+  fi_servicechargeamt?: number | string | null;
   fi_servicechgamt?: number | string | null;
 };
 
@@ -18,25 +26,59 @@ export type ServiceChargePolicyRequest = {
   StrMode: string;
   PstrCoID: string;
   StrCustomerID?: string | null;
-  StrSOrR?: "S" | "R" | null;
+  StrSR?: "S" | "R" | null;
   NumMerchantFeePer?: number;
   StrUserID?: string | null;
   StrMenuName?: string | null;
   Rows?: ServiceChargePolicySaveRow[];
 };
 
+export type CopyServiceChargePolicyRequest = {
+  PstrCoID: string;
+  StrCustomerID: string;
+  StrSourceCustomerID: string;
+  StrMenuName?: string | null;
+  OverwriteExisting?: boolean;
+};
+
+export type CopyServiceChargePolicyResponse = {
+  success: boolean;
+  message: string;
+  requiresOverwriteConfirmation?: boolean;
+};
+
+export type ServiceChargePolicyAttachment = {
+  fSlNo: number;
+  fNote: string | null;
+  fDoxName: string | null;
+  fDoxType: string | null;
+  mimeType: string;
+  fDox: string | null;
+  dataUrl: string | null;
+};
+
+export type ServiceChargePolicyAttachmentSave = {
+  fSlNo: number;
+  fNote: string | null;
+  fDoxName: string | null;
+  fDoxType: string | null;
+  fDox: string | null;
+  originalSlNo?: number;
+  rowState: "added" | "modified" | "deleted" | "unchanged";
+};
+
 export type ServiceChargePolicySaveRow = {
   intSlNo: number;
   Original_fSlNo: number;
   StrServiceTypeID: string;
-  lkpDSCType: "A" | "P";
-  StrDSCPre: string;
-  StrMinDSCAmt: string;
-  StrDSCAmt: string;
-  lkpISCType: "A" | "P";
-  StrISCPer: string;
-  StrIMinSCAmt: string;
-  StrISCAmt: string;
+  lkpDServiceChargeType: "A" | "P";
+  StrDServiceChargePre: string;
+  StrDMinServiceChargeAmt: string;
+  StrDServiceChargeAmt: string;
+  lkpIServiceChargeType: "A" | "P";
+  StrIServiceChargePer: string;
+  StrIMinServiceChargeAmt: string;
+  StrIServiceChargeAmt: string;
 };
 
 export type ServiceChargePolicyResponse<T = ServiceChargePolicyApiRow[]> = {
@@ -71,3 +113,39 @@ export const runServiceChargePolicy = <T = ServiceChargePolicyApiRow[]>(
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+export const copyServiceChargePolicy = (
+  payload: CopyServiceChargePolicyRequest,
+) =>
+  request<CopyServiceChargePolicyResponse>(
+    "/ServiceChargePolicy/copyServiceChargePolicy",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+
+export const getServiceChargePolicyAttachments = (
+  PstrCoID: string,
+  StrCustomerID: string,
+  StrSR: "S" | "R",
+) => {
+  const query = new URLSearchParams({ PstrCoID, StrCustomerID, StrSR });
+  return request<ServiceChargePolicyAttachment[]>(
+    `/ServiceChargePolicy/attachments?${query.toString()}`,
+  );
+};
+
+export const saveServiceChargePolicyAttachments = (payload: {
+  PstrCoID: string;
+  StrCustomerID: string;
+  StrSR: "S" | "R";
+  Rows: ServiceChargePolicyAttachmentSave[];
+}) =>
+  request<{ success: boolean; message: string }>(
+    "/ServiceChargePolicy/attachments",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );

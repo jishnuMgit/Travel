@@ -10,21 +10,33 @@ import {
   getTicketSalesCustomers,
   type CustomerRecord,
 } from "../../../utils/airlineApi";
-import { runServiceChargePolicy, type ServiceChargePolicyApiRow } from "../../../utils/ServiceChargePolicyApi";
+import {
+  copyServiceChargePolicy,
+  getServiceChargePolicyAttachments,
+  runServiceChargePolicy,
+  saveServiceChargePolicyAttachments,
+  type ServiceChargePolicyAttachment,
+  type ServiceChargePolicyApiRow,
+} from "../../../utils/ServiceChargePolicyApi";
 import TablesingleSelect from "../../../components/common/TablesingleSelect";
 import { toast } from "react-toastify";
+import { IoMdClose } from "react-icons/io";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import HotelSalesAttachPage, {
+  type AttachSavePayload,
+} from "./HotelSalesAttachPage";
 
 type PolicyTab = "Sales" | "Refund";
 type ChargeType = "A" | "P";
 type ChargeField =
-  | "lkpDSCType"
-  | "txtDSCPre"
-  | "txtMinDSCAmt"
-  | "txtDSCAmt"
-  | "lkpISCType"
-  | "txtISCPer"
-  | "txtIMinSCAmt"
-  | "txtISCAmt";
+  | "lkpDServiceChargeType"
+  | "txtDServiceChargePer"
+  | "txtDMinServiceChargeAmt"
+  | "txtDServiceChargeAmt"
+  | "lkpIServiceChargeType"
+  | "txtIServiceChargePer"
+  | "txtIMinServiceChargeAmt"
+  | "txtIServiceChargeAmt";
 
 type ServiceChargeRow = {
   txtServiceTypeID: string;
@@ -32,7 +44,9 @@ type ServiceChargeRow = {
   slNo: number;
   originalSlNo: number;
 } & {
-  [Field in ChargeField]: Field extends "lkpDSCType" | "lkpISCType"
+  [Field in ChargeField]: Field extends
+    | "lkpDServiceChargeType"
+    | "lkpIServiceChargeType"
     ? ChargeType
     : string;
 };
@@ -82,31 +96,54 @@ const ChargeTypeSelect: React.FC<{
 const amountValue = (value: number | string | null | undefined) =>
   Number(value ?? 0).toFixed(2);
 
+const firstValue = (
+  ...values: (number | string | null | undefined)[]
+) => values.find((value) => value !== null && value !== undefined);
+
 const mapPolicyRows = (
   items: ServiceChargePolicyApiRow[],
 ): ServiceChargeRow[] =>
   items.map((item, index) => {
     const slNo = Number(item.fslno ?? item.fpositionno ?? index + 1);
     return {
-      txtServiceTypeID: item.fserviceid,
-      txtServiceType: item.fservicename ?? item.fserviceid,
+      txtServiceTypeID: item.fservicetypeid,
+      txtServiceType: item.fservicetypename ?? item.fservicetypeid,
       slNo,
       originalSlNo: slNo,
-      lkpDSCType: item.fd_servicechargetype === "P" ? "P" : "A",
-      txtDSCPre: amountValue(item.fd_servicechgper),
-      txtMinDSCAmt: amountValue(item.fd_minservicechgamt),
-      txtDSCAmt: amountValue(item.fd_servicechgamt),
-      lkpISCType: item.fi_servicechargetype === "P" ? "P" : "A",
-      txtISCPer: amountValue(item.fi_servicechgper),
-      txtIMinSCAmt: amountValue(item.fi_minservicechgamt),
-      txtISCAmt: amountValue(item.fi_servicechgamt),
+      lkpDServiceChargeType: item.fd_servicechargetype === "P" ? "P" : "A",
+      txtDServiceChargePer: amountValue(firstValue(
+        item.fd_servicechargeper,
+        item.fd_servicechgper,
+        item.fd_servicecchargeper,
+      )),
+      txtDMinServiceChargeAmt: amountValue(firstValue(
+        item.fd_minservicechargeamt,
+        item.fd_minservicechgamt,
+      )),
+      txtDServiceChargeAmt: amountValue(firstValue(
+        item.fd_servicechargeamt,
+        item.fd_servicechgamt,
+      )),
+      lkpIServiceChargeType: item.fi_servicechargetype === "P" ? "P" : "A",
+      txtIServiceChargePer: amountValue(firstValue(
+        item.fi_servicechargeper,
+        item.fi_servicechgper,
+      )),
+      txtIMinServiceChargeAmt: amountValue(firstValue(
+        item.fi_minservicechargeamt,
+        item.fi_minservicechgamt,
+      )),
+      txtIServiceChargeAmt: amountValue(firstValue(
+        item.fi_servicechargeamt,
+        item.fi_servicechgamt,
+      )),
     };
   });
 
 const blankPolicyRows = (items: ServiceChargePolicyApiRow[]) =>
   mapPolicyRows(items).map((row) => ({
     ...row,
-    lkpDSCType: "A" as const,
+    lkpDServiceChargeType: "A" as const,
     txtDSCPre: "0.00",
     txtMinDSCAmt: "0.00",
     txtDSCAmt: "0.00",
@@ -118,22 +155,29 @@ const blankPolicyRows = (items: ServiceChargePolicyApiRow[]) =>
 
 const cellInputClass =
   "h-[30px] w-full min-w-[72px] border-0 bg-transparent px-2 text-right text-[12px] text-slate-700 outline-none focus:bg-emerald-50 focus:ring-1 focus:ring-inset focus:ring-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400";
+const editableCellClass =
+  "focus-within:z-20 focus-within:shadow-[inset_0_0_0_3px_#15803d]";
 const headCellClass =
   "whitespace-nowrap border border-slate-400 bg-[#EEFBF4] px-2 py-2 text-left text-[11px] font-semibold text-slate-600";
 
 const PolicyTabButton: React.FC<{
   tab: PolicyTab;
   active: boolean;
-  onClick: () => void;
-}> = ({ tab, active, onClick }) => (
+  disabled?: boolean;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+}> = ({ tab, active, disabled = false, onClick, onKeyDown }) => (
   <button
     type="button"
+    disabled={disabled}
     role="tab"
     id={`service-charge-tab-${tab.toLowerCase()}`}
     aria-selected={active}
     aria-controls="service-charge-policy-panel"
+    tabIndex={active ? 0 : -1}
     onClick={onClick}
-    className={`rounded-t-lg border px-5 py-2  text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+    onKeyDown={onKeyDown}
+    className={`rounded-t-lg border px-5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 ${
       active
         ? "border-emerald-200 border-b-white  text-emerald-800 bg-green-200"
         : "border-slate-400 bg-slate-50 text-slate-600 hover:bg-emerald-50"
@@ -152,9 +196,17 @@ const ServiceChargePolicy: React.FC = () => {
   const [rows, setRows] = useState<ServiceChargeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyTargetCustomerID, setCopyTargetCustomerID] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [attachModalOpen, setAttachModalOpen] = useState(false);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachments, setAttachments] = useState<ServiceChargePolicyAttachment[]>([]);
+  const [, setError] = useState("");
+  const [, setStatus] = useState("");
+  const { confirm, dialog: overwriteDialog } = useConfirmModal();
   const requestSequence = useRef(0);
+  const initialCustomerFocusSet = useRef(false);
   const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
   const customerPairOptions = useMemo<PairSelectOption[]>(
     () =>
@@ -165,6 +217,17 @@ const ServiceChargePolicy: React.FC = () => {
       })),
     [customers],
   );
+  const copyTargetOptions = useMemo(
+    () => customerPairOptions.filter((option) => option.value !== lkpCustomerID),
+    [customerPairOptions, lkpCustomerID],
+  );
+
+  useEffect(() => {
+    if (!loading && !initialCustomerFocusSet.current) {
+      initialCustomerFocusSet.current = true;
+      document.getElementById("lkpCustomerID")?.focus();
+    }
+  }, [loading]);
 
   useEffect(() => {
     let Clearled = false;
@@ -218,13 +281,13 @@ const ServiceChargePolicy: React.FC = () => {
     try {
       const [gridResponse, headerResponse] = await Promise.all([
         runServiceChargePolicy({
-          StrSOrR: SorR,
+          StrSR: SorR,
           StrMode: tab === "Sales" ? "GS" : "GR",
           PstrCoID: PstrCoID,
           StrCustomerID: lkpCustomerID,
         }),
         runServiceChargePolicy({
-          StrSOrR: SorR,
+          StrSR: SorR,
           StrMode: "GHD",
           PstrCoID: PstrCoID,
           StrCustomerID: lkpCustomerID,
@@ -235,7 +298,10 @@ const ServiceChargePolicy: React.FC = () => {
       if (sequence !== requestSequence.current) return;
 
       setRows(mapPolicyRows(gridResponse.data));
-      setMerchantFee(amountValue(headerResponse.data[0]?.fmerchantfeeper));
+      setMerchantFee(amountValue(firstValue(
+        headerResponse.data[0]?.fmerchantfeeper,
+        headerResponse.data[0]?.fmf,
+      )));
     } catch (loadError) {
       if (sequence === requestSequence.current) {
         setError(
@@ -263,6 +329,86 @@ const ServiceChargePolicy: React.FC = () => {
     }
   };
 
+  const focusAmount = (rowId: string, field: ChargeField, value: string) => {
+    if (value !== "" && Number(value) === 0) {
+      updateRow(rowId, field, "");
+    }
+  };
+
+  const blurAmount = (rowId: string, field: ChargeField, value: string) => {
+    const amount = Number(value);
+    updateRow(
+      rowId,
+      field,
+      Number.isFinite(amount) ? amount.toFixed(2) : "0.00",
+    );
+  };
+
+  const focusMerchantFee = () => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("servicePolicyMerchantFee")?.focus();
+    });
+  };
+
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (
+      event.key === "Enter" &&
+      !event.defaultPrevented &&
+      (event.target as HTMLElement).id === "lkpCustomerID"
+    ) {
+      event.preventDefault();
+      document.getElementById("service-charge-tab-sales")?.focus();
+    }
+  };
+
+  const handleTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tab: PolicyTab,
+  ) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const nextTab = tab === "Sales" ? "Refund" : "Sales";
+    document
+      .getElementById(`service-charge-tab-${nextTab.toLowerCase()}`)
+      ?.focus();
+  };
+
+  const getEnabledGridControls = () => {
+    const panel = document.getElementById("service-charge-policy-panel");
+    if (!panel) return [];
+
+    return Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), select:not([disabled])',
+      ),
+    ).filter((control) => control.closest("td") !== null);
+  };
+
+  const focusFirstEnabledCell = () => {
+    getEnabledGridControls()[0]?.focus();
+  };
+
+  const handleGridKeyDownCapture = (
+    event: React.KeyboardEvent<HTMLElement>,
+  ) => {
+    if (event.key !== "Enter") return;
+
+    const target = event.target as HTMLElement;
+    if (target.getAttribute("aria-expanded") === "true") return;
+
+    const controls = getEnabledGridControls();
+    const currentIndex = controls.indexOf(target);
+    if (currentIndex === -1) return;
+
+    event.preventDefault();
+    const nextControl = controls[currentIndex + 1];
+    if (nextControl) {
+      nextControl.focus();
+    } else {
+      document.querySelector<HTMLButtonElement>('button[name="btnSave"]')?.focus();
+    }
+  };
+
   const handleSave = async () => {
     if (!PstrCoID) {
       setError("Company ID (PstrCoID) was not found in localStorage.");
@@ -281,21 +427,20 @@ const ServiceChargePolicy: React.FC = () => {
         StrMode: activeTab === "Sales" ? "S" : "SR",
         PstrCoID: PstrCoID,
         StrCustomerID: lkpCustomerID,
-        StrSOrR: activeTab === "Sales" ? "S" : "R",
+        StrSR: activeTab === "Sales" ? "S" : "R",
         NumMerchantFeePer: Number(merchantFee || 0),
-        StrMenuName: "Service Charge Policy",
         Rows: rows.map((row) => ({
           intSlNo: row.slNo,
           Original_fSlNo: row.originalSlNo,
           StrServiceTypeID: row.txtServiceTypeID,
-          lkpDSCType: row.lkpDSCType,
-          StrDSCPre: row.txtDSCPre,
-          StrMinDSCAmt: row.txtMinDSCAmt,
-          StrDSCAmt: row.txtDSCAmt,
-          lkpISCType: row.lkpISCType,
-          StrISCPer: row.txtISCPer,
-          StrIMinSCAmt: row.txtIMinSCAmt,
-          StrISCAmt: row.txtISCAmt,
+          lkpDServiceChargeType: row.lkpDServiceChargeType,
+          StrDServiceChargePre: row.txtDServiceChargePer,
+          StrDMinServiceChargeAmt: row.txtDMinServiceChargeAmt,
+          StrDServiceChargeAmt: row.txtDServiceChargeAmt,
+          lkpIServiceChargeType: row.lkpIServiceChargeType,
+          StrIServiceChargePer: row.txtIServiceChargePer,
+          StrIMinServiceChargeAmt: row.txtIMinServiceChargeAmt,
+          StrIServiceChargeAmt: row.txtIServiceChargeAmt,
         })),
       });
       if (!response.success) throw new Error(response.message);
@@ -312,10 +457,103 @@ const ServiceChargePolicy: React.FC = () => {
     }
   };
 
+  const handleCopy = async () => {
+    if (!lkpCustomerID || !copyTargetCustomerID) return;
+    if (!PstrCoID) {
+      setError("Company ID (PstrCoID) was not found in localStorage.");
+      return;
+    }
+
+    setCopying(true);
+    setError("");
+    setStatus("");
+    try {
+      const requestCopy = (overwriteExisting: boolean) =>
+        copyServiceChargePolicy({
+          PstrCoID,
+          StrCustomerID: copyTargetCustomerID,
+          StrSourceCustomerID: lkpCustomerID,
+          StrMenuName: "Service Charge Policy",
+          OverwriteExisting: overwriteExisting,
+        });
+
+      let response = await requestCopy(false);
+      if (response.requiresOverwriteConfirmation) {
+        setCopying(false);
+        const confirmed = await confirm({
+          title: "Overwrite Service Charge Policy",
+          message: ` Do you want to overwrite the existing data?`,
+          confirmLabel: "Yes",
+          cancelLabel: "No",
+        });
+        if (!confirmed) return;
+
+        setCopying(true);
+        response = await requestCopy(true);
+      }
+      if (!response.success) throw new Error(response.message);
+
+      setCopyModalOpen(false);
+      setCopyTargetCustomerID(null);
+      setLkpCustomerID(copyTargetCustomerID);
+      toast.success(response.message || "Service charge policy copied.");
+      await loadCustomerPolicy(copyTargetCustomerID, activeTab);
+    } catch (copyError) {
+      const message =
+        copyError instanceof Error
+          ? copyError.message
+          : "Failed to copy the service charge policy.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setCopying(false);
+    }
+  };
+
+  const handleOpenAttachments = async () => {
+    if (!lkpCustomerID || !PstrCoID) return;
+
+    setAttachmentsLoading(true);
+    try {
+      const attachmentRows = await getServiceChargePolicyAttachments(
+        PstrCoID,
+        lkpCustomerID,
+        activeTab === "Sales" ? "S" : "R",
+      );
+      setAttachments(attachmentRows);
+      setAttachModalOpen(true);
+    } catch (attachmentError) {
+      toast.error(
+        attachmentError instanceof Error
+          ? attachmentError.message
+          : "Failed to load service charge policy attachments.",
+      );
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  };
+
+  const handleSaveAttachments = async (attachmentRows: AttachSavePayload) => {
+    if (!lkpCustomerID || !PstrCoID) {
+      throw new Error("Select a customer before attaching files.");
+    }
+
+    const response = await saveServiceChargePolicyAttachments({
+      PstrCoID,
+      StrCustomerID: lkpCustomerID,
+      StrSR: activeTab === "Sales" ? "S" : "R",
+      Rows: attachmentRows,
+    });
+    if (!response.success) throw new Error(response.message);
+  };
+
   const handleClear = () => {
     requestSequence.current += 1;
     setActiveTab("Sales");
     setLkpCustomerID(null);
+    setCopyModalOpen(false);
+    setCopyTargetCustomerID(null);
+    setAttachModalOpen(false);
     setMerchantFee("0.00");
     setRows(blankPolicyRows(services));
     setError("");
@@ -327,7 +565,10 @@ const ServiceChargePolicy: React.FC = () => {
       <main className="mx-auto w-full max-w-250 overflow-hidden border border-slate-400 bg-white shadow-sm">
         <Header Name="Service Charge Policy"/>
 
-        <section className="space-y-4 p-4 sm:p-5">
+        <section
+          className="space-y-4 p-4 sm:p-5"
+          onKeyDown={handleFormKeyDown}
+        >
           <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
             <div className="flex min-w-0 flex-1 basis-112.5 items-center gap-3">
               <label
@@ -349,12 +590,19 @@ const ServiceChargePolicy: React.FC = () => {
                   secondWidth={450}
                   gap={4}
                   headerFontSize="12px"
-                  isDisabled={loading}
+                  menuMaxHeight={400}
+                  isDisabled={loading || attachmentsLoading}
                   onChange={(option) => {
                     const selectedCustomerID = option?.value ?? null;
                     setLkpCustomerID(selectedCustomerID);
                     if (selectedCustomerID) {
-                      void loadCustomerPolicy(selectedCustomerID, activeTab);
+                      void loadCustomerPolicy(selectedCustomerID, activeTab).then(
+                        () => {
+                          window.requestAnimationFrame(() => {
+                            document.getElementById("lkpCustomerID")?.focus();
+                          });
+                        },
+                      );
                     } else {
                       requestSequence.current += 1;
                       setMerchantFee("0.00");
@@ -382,10 +630,19 @@ const ServiceChargePolicy: React.FC = () => {
                   key={tab}
                   tab={tab}
                   active={activeTab === tab}
-                  onClick={() => {
+                  disabled={attachmentsLoading}
+                  onKeyDown={(event) => handleTabKeyDown(event, tab)}
+                  onClick={(event) => {
                     setActiveTab(tab);
+                    const activatedByKeyboard = event.detail === 0;
                     if (lkpCustomerID) {
-                      void loadCustomerPolicy(lkpCustomerID, tab);
+                      void loadCustomerPolicy(lkpCustomerID, tab).then(() => {
+                        if (activatedByKeyboard) {
+                          focusMerchantFee();
+                        }
+                      });
+                    } else if (activatedByKeyboard) {
+                      focusMerchantFee();
                     }
                   }}
                 />
@@ -402,7 +659,13 @@ const ServiceChargePolicy: React.FC = () => {
                     setMerchantFee(event.target.value);
                   }
                 }}
-                className="h-7.5 w-12 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.defaultPrevented) {
+                    event.preventDefault();
+                    focusFirstEnabledCell();
+                  }
+                }}
+                className="h-7.5 w-20 rounded-md border border-slate-300 bg-white px-2 text-right text-xs text-slate-700 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
               />
             </label>
             </div>
@@ -415,23 +678,19 @@ const ServiceChargePolicy: React.FC = () => {
             role="tabpanel"
             aria-labelledby={`service-charge-tab-${activeTab.toLowerCase()}`}
             className="overflow-hidden border border-slate-200"
+            onKeyDownCapture={handleGridKeyDownCapture}
           >
+            {/* {error && (
+              <p role="alert" className="px-3 py-2 text-sm text-red-600">
+                {error}
+              </p>
+            )}
+            {status && (
+              <p role="status" className="px-3 py-2 text-sm text-emerald-700">
+                {status}
+              </p>
+            )} */}
             <div className="overflow-x-auto">
-              {/* {loading && (
-                <p className="px-3 py-2 text-sm text-slate-500">
-                  Loading service charge policies...
-                </p>
-              )}
-              {error && (
-                <p role="alert" className="px-3 py-2 text-sm text-red-600">
-                  {error}
-                </p>
-              )}
-              {status && (
-                <p role="status" className="px-3 py-2 text-sm text-emerald-700">
-                  {status}
-                </p>
-              )} */}
               <table className="w-full table-fixed border-collapse">
                 <colgroup>
                   <col className="w-52.5" />
@@ -467,7 +726,7 @@ const ServiceChargePolicy: React.FC = () => {
                   <tr className="bg-[#EEFBF4]">
                     <th id="txtServiceType" className={headCellClass}>Service Type</th>
                     <th id="txtServiceTypeID" className={headCellClass}>ID</th>
-                    <th id="lkpDSCType" className={headCellClass}>Type</th>
+                    <th id="lkpDServiceChargeType" className={headCellClass}>Type</th>
                     <th id="txtDSCPre" className={`${headCellClass} text-right`}>S. Charge %</th>
                     <th id="txtMinDSCAmt" className={`${headCellClass} text-right`}>Min. S. Charge</th>
                     <th id="txtDSCAmt" className={`${headCellClass} text-right`}>S. Charge Amt</th>
@@ -493,125 +752,209 @@ const ServiceChargePolicy: React.FC = () => {
                       >
                         {row.txtServiceTypeID}
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <ChargeTypeSelect
-                          id={`lkpDSCType-${row.txtServiceTypeID}`}
+                          id={`lkpDServiceChargeType-${row.txtServiceTypeID}`}
                           label={`${row.txtServiceType} domestic charge type`}
-                          value={row.lkpDSCType}
+                          value={row.lkpDServiceChargeType}
                           onChange={(value) =>
-                            updateRow(row.txtServiceTypeID, "lkpDSCType", value)
+                            updateRow(row.txtServiceTypeID, "lkpDServiceChargeType", value)
                           }
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <input
                           id={`txtDSCPre-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic service charge percentage`}
                           inputMode="decimal"
-                          value={row.txtDSCPre}
+                          value={row.txtDServiceChargePer}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargePer",
+                              row.txtDServiceChargePer,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtDSCPre",
+                              "txtDServiceChargePer",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpDSCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargePer",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpDServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <input
                           id={`txtMinDSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic minimum service charge`}
                           inputMode="decimal"
-                          value={row.txtMinDSCAmt}
+                          value={row.txtDMinServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtDMinServiceChargeAmt",
+                              row.txtDMinServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtMinDSCAmt",
+                              "txtDMinServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpDSCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtDMinServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpDServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#f7fbf3]">
+                      <td className={`border border-slate-400 p-0 bg-[#f7fbf3] ${editableCellClass}`}>
                         <input
                           id={`txtDSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} domestic service charge amount`}
                           inputMode="decimal"
-                          value={row.txtDSCAmt}
+                          value={row.txtDServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargeAmt",
+                              row.txtDServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtDSCAmt",
+                              "txtDServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpDSCType !== "A"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtDServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpDServiceChargeType !== "A"}
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <ChargeTypeSelect
                           id={`lkpISCType-${row.txtServiceTypeID}`}
                           label={`${row.txtServiceType} international charge type`}
-                          value={row.lkpISCType}
+                          value={row.lkpIServiceChargeType}
                           onChange={(value) =>
-                            updateRow(row.txtServiceTypeID, "lkpISCType", value)
+                            updateRow(row.txtServiceTypeID, "lkpIServiceChargeType", value)
                           }
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <input
-                          id={`txtISCPer-${row.txtServiceTypeID}`}
+                          id={`txtIServiceChargePer-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international service charge percentage`}
                           inputMode="decimal"
-                          value={row.txtISCPer}
+                          value={row.txtIServiceChargePer}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargePer",
+                              row.txtIServiceChargePer,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtISCPer",
+                              "txtIServiceChargePer",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpISCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargePer",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpIServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3]   ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <input
                           id={`txtIMinSCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international minimum service charge`}
                           inputMode="decimal"
-                          value={row.txtIMinSCAmt}
+                          value={row.txtIMinServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtIMinServiceChargeAmt",
+                              row.txtIMinServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtIMinSCAmt",
+                              "txtIMinServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpISCType !== "P"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtIMinServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpIServiceChargeType !== "P"}
                           className={cellInputClass}
                         />
                       </td>
-                      <td className="border border-slate-400 p-0 bg-[#FEE4C3] ">
+                      <td className={`border border-slate-400 p-0 bg-[#FEE4C3] ${editableCellClass}`}>
                         <input
                           id={`txtISCAmt-${row.txtServiceTypeID}`}
                           aria-label={`${row.txtServiceType} international service charge amount`}
                           inputMode="decimal"
-                          value={row.txtISCAmt}
+                          value={row.txtIServiceChargeAmt}
+                          onFocus={() =>
+                            focusAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargeAmt",
+                              row.txtIServiceChargeAmt,
+                            )
+                          }
                           onChange={(event) =>
                             updateAmount(
                               row.txtServiceTypeID,
-                              "txtISCAmt",
+                              "txtIServiceChargeAmt",
                               event.target.value,
                             )
                           }
-                          disabled={row.lkpISCType !== "A"}
+                          onBlur={(event) =>
+                            blurAmount(
+                              row.txtServiceTypeID,
+                              "txtIServiceChargeAmt",
+                              event.target.value,
+                            )
+                          }
+                          disabled={row.lkpIServiceChargeType !== "A"}
                           className={cellInputClass}
                         />
                       </td>
@@ -625,7 +968,17 @@ const ServiceChargePolicy: React.FC = () => {
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
             <button
               type="button"
-              disabled
+              onClick={() => {
+                setCopyTargetCustomerID(null);
+                setCopyModalOpen(true);
+              }}
+              disabled={
+                !lkpCustomerID ||
+                loading ||
+                saving ||
+                copying ||
+                attachmentsLoading
+              }
               name="btnCopy"
               className="btn-style min-w-22.5 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -635,7 +988,7 @@ const ServiceChargePolicy: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || loading}
+                disabled={saving || loading || attachmentsLoading}
                 className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
                 name="btnSave"
               >
@@ -643,18 +996,26 @@ const ServiceChargePolicy: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  console.log("Attach service charge policy", {
-                    tab: activeTab,
-                    lkpCustomerID,
-                  })
+                onClick={() => void handleOpenAttachments()}
+                disabled={
+                  !lkpCustomerID ||
+                  loading ||
+                  saving ||
+                  copying ||
+                  attachmentsLoading
                 }
-                className="btn-style"
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
                 name="btnAttach"
               >
-                Attach
+                {attachmentsLoading ? "Loading..." : "Attach"}
               </button>
-              <button type="button" onClick={handleClear} className="btn-style" name="btnClear">
+              <button
+                type="button"
+                onClick={handleClear}
+                disabled={attachmentsLoading}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+                name="btnClear"
+              >
                 Clear
               </button>
 
@@ -662,6 +1023,89 @@ const ServiceChargePolicy: React.FC = () => {
           </footer>
         </section>
       </main>
+      {copyModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !copying) {
+              setCopyModalOpen(false);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="copy-service-charge-title"
+            className="w-full max-w-xl border border-slate-400 bg-white  shadow-lg"
+          >
+           <header className="flex h-8.25 items-center bg-[#9fdfbc] text-gray-800 relative">
+                <h1 className="ml-4 text-[17x] font-semibold ">
+                  Copy Service Charge Policy
+               </h1>
+          
+               <button className="absolute right-3  hover:bg-red-100 p-0.5 rounded-full cursor-pointer"  onClick={() => setCopyModalOpen(false)} ><IoMdClose size={20}/></button>
+             </header>
+           <div className="flex justify-center items-center  gap-2 mt-3 ml-3 mr-3 flex-nowrap">
+             <label
+              htmlFor="copyServiceChargeCustomer"
+              className=" block text-[14px] text-slate-600 whitespace-nowrap"
+            >
+              Customer :
+            </label>
+            <CustomLinkedPairSelect
+              firstInputId="copyServiceChargeCustomer"
+              secondInputId="copyServiceChargeCustomerName"
+              options={copyTargetOptions}
+              firstValue={copyTargetCustomerID}
+              secondValue={copyTargetCustomerID}
+              firstHeader="Customer ID"
+              secondHeader="Customer Name"
+              firstWidth={120}
+              secondWidth={360}
+              gap={4}
+              headerFontSize="12px"
+              menuMaxHeight={400}
+              isDisabled={copying || copyTargetOptions.length === 0}
+              onChange={(option) => setCopyTargetCustomerID(option?.value ?? null)}
+            />
+           </div>
+            {copyTargetOptions.length === 0 && (
+              <p className="mt-3 text-sm text-slate-500">
+                No other customers are available to copy to.
+              </p>
+            )}
+            <div className="mt-5 mb-3 flex justify-center gap-2">
+           
+              <button
+                type="button"
+                onClick={() => void handleCopy()}
+                disabled={!copyTargetCustomerID || copying}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {copying ? "Copying..." : "Save"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {attachModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Service charge policy attachments"
+            className="max-h-[95vh] w-full max-w-[1050px] overflow-auto bg-white shadow-xl"
+          >
+            <HotelSalesAttachPage
+              key={`${lkpCustomerID}-${activeTab}`}
+              attachments={attachments}
+              onClose={() => setAttachModalOpen(false)}
+              onSave={handleSaveAttachments}
+            />
+          </section>
+        </div>
+      )}
+      {overwriteDialog}
     </div>
   );
 };

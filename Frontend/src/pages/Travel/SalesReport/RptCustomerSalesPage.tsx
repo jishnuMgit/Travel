@@ -119,7 +119,7 @@ const CustomRadio: React.FC<RadioProps> = ({
   disabled = false,
 }) => (
   <label
-    className={`flex items-center gap-1.25 whitespace-nowrap select-none ${
+    className={`flex items-center gap-1.25  whitespace-nowrap select-none ${
       disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
     }`}
   >
@@ -669,7 +669,7 @@ console.log(setPaymentType)
               </div>
 
               <div className="flex shrink-0 gap-1 ">
-                <RadioPanel className="w-28.25 min-h-22.5 absolute  right-4 top-81">
+                <RadioPanel className="w-31.25 min-h-22.5 absolute  right-4 top-81">
                   <CustomRadio
                     name="rdgSR"
                     value="Sales"
@@ -683,6 +683,14 @@ console.log(setPaymentType)
                     label="Refund"
                     checked={resultType === "Refund"}
                     onChange={() => setResultType("Refund")}
+                  />
+                  <CustomRadio
+                    name="rdgSR"
+                    
+                    value="Sales&Refund"
+                    label="Sales & Refund"
+                    checked={resultType === "Sales&Refund"}
+                    onChange={() => setResultType("Sales&Refund")}
                   />
                   <CustomRadio
                     name="rdgSR"

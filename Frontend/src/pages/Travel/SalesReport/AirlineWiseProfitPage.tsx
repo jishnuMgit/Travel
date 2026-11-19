@@ -277,10 +277,10 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 );
 
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="grid min-w-0 grid-cols-2 items-start gap-3">
+  <div className="grid min-w-0 grid-cols-2 items-start gap-3 ml-20">
     <RadioGroup
       name="rdgSR"
-      options={["Sales", "Refund", "Net"]}
+      options={["Sales", "Refund", "Sales & Refund","Net"]}
       value={form.rdgSR}
       onChange={(value) => set("rdgSR", value)}
     />

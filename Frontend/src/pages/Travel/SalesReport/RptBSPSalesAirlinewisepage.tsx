@@ -164,7 +164,7 @@ const PanelGroup: React.FC<{
   onChange: (value: string) => void;
   className?: string;
 }> = ({ name, options, value, onChange, className = "" }) => (
-  <div className={`border border-[#e0e5ea] bg-white px-3.5 py-3 ${className}`}>
+  <div className={`border border-gray-300 bg-white px-3.5 py-3 ${className}`}>
     <div className="flex flex-col gap-3">
       {options.map((option) => (
         <CustomRadio
@@ -399,10 +399,10 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="flex w-59 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
     <PanelGroup
       name="rdgSR"
-      options={["Sales", "Refund", "Net"]}
+      options={["Sales", "Refund", "Sales & Refund","Net"]}
       value={form.saleMode}
       onChange={(v) => set("saleMode", v)}
-      className="w-28 self-end max-[640px]:self-start"
+      className="w-33.25 self-end max-[640px]:self-start"
     />
 
     <div className="flex gap-3">

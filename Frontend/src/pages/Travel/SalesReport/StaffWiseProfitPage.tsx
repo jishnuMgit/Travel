@@ -266,7 +266,7 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
   <div className="grid min-w-0 grid-cols-3 items-start gap-2.5 max-[560px]:grid-cols-2">
     <RadioGroup
       name="saleMode"
-      options={["Sales", "Refund", "Net"]}
+      options={["Sales", "Refund", "Sales & Refund","Net"]}
       value={form.saleMode}
       onChange={(value) => set("saleMode", value)}
     />
