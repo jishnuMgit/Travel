@@ -15,6 +15,7 @@ export interface PairSelectOption {
 
 interface CustomLinkedPairSelectProps {
   options: PairSelectOption[];
+  secondOptions?: PairSelectOption[];
   firstValue: string | null;
   secondValue: string | null;
   onChange: (option: PairSelectOption | null) => void;
@@ -35,6 +36,7 @@ interface CustomLinkedPairSelectProps {
 
 const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
   options,
+  secondOptions,
   firstValue,
   secondValue,
   onChange,
@@ -53,7 +55,7 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
   isSearchable = true,
 }) => {
   const menuWidth = firstWidth + gap + secondWidth;
-  const nameSortedOptions = [...options].sort((a, b) =>
+  const nameSortedOptions = [...(secondOptions ?? options)].sort((a, b) =>
     a.secondLabel.localeCompare(b.secondLabel, undefined, {
       sensitivity: "base",
       numeric: true,
@@ -67,7 +69,7 @@ const CustomLinkedPairSelect: React.FC<CustomLinkedPairSelectProps> = ({
   const selectedFirst =
     options.find((option) => option.value === firstValue) ?? null;
   const selectedSecond =
-    options.find((option) => option.value === secondValue) ?? null;
+    nameSortedOptions.find((option) => option.value === secondValue) ?? null;
 
   const createComponents = (reverse: boolean) => {
     const gridColumns = reverse ? reverseColumns : normalColumns;

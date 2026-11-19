@@ -338,9 +338,48 @@ export const getTicketSalesServiceChargePolicies = (PstrCoID: string) =>
   );
 
 export type CustomerDivisionRecord = {
+  fcustomerid?: string;
   fdivid: string;
   fdivname: string | null;
+  fdivname_ar?: string | null;
 };
+
+export type CustomerDivisionSaveRow = {
+  StrDivID: string;
+  StrDivName: string;
+  StrDivNameAr: string;
+};
+
+export type CustomerDivisionCustomerLookups = {
+  SortByName: CustomerRecord[];
+  SortByID: CustomerRecord[];
+};
+
+export const getCustomerDivisionCustomers = (PstrCoID: string) =>
+  request<CustomerDivisionCustomerLookups>(
+    `/customer-division/customers/${encode(PstrCoID)}`,
+  );
+
+export const getCustomerDivisionRows = (
+  PstrCoID: string,
+  StrCustomerID: string,
+) =>
+  request<CustomerDivisionRecord[]>(
+    `/customer-division/${encode(PstrCoID)}/${encode(StrCustomerID)}`,
+  );
+
+export const saveCustomerDivisionRows = (payload: {
+  PstrCoID: string;
+  StrCustomerID: string;
+  Rows: CustomerDivisionSaveRow[];
+}) =>
+  request<{ success: boolean; message: string }>(
+    "/customer-division/save",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 
 export const getTicketSalesCustomers = (PstrCoID: string) =>
   request<CustomerRecord[]>(`/ticket-sales/customers/${encode(PstrCoID)}`);

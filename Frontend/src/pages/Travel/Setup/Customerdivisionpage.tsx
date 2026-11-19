@@ -1,10 +1,16 @@
-import React, { useState } from "react";
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import CustomLinkedPairSelect, {
   type PairSelectOption,
 } from "../../../components/common/CustomLinkedPairSelect";
 import Header from "../../../components/common/Header";
-
+import { toast } from "react-toastify";
+import {
+  getCustomerDivisionCustomers,
+  getCustomerDivisionRows,
+  saveCustomerDivisionRows,
+  type CustomerDivisionRecord,
+  type CustomerDivisionCustomerLookups,
+} from "../../../utils/airlineApi";
 
 type DivisionRow = {
   key: number;
@@ -14,36 +20,6 @@ type DivisionRow = {
 };
 
 const MIN_ROWS = 16;
-
-/* Replace these with data from your API */
-const customerIdOptions = [
-  { value: "C001", label: "C001" },
-  { value: "C002", label: "C002" },
-  { value: "C003", label: "C003" },
-];
-const customerNameOptions = [
-  { value: "C001", label: "Customer One" },
-  { value: "C002", label: "Customer Two" },
-  { value: "C003", label: "Customer Three" },
-];
-
-const customerPairOptions: PairSelectOption[] = customerIdOptions.map((item) => ({
-  value: item.value,
-  firstLabel: item.label,
-  secondLabel:
-    customerNameOptions.find((name) => name.value === item.value)?.label ?? "",
-}));
-
-/* Sample divisions per customer. Replace with an API call that uses the
-   selected customer. */
-const divisionsByCustomer: Record<string, Omit<DivisionRow, "key">[]> = {
-  C001: [
-    { id: "D1", name: "HEAD OFFICE", nameAr: "المكتب الرئيسي" },
-    { id: "D2", name: "SALES", nameAr: "المبيعات" },
-  ],
-  C002: [{ id: "D1", name: "OPERATIONS", nameAr: "العمليات" }],
-  C003: [],
-};
 
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
@@ -67,11 +43,13 @@ const padRows = (rows: DivisionRow[]): DivisionRow[] => {
   return result;
 };
 
-const buildRows = (customerId: string | null): DivisionRow[] =>
+const buildRows = (divisions: CustomerDivisionRecord[] = []): DivisionRow[] =>
   padRows(
-    (customerId ? divisionsByCustomer[customerId] ?? [] : []).map((row) => ({
+    divisions.map((division) => ({
       key: nextKey(),
-      ...row,
+      id: division.fdivid,
+      name: division.fdivname ?? "",
+      nameAr: division.fdivname_ar ?? "",
     })),
   );
 
@@ -103,22 +81,119 @@ type CustomerDivisionPageProps = {
 const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
   onClose,
 }) => {
-  const [customer, setCustomer] = useState<string | null>(null); // lkpCustomerID / lkpCustomerName
-  const [rows, setRows] = useState<DivisionRow[]>(() => buildRows(null));
+  const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
+  const [customerLookups, setCustomerLookups] =
+    useState<CustomerDivisionCustomerLookups>({
+      SortByName: [],
+      SortByID: [],
+    });
+  const [customer, setCustomer] = useState<string | null>(null);
+  const [rows, setRows] = useState<DivisionRow[]>(() => buildRows());
   const [selectedKey, setSelectedKey] = useState<number | null>(
     () => rows[0]?.key ?? null,
   );
   const [error, setError] = useState("");
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [loadingDivisions, setLoadingDivisions] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const requestSequence = useRef(0);
+
+  const customerPairOptions = useMemo<PairSelectOption[]>(
+    () =>
+      customerLookups.SortByID.map((item) => ({
+        value: item.fcsaccountid,
+        firstLabel: item.fcsaccountid,
+        secondLabel: item.fcsaccountname ?? item.fcsaccountid,
+      })).sort((a, b) =>
+        a.firstLabel.localeCompare(b.firstLabel, undefined, {
+          sensitivity: "base",
+          numeric: true,
+        }),
+      ),
+    [customerLookups.SortByID],
+  );
+  const customerNamePairOptions = useMemo<PairSelectOption[]>(
+    () =>
+      customerLookups.SortByName.map((item) => ({
+        value: item.fcsaccountid,
+        firstLabel: item.fcsaccountid,
+        secondLabel: item.fcsaccountname ?? item.fcsaccountid,
+      })),
+    [customerLookups.SortByName],
+  );
 
   // the first empty row is the "new row" at the end of the data
   const firstEmptyKey = rows.find((row) => isEmptyRow(row))?.key ?? null;
 
-  const loadCustomer = (customerId: string | null) => {
+  useEffect(() => {
+    let cancelled = false;
+    const loadCustomers = async () => {
+      if (!PstrCoID) {
+        setError("Company ID (PstrCoID) was not found in localStorage.");
+        setLoadingCustomers(false);
+        return;
+      }
+
+      try {
+        const customerData = await getCustomerDivisionCustomers(PstrCoID);
+        if (!cancelled) setCustomerLookups(customerData);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load customers.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingCustomers(false);
+      }
+    };
+
+    void loadCustomers();
+    return () => {
+      cancelled = true;
+      requestSequence.current += 1;
+    };
+  }, [PstrCoID]);
+
+  const loadCustomer = async (customerId: string | null) => {
+    const sequence = ++requestSequence.current;
     setCustomer(customerId);
-    const fresh = buildRows(customerId);
-    setRows(fresh);
-    setSelectedKey(fresh[0]?.key ?? null);
     setError("");
+
+    if (!customerId) {
+      const fresh = buildRows();
+      setRows(fresh);
+      setSelectedKey(fresh[0]?.key ?? null);
+      setLoadingDivisions(false);
+      return;
+    }
+
+    const pendingRows = buildRows();
+    setRows(pendingRows);
+    setSelectedKey(pendingRows[0]?.key ?? null);
+    setLoadingDivisions(true);
+    try {
+      const divisions = await getCustomerDivisionRows(PstrCoID, customerId);
+      if (sequence !== requestSequence.current) return;
+      const fresh = buildRows(divisions);
+      setRows(fresh);
+      setSelectedKey(fresh[0]?.key ?? null);
+    } catch (loadError) {
+      if (sequence === requestSequence.current) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load customer divisions.",
+        );
+        const fresh = buildRows();
+        setRows(fresh);
+        setSelectedKey(fresh[0]?.key ?? null);
+      }
+    } finally {
+      if (sequence === requestSequence.current) setLoadingDivisions(false);
+    }
   };
 
   const updateCell = (
@@ -134,7 +209,7 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!customer) {
       setError("Select the customer.");
       return;
@@ -150,20 +225,41 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
       return;
     }
     setError("");
-    console.log({
-      customer,
-      divisions: filled.map((row) => ({
-        id: row.id.trim(),
-        name: row.name.trim(),
-        nameAr: row.nameAr.trim(),
-      })),
-    });
+
+    setSaving(true);
+    try {
+      const response = await saveCustomerDivisionRows({
+        PstrCoID,
+        StrCustomerID: customer,
+        Rows: filled.map((row) => ({
+          StrDivID: row.id.trim(),
+          StrDivName: row.name.trim(),
+          StrDivNameAr: row.nameAr.trim(),
+        })),
+      });
+      if (!response.success) throw new Error(response.message);
+      toast.success(response.message);
+      await loadCustomer(customer);
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to save customer divisions.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleCancel = () => loadCustomer(customer);
+  const handleCancel = () => void loadCustomer(customer);
 
   const handleClose = () => {
-    loadCustomer(null);
+    requestSequence.current += 1;
+    setCustomer(null);
+    const fresh = buildRows();
+    setRows(fresh);
+    setSelectedKey(fresh[0]?.key ?? null);
     onClose?.();
   };
   return (
@@ -184,6 +280,7 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
                   firstInputId="lkpCustomerID"
                   secondInputId="lkpCustomerName"
                   options={customerPairOptions}
+                  secondOptions={customerNamePairOptions}
                   firstValue={customer ?? null}
                   secondValue={customer ?? null}
                   firstHeader="Customer ID"
@@ -192,10 +289,23 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
                   secondWidth={400}
                   gap={4}
                   headerFontSize="12px"
-                  onChange={(option) => loadCustomer(option?.value ?? null)}
+                  isDisabled={loadingCustomers || loadingDivisions || saving}
+                  onChange={(option) => void loadCustomer(option?.value ?? null)}
                 />
               </div>
             </div>
+
+            {loadingCustomers && (
+              <p className="mt-2 text-[12px] text-slate-500">
+                Loading customers...
+              </p>
+            )}
+
+            {loadingDivisions && (
+              <p className="mt-2 text-[12px] text-slate-500">
+                Loading divisions...
+              </p>
+            )}
 
             {/* Grid: header stays on top, rows scroll */}
             <div
@@ -245,6 +355,7 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
                                 event.target.value.toUpperCase(),
                               )
                             }
+                            disabled={!customer || loadingDivisions || saving}
                             className={cellInputClass}
                           />
                         </td>
@@ -256,6 +367,7 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
                             onChange={(event) =>
                               updateCell(row.key, "name", event.target.value)
                             }
+                            disabled={!customer || loadingDivisions || saving}
                             className={cellInputClass}
                           />
                         </td>
@@ -268,6 +380,7 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
                             onChange={(event) =>
                               updateCell(row.key, "nameAr", event.target.value)
                             }
+                            disabled={!customer || loadingDivisions || saving}
                             className={`${cellInputClass} text-right`}
                           />
                         </td>
@@ -289,24 +402,27 @@ const CustomerDivisionPage: React.FC<CustomerDivisionPageProps> = ({
               <button
                 id="btnSave"
                 type="button"
-                onClick={handleSave}
-                className="btn-style"
+                onClick={() => void handleSave()}
+                disabled={!customer || loadingCustomers || loadingDivisions || saving}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <u>S</u>ave
+                {saving ? "Saving..." : <><u>S</u>ave</>}
               </button>
               <button
                 id="btnCancel"
                 type="button"
                 onClick={handleCancel}
-                className="btn-style"
+                disabled={loadingDivisions || saving}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <u>C</u>ancel
+                <u>C</u>lear
               </button>
               <button
                 id="btnClose"
                 type="button"
                 onClick={handleClose}
-                className="btn-style"
+                disabled={saving}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <u>C</u>lose
               </button>
