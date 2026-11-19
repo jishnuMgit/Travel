@@ -3,6 +3,12 @@ import { Response } from "express";
 import pool from "../../../DB/db";
 import type { AuthenticatedRequest } from "../../../middleware/AuthMiddleware";
 import { PoolClient } from "pg";
+import {
+  getAttachments,
+  getFile,
+  saveAttachments,
+} from "../../../services/Travel/Setup/attachService";
+import type { AttachDto } from "../../../types";
 
 const validModes = [
   "GST",
@@ -352,5 +358,91 @@ export const copyServiceChargePolicy = async (
 
   } finally {
     client.release();
+  }
+};
+
+export const handleGetServiceChargePolicyAttachments = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const coId = String(req.query.PstrCoID ?? "").trim();
+  const accountId = String(req.query.StrCustomerID ?? "").trim();
+  const type = String(req.query.StrSR ?? "").trim();
+
+  try {
+    res.status(200).json(
+      await getAttachments(coId, accountId, type),
+    );
+  } catch (error) {
+    console.error("Service charge policy attachments load error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load service charge policy attachments.",
+    });
+  }
+};
+
+export const handleGetServiceChargePolicyAttachmentFile = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const PstrCoID = String(req.query.PstrCoID ?? "").trim();
+  const StrCustomerID = String(req.query.StrCustomerID ?? "").trim();
+  const StrSR = String(req.query.StrSR ?? "").trim();
+  const slNo = Number(req.params.slNo);
+
+  try {
+    const file = await getFile(PstrCoID, StrCustomerID, StrSR, slNo);
+    if (!file) {
+      res.status(404).json({ success: false, message: "Attachment not found." });
+      return;
+    }
+
+    res.setHeader("Content-Type", file.mime);
+    res.setHeader("Content-Length", file.bytes.length);
+    res.setHeader(
+      "Content-Disposition",
+      `${req.query.download === "true" ? "attachment" : "inline"}; filename="${encodeURIComponent(file.name)}"`,
+    );
+    res.status(200).send(file.bytes);
+  } catch (error) {
+    console.error("Service charge policy attachment download error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load the attachment.",
+    });
+  }
+};
+
+export const handleSaveServiceChargePolicyAttachments = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const { PstrCoID, StrCustomerID, StrSR, Rows } = req.body 
+
+
+  console.log("================Log=====================")
+  console.log(req.body)
+
+  const userId = req.user?.userId ?? "";
+
+  try {
+    await saveAttachments(
+      PstrCoID,
+      StrCustomerID,
+      StrSR,
+      userId,
+      Rows as AttachDto[],
+    );
+    res.status(200).json({
+      success: true,
+      message: "Attachments saved successfully.",
+    });
+  } catch (error) {
+    console.error("Service charge policy attachment save error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save service charge policy attachments.",
+    });
   }
 };

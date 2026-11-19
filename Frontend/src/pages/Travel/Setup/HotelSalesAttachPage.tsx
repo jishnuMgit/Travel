@@ -26,7 +26,7 @@ type HotelSalesAttachPageProps = {
   onSave?: (rows: AttachSavePayload) => void | Promise<void>;
 };
 
-const MIN_ROWS = 20;
+const MIN_ROWS = 6;
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
 
@@ -269,10 +269,10 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
   const handleClose = () => onClose?.();
 
   return (
-    <div className="flex min-h-full w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-250 max-w-full bg-white p-0">
+    <div className="flex min-h-full w-full items-start justify-center   ">
+      <div className="min-h-fit w-262 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <Header Name="Hotel Sales Attach" />
+          <Header Name=" Attach" />
 
           <section className="px-3.5 pb-3 pt-3">
             <input
@@ -288,11 +288,11 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
               <table className="w-full table-fixed border-collapse text-[13px] text-[#24364d]">
                 <colgroup>
                   <col className="w-4.5" />
-                  <col className="w-14" />
-                  <col className="w-62.5" />
+                  <col className="w-10" />
+                  <col className="" />
                   <col className="w-16" />
                   <col className="w-16" />
-                  <col />
+                  <col className="w-80" />
                 </colgroup>
                 <thead className="sticky top-0 z-10">
                   <tr>
