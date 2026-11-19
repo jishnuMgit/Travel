@@ -463,8 +463,8 @@ const ServiceChargePolicy: React.FC = () => {
       const requestCopy = (overwriteExisting: boolean) =>
         copyServiceChargePolicy({
           PstrCoID,
-          StrCustomerID: copyTargetCustomerID,
-          StrSourceCustomerID: lkpCustomerID,
+          StrCustomerID: lkpCustomerID,
+          StrCopyToCustomerID: copyTargetCustomerID,
           StrMenuName: "Service Charge Policy",
           OverwriteExisting: overwriteExisting,
         });
@@ -473,7 +473,7 @@ const ServiceChargePolicy: React.FC = () => {
       if (response.requiresOverwriteConfirmation) {
         setCopying(false);
         const confirmed = await confirm({
-          title: "Overwrite Service Charge Policy",
+          title: "Service Charge Policy - Copy",
           message: ` Do you want to overwrite the existing data?`,
           confirmLabel: "Yes",
           cancelLabel: "No",
@@ -957,7 +957,7 @@ const ServiceChargePolicy: React.FC = () => {
             </div>
           </section>
 
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <footer className="grid grid-cols-1 items-center gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[1fr_auto_1fr]">
             <button
               type="button"
               onClick={() => {
@@ -972,11 +972,11 @@ const ServiceChargePolicy: React.FC = () => {
                 attachmentsLoading
               }
               name="btnCopy"
-              className="btn-style min-w-22.5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-style min-w-22.5 justify-self-start disabled:cursor-not-allowed disabled:opacity-50"
             >
               Copy
             </button>
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap justify-center gap-2 sm:col-start-2 sm:row-start-1">
               <button
                 type="button"
                 onClick={handleSave}
@@ -1028,7 +1028,7 @@ const ServiceChargePolicy: React.FC = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="copy-service-charge-title"
-            className="w-full max-w-3xl border border-slate-400 bg-white shadow-lg"
+            className="w-full max-w-4xl border border-slate-400 bg-white shadow-lg"
           >
            <header className="flex h-8.25 items-center bg-[#9fdfbc] text-gray-800 relative">
                 <h1 className="ml-4 text-[17x] font-semibold ">
@@ -1042,7 +1042,7 @@ const ServiceChargePolicy: React.FC = () => {
               htmlFor="copyServiceChargeCustomer"
               className=" block text-[14px] text-slate-600 whitespace-nowrap"
             >
-              Customer :
+              Copy To Customer :
             </label>
             <CustomLinkedPairSelect
               firstInputId="copyServiceChargeCustomer"
@@ -1053,7 +1053,7 @@ const ServiceChargePolicy: React.FC = () => {
               firstHeader="Customer ID"
               secondHeader="Customer Name"
               firstWidth={120}
-              secondWidth={468}
+              secondWidth={585}
               gap={4}
               headerFontSize="12px"
               menuMaxHeight={400}
@@ -1074,7 +1074,7 @@ const ServiceChargePolicy: React.FC = () => {
                 disabled={!copyTargetCustomerID || copying}
                 className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {copying ? "Copying..." : "Save"}
+                {copying ? "Copying..." : "Copy"}
               </button>
             </div>
           </section>
@@ -1090,6 +1090,7 @@ const ServiceChargePolicy: React.FC = () => {
           >
             <HotelSalesAttachPage
               key={`${lkpCustomerID}-${activeTab}`}
+              headerName="Service Charge Policy - Attach"
               attachments={attachments}
               onClose={() => setAttachModalOpen(false)}
               onSave={handleSaveAttachments}

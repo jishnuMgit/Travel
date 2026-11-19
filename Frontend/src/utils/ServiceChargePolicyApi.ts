@@ -33,7 +33,7 @@ export type ServiceChargePolicyRequest = {
 export type CopyServiceChargePolicyRequest = {
   PstrCoID: string;
   StrCustomerID: string;
-  StrSourceCustomerID: string;
+  StrCopyToCustomerID: string;
   StrMenuName?: string | null;
   OverwriteExisting?: boolean;
 };

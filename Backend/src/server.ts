@@ -18,6 +18,10 @@ app.use(
     credentials: true,
   }),
 );
+app.use(
+  "/api/ServiceChargePolicy/attachments",
+  express.json({ limit: "350mb" }),
+);
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/api", apiRouter);

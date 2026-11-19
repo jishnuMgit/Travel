@@ -272,15 +272,15 @@ export const copyServiceChargePolicy = async (
   const {
     PstrCoID,
     StrCustomerID,
-    StrSourceCustomerID,
+    StrCopyToCustomerID,
     StrMenuName = "Service Charge Policy",
     OverwriteExisting = false,
   } = req.body;
 
-  if (!PstrCoID || !StrCustomerID || !StrSourceCustomerID) {
+  if (!PstrCoID || !StrCustomerID || !StrCopyToCustomerID) {
     res.status(400).json({
       success: false,
-      message: "Company ID, destination customer, and source customer are required",
+      message: "Company ID, destination customer, and copy to customer are required",
     });
     return;
   }
@@ -293,7 +293,7 @@ export const copyServiceChargePolicy = async (
     return;
   }
 
-  if (StrCustomerID === StrSourceCustomerID) {
+  if (StrCustomerID === StrCopyToCustomerID) {
     res.status(400).json({
       success: false,
       message: "Source and destination customers must be different",
@@ -332,7 +332,7 @@ export const copyServiceChargePolicy = async (
       [
         PstrCoID,
         StrCustomerID,
-        StrSourceCustomerID,
+        StrCopyToCustomerID,
         req.user?.userId ?? null,
         StrMenuName,
       ]

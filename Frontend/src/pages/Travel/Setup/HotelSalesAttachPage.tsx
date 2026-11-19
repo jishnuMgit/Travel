@@ -21,12 +21,14 @@ type AttachRow = {
 export type AttachSavePayload = ServiceChargePolicyAttachmentSave[];
 
 type HotelSalesAttachPageProps = {
+  headerName?: string;
   onClose?: () => void;
   attachments?: ServiceChargePolicyAttachment[];
   onSave?: (rows: AttachSavePayload) => void | Promise<void>;
 };
 
 const MIN_ROWS = 6;
+const MAX_SAVE_BYTES = 250 * 1024 * 1024;
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
 
@@ -113,7 +115,16 @@ const fileExtension = (fileName: string) => {
   return extensionStart < 0 ? "" : fileName.slice(extensionStart + 1).toLowerCase();
 };
 
+const base64ByteSize = (value: string | null) => {
+  if (!value) return 0;
+  const prefixLength = value.indexOf("base64,");
+  const encodedLength = value.length - (prefixLength >= 0 ? prefixLength + 7 : 0);
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  return Math.floor((encodedLength * 3) / 4) - padding;
+};
+
 const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
+  headerName = "Attach",
   onClose,
   attachments = [],
   onSave,
@@ -159,6 +170,10 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     event.target.value = "";
     pickingKeyRef.current = null;
     if (!file || key === null) return;
+    if (file.size > MAX_SAVE_BYTES) {
+      toast.error("Attachment files cannot exceed 250 MB.");
+      return;
+    }
 
     const url = URL.createObjectURL(file);
     urlsRef.current.add(url);
@@ -228,6 +243,15 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
       toast.error("Attach a file or add a note before saving.");
       return;
     }
+    const totalFileSize = changedRows.reduce(
+      (total, { row }) =>
+        total + (row.file?.size ?? base64ByteSize(row.storedDox)),
+      0,
+    );
+    if (totalFileSize > MAX_SAVE_BYTES) {
+      toast.error("Combined attachment files cannot exceed 250 MB per save.");
+      return;
+    }
 
     setSaving(true);
     let saved = false;
@@ -266,13 +290,11 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     setPreviewRow(null);
   };
 
-  const handleClose = () => onClose?.();
-
   return (
     <div className="flex min-h-full w-full items-start justify-center   ">
       <div className="min-h-fit w-262 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <Header Name=" Attach" />
+          <Header Name={headerName} onClose={onClose} />
 
           <section className="px-3.5 pb-3 pt-3">
             <input
@@ -298,7 +320,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
                   <tr>
                     <th className={thClass} />
                     <th className={`${thClass} text-right`}>Line</th>
-                    <th id="file" className={`${thClass} text-left`}>File</th>
+                    <th id="file" className={`${thClass} text-left`}>File Name</th>
 <th className={`${thClass} text-center`}>
   {/* <MdAttachFile size={17} className="mx-auto block" /> */}
 </th>                    {/* <th className={`${thClass} text-center`} aria-label="Choose file" > </th> */}
@@ -412,17 +434,6 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
               <button id="btnCancel" type="button" disabled={saving} onClick={handleCancel} className="btn-style">
                 Clear
               </button>
-              {onClose && (
-                <button
-                  id="btnClose"
-                  type="button"
-                  disabled={saving}
-                  onClick={handleClose}
-                  className="btn-style disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Close
-                </button>
-              )}
             </div>
           </section>
         </main>
