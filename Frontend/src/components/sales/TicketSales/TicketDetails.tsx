@@ -36,6 +36,7 @@ import {
 } from "../../../utils/airlineApi";
 import CnjModal, { isEmptyCnjRow, type CnjRow } from "./CnjModal";
 import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
+import { tryGetServerDate } from "../../../utils/serverDate";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
 
@@ -633,7 +634,7 @@ const TicketTopBar: React.FC<
           onChange={(event) => {
             if (/^\d{0,3}$/.test(event.target.value)) set("txtSlNo", event.target.value);
           }}
-          className="input-style w-8 min-w-[24px] shrink-0 field-sizing-content !px-1.5 text-center !text-[16px]"
+          className="input-style -ml-2 w-7 min-w-[22px] shrink-0 field-sizing-content !px-1 text-center !text-[16px]"
         />
       </div>
     </Field>
@@ -842,7 +843,7 @@ const TicketDetailsFields: React.FC<
           }
         }}
         idWidth="w-[110px]"
-        idFirstHeader="SupplierID"
+        idFirstHeader="Supplier ID"
         idSecondHeader="Supplier Name"
         nameWidth="flex-1"
         fitMenuToPair
@@ -866,13 +867,13 @@ const TicketDetailsFields: React.FC<
         value={form.lkpPaySupplierID}
         onChange={(v) => set("lkpPaySupplierID", v)}
         idWidth="w-[110px]"
-        idFirstHeader="PaymentID"
+        idFirstHeader="Payment ID"
         idSecondHeader="Payment Name"
         nameWidth="flex-1"
         fitMenuToPair
         nameSecondColumnExtra={84}
         nameFirstHeader="Payment Name"
-        nameSecondHeader="PaymentID"
+        nameSecondHeader="Payment ID"
         isSearchable
         containerClassName="flex flex-1 gap-2"
       />
@@ -922,7 +923,8 @@ const TicketDetailsFields: React.FC<
         maxLength={6}
         value={form.txtBookingGDSLogin}
         onChange={(e) => set("txtBookingGDSLogin", e.target.value)}
-        className={inputClass}
+        disabled
+        className={`${inputClass} !bg-[#eef1f4]`}
       />
     </Field>
 
@@ -996,7 +998,8 @@ const TicketDetailsFields: React.FC<
         maxLength={6}
         value={form.txtSalesGDSLogin}
         onChange={(e) => set("txtSalesGDSLogin", e.target.value)}
-        className={inputClass}
+        disabled
+        className={`${inputClass} !bg-[#eef1f4]`}
       />
     </Field>
 
@@ -1164,10 +1167,10 @@ const TicketRoutePanel: React.FC<
    Columns: 1 = FOP, 2 = fares, 3 = supplier / A/L, 4 = VAT / net.
    Labels are fixed width, inputs fill the rest of the column.
    1 column on small, 2 on medium, 4 on wide (by panel width).          */
-const A1 = "w-[90px] shrink-0 @2xl:w-[60px]";
+const A1 = "w-[90px] shrink-0 @2xl:w-[66px]";
 const A2 = "w-[90px] shrink-0 @2xl:w-[52px]";
 const A3 = "w-[90px] shrink-0";
-const A4 = "w-[90px] shrink-0 @2xl:w-[64px]";
+const A4 = "w-[90px] shrink-0 @2xl:w-[88px]"; // room for "Sup. Fee VAT :"
 
 const TicketAmountsPanel: React.FC<
   PartProps & {
@@ -1180,7 +1183,7 @@ const TicketAmountsPanel: React.FC<
 > = ({ form, set, computed, fopOptions, alComTypeOptions, merchantOptions, gdsOptions }) => (
   <div className="@container min-w-0">
     <div
-      className={`${panelClass} grid h-full grid-cols-1 content-start items-center gap-x-3 gap-y-2 @md:grid-cols-2 @2xl:grid-cols-[1.35fr_1fr_1.5fr_1fr]`}
+      className={`${panelClass} grid h-full grid-cols-1 content-start items-center gap-x-3 gap-y-2 @md:grid-cols-2 @2xl:grid-cols-[1.05fr_1fr_1.3fr_1.45fr]`}
     >
       {/* Row 1 */}
       <Field label="FOP :" labelClassName={A1} className="min-w-0">
@@ -1225,7 +1228,7 @@ const TicketAmountsPanel: React.FC<
         />
       </Field>
 
-      <Field label="Fee VAT :" labelClassName={A4} className="min-w-0">
+      <Field label="Sup. Fee VAT :" labelClassName={A4} className="min-w-0">
         <MoneyReadOnly id="txtFeeVat" value={computed.feeVat} />
       </Field>
 
@@ -1973,19 +1976,33 @@ console.log(onClose);
      The first rule that fails stops the save: its message is shown and the cursor goes to its box. The rules that
      only warn are shown and the save goes on. The customer lines have their own rules in the grid. */
   const validateForm = (lines: TicketLinePayload[], detail: TicketDetailPayload): boolean => {
-    // CNJ. = Yes needs the conjunction ticket of the popup
-    if (form.lkpCNJ === "Yes" && !cnjRows.some((row) => row.txtCnjTktSlNo.trim() !== "")) {
-      toast.error("Please input the 'CNJ Ticket No.'");
-      setCnjOpen(true);
-      return false;
-    }
+    // CNJ. = Yes: the conjunction tickets of the popup (a row for each CNJ Ticket No.)
+    if (form.lkpCNJ === "Yes") {
+      const filled = cnjRows.filter((row) => !isEmptyCnjRow(row));
+      const cnjIssue = (message: string) => {
+        toast.error(message);
+        setCnjOpen(true);
+        return false;
+      };
 
-    // the CNJ Route is airport codes of 3 characters with a space between them (IND BHA), as the Route
-    const cnjRoute = cnjRows[0]?.txtCnjRoute.trim() ?? "";
-    if (form.lkpCNJ === "Yes" && cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,3}$/.test(cnjRoute.toUpperCase())) {
-      toast.error("'Route' of the conjunction ticket should be 2 to 4 airport codes of 3 characters, like IND BHA");
-      setCnjOpen(true);
-      return false;
+      if (filled.length === 0) return cnjIssue("Please input the 'CNJ Ticket No.'");
+
+      const seen = new Set<string>();
+      for (const row of filled) {
+        const no = row.txtCnjTktSlNo.trim();
+        if (no === "") return cnjIssue("Please input the 'CNJ Ticket No.'");
+        // the conjunction ticket is another ticket
+        if (no === form.txtTktSLNo.trim()) return cnjIssue(`'CNJ Ticket No.' cannot be the same as the 'Ticket No.' (${no})`);
+        // each CNJ Ticket No. once
+        if (seen.has(no)) return cnjIssue(`'CNJ Ticket No.' ${no} is entered twice`);
+        seen.add(no);
+
+        // the CNJ Route is airport codes of 3 characters with a space between them (IND BHA), as the Route
+        const cnjRoute = row.txtCnjRoute.trim();
+        if (cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,4}$/.test(cnjRoute.toUpperCase())) {
+          return cnjIssue("'Route' of the conjunction ticket should be 2 to 5 airport codes of 3 characters, like IND BHA");
+        }
+      }
     }
 
     const result = validateTicketHeader({
@@ -2017,6 +2034,9 @@ console.log(onClose);
       tax: toNumber(form.txtTax),
       supFee: toNumber(form.txtSupFee),
       k7: toNumber(form.txtK7),
+      fopCash: toNumber(form.txtFopCash),
+      fopCc: toNumber(form.txtFopCc),
+      fopEp: toNumber(form.txtFopEp),
       supplierAmt: computed.supplierAmt,
       kbAmt: detail.txtKbAmt,
       kbAccount: detail.lkpKbAccount,
@@ -2048,11 +2068,16 @@ console.log(onClose);
     detail: TicketDetailPayload,
   ) => {
     try {
+      // the time of the save comes from the database server, not the browser: the page asks for it and sends it
+      // (the backend checks it; if it cannot be had, "" is sent and the backend uses its own time)
+      const dtpServerDate = await tryGetServerDate();
+
       // a saved ticket is loaded (or was just saved) and its Ticket Type + Ticket No. are still in the boxes: Modify
       const result = await (isModify ? modifyTicketSales : saveTicketSales)({
         PstrCoID,
         PstrYear,
         PstrUserID,
+        dtpServerDate,
         // the keys are the element ids of this screen
         lkpTktType: form.lkpTktType,
         txtTktSLNo: form.txtTktSLNo,
@@ -2115,7 +2140,10 @@ console.log(onClose);
         ...detail,
       });
       toast.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
-      setSavedKey(ticketKey); // the ticket exists now: the button is Modify from here
+      // a modify clears the screen but keeps the Ticket Type and the Ticket No.: type a Sl. No. to load a ticket again;
+      // a new ticket stays on the screen and the button is Modify from here
+      if (isModify) clearAfterModify();
+      else setSavedKey(ticketKey);
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -2243,6 +2271,28 @@ console.log(onClose);
     ticketNoRef.current?.focus();
   };
 
+  /* After a Modify: the screen is cleared except the Ticket Type and the Ticket No. The Sl. No. is 1 again; leaving the Sl. No.
+     box (or typing another Sl. No.) loads that Sl. No. of the ticket. */
+  const clearAfterModify = () => {
+    const type = form.lkpTktType;
+    setForm({
+      ...initialForm(),
+      lkpTktType: type,
+      txtTktTypeName: form.txtTktTypeName,
+      txtTktSLNo: form.txtTktSLNo,
+      lkpBranch: branchIdOptions[0]?.value ?? null,
+      lkpIATA: iataIdOptions[0]?.value ?? null,
+      lkpAirlineNo: airlineIdOptions[0]?.value ?? null,
+    });
+    setSavedKey("");
+    setLoaded(undefined);
+    setCnjRows([]);
+    setCnjOpen(false);
+    lastAutoKey.current = ""; // so leaving the Sl. No. box loads the ticket
+    setClearVersion((v) => v + 1);
+    setTimeout(() => document.getElementById("txtSlNo")?.focus(), 0);
+  };
+
   const handleDelete = async () => {
     if (!form.lkpTktType) {
       toast.error("Please select a 'Ticket Type'");
@@ -2264,6 +2314,7 @@ console.log(onClose);
         txtTktSLNo: form.txtTktSLNo.trim(),
         lkpBranch: form.lkpBranch,
         txtSlNo: form.txtSlNo.trim() || null, // only this Sl. No.: the other Sl. Nos of the Ticket No. stay
+        dtpServerDate: (await tryGetServerDate()) || null, // the time of the user audit (the server's, not the browser's)
       });
       toast.success(result.message || "Deleted successfully");
       clearScreen();
@@ -2405,6 +2456,7 @@ console.log(onClose);
               vatPer: vat.txtSCVATPer,
               serviceId: form.lkpService ?? "",
               merchantIsAirline: form.lkpMerchant === "A",
+              merchant: form.lkpMerchant ?? undefined,
               isVoid: form.lkpVoid === "Yes",
               supplierAmt: computed.supplierAmt,
               feeVat: computed.feeVat,
@@ -2413,7 +2465,7 @@ console.log(onClose);
           />
         </main>
         {dialog}
-        <CnjModal open={cnjOpen} rows={cnjRows} onChange={setCnjRows} onClose={closeCnj} />
+        <CnjModal open={cnjOpen} rows={cnjRows} mainTicketNo={form.txtTktSLNo} onChange={setCnjRows} onClose={closeCnj} />
       </div>
     </div>
   );

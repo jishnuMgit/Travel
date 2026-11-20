@@ -21,7 +21,7 @@ import { useEffect } from "react";
    (avoids stale closures) - attach/detach cost is negligible.
 
    Usage:
-     useAltShortcuts({ s: handleSave, c: handleClear });
+     useAltShortcuts({ s: handleSave, c: handleClear, "ctrl+s": handleSave });
 ========================================================= */
 
 type ShortcutMap = Record<string, () => void>;
@@ -29,11 +29,13 @@ type ShortcutMap = Record<string, () => void>;
 export function useAltShortcuts(shortcuts: ShortcutMap) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!event.altKey) {
+      // Alt+key is looked up as "s"; Ctrl+key as "ctrl+s" (the browser's own Ctrl+S / P / F / D / K is blocked then)
+      if (!event.altKey && !event.ctrlKey) {
         return;
       }
 
-      const handler = shortcuts[event.key.toLowerCase()];
+      const key = event.key.toLowerCase();
+      const handler = event.ctrlKey ? shortcuts[`ctrl+${key}`] : shortcuts[key];
 
       if (handler) {
         event.preventDefault();

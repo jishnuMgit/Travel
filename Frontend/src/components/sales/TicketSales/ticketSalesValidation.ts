@@ -47,6 +47,9 @@ export type HeaderInput = {
   tax: number;
   supFee: number;
   k7: number;
+  fopCash: number; // FOP Cash
+  fopCc: number; // FOP CC
+  fopEp: number; // FOP EP
   supplierAmt: number;
   kbAmt: number;
   kbAccount: string | null;
@@ -70,9 +73,9 @@ const dateNumber = (d: { day: number; month: number; year: number }) => d.year *
 const isBspType = (type: string | null) => type === "B" || type === "BS" || type === "M";
 const isCardFop = (fop: string | null) => fop === "CC" || fop === "CASH+CC";
 
-/* Route: airport codes of 3 characters with a space between them (COK BEH, COK BOM DXB RUH), up to 4 codes, upper case.
+/* Route: airport codes of 3 characters with a space between them (COK BEH, COK BOM DXB RUH XXX), up to 5 codes = 4 segments, upper case.
    The space is put in while typing: "cok beh" -> "COK BEH", "cokbomdxbruh" -> "COK BOM DXB RUH". */
-export const ROUTE_MAX_CODES = 4;
+export const ROUTE_MAX_CODES = 5; // 5 airport codes = 4 segments (the old mask: 5 codes, 19 characters)
 export const ROUTE_MAX_LENGTH = ROUTE_MAX_CODES * 4 - 1;
 export const formatRoute = (value: string): string => {
   const letters = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, ROUTE_MAX_CODES * 3);
@@ -118,8 +121,13 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
   }
 
   // a Round Trip has a Return Date
-  if (i.trip === "RT" && !parseDate(i.returnDate)) {
-    return fail("Please select 'Return Date'", "dtpReturnDate");
+  if (i.trip === "RT") {
+    const returnDate = parseDate(i.returnDate);
+    if (!returnDate) return fail("Please select 'Return Date'", "dtpReturnDate");
+    // the Return Date is after the Flight Date
+    if (dateNumber(returnDate) <= dateNumber(flightDate)) {
+      return fail("'Return Date' should be greater than 'Flight Date'", "dtpReturnDate");
+    }
   }
 
   // ---- by the ticket type
@@ -168,9 +176,9 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
     return fail("'Destination' should be 3 characters, like BHA", "txtDestination");
   }
 
-  // the Route is 2 to 4 airport codes of 3 characters (COK BEH, COK BOM DXB RUH)
-  if (i.route.trim() !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,3}$/.test(i.route.trim().toUpperCase())) {
-    return fail("'Route' should be 2 to 4 airport codes of 3 characters with a space between them, like COK BOM DXB RUH", "txtRoute");
+  // the Route is 2 to 5 airport codes of 3 characters (COK BEH, COK BOM DXB RUH XXX): 1 to 4 segments
+  if (i.route.trim() !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,4}$/.test(i.route.trim().toUpperCase())) {
+    return fail("'Route' should be 2 to 5 airport codes of 3 characters with a space between them, like COK BOM DXB RUH XXX", "txtRoute");
   }
 
   // ---- payment
@@ -203,6 +211,11 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
     const fareTotal = round2(i.lines.reduce((t, l) => t + l.fare + l.tax, 0));
     if (fareTotal !== round2(i.sFare + i.tax + i.supFee)) {
       return fail("'Fare Total + Tax Total' should be equal To 'S. Fare' + 'Tax' + 'Sup. Fee'");
+    }
+
+    // how the supplier is paid: FOP Cash + FOP CC + FOP EP is S. Fare + Tax + K7
+    if (round2(i.fopCash + i.fopCc + i.fopEp) !== round2(i.sFare + i.tax + i.k7)) {
+      return fail("'FOP Cash' + 'FOP CC' + 'FOP EP' should be equal to 'S. Fare' + 'Tax' + 'K7'", "txtFopCash");
     }
 
     // K7 total: 15 % (the VAT %) of S. Fare + Tax; the old form only shows the message
@@ -267,9 +280,9 @@ export const validateTicketLines = (
       return { error: { message: "Service Charge VAT not found. Please Input Service Charge Again" } };
     }
 
-    if (!opts.isVoid && round2(row.sChg) === 0 && confirm === undefined) {
-      confirm = "Service Charge found zero. Do you want to continue?";
-    }
+    // if (!opts.isVoid && round2(row.sChg) === 0 && confirm === undefined) {
+    //   confirm = "Service Charge found zero. Do you want to continue?";
+    // }
   }
 
   return { confirm };

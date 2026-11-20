@@ -9,6 +9,7 @@ import Header from "../../common/Header";
 import { Combo, PairCombo, type Option } from "../../common/Combo";
 import selectComponents from "../../common/selectComponents";
 import TicketLinesPage from "./OtherServerBottom";
+import { FaPlus } from "react-icons/fa";
 
 dayjs.extend(customParseFormat);
 
@@ -281,6 +282,7 @@ const selectClassNames = {
     ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
   `,
 };
+const cityOptions = toOptions(["RIYADH", "JEDDAH", "MAKKAH", "DUBAI"]);
 
 /* select that fills a grid cell (no border) */
 const cellSelectProps = {
@@ -771,18 +773,17 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           className="w-18 shrink-0"
         />
       </Field>
-      <Field label="Service Policy :" labelClassName={LR2} className="lg:col-span-3">
-        <Combo
-          id="lkpServiceCp"
-          options={serviceCpOptions}
-          value={form.serviceCp}
-          onChange={(v) => set("serviceCp", v)}
-          className="w-24 shrink-0"
-        />
-      </Field>
+      
+
+
+
+    <div className="lg:col-span-2 ">
+      
+   </div>
+      
 
       {/* row 2 : Date | D/I | Carrier */}
-      <Field label="Date :" labelClassName={LL} className="lg:col-span-6">
+      <Field label="Date :" labelClassName={LL} className="lg:col-span-4">
         <div className="w-35 shrink-0">
           <AppDatePicker
             id="dtpDate"
@@ -792,10 +793,8 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           />
         </div>
       </Field>
-      {/* <Field label="X/O No. :" labelClassName={LE} className="lg:col-span-2">
-        <ReadOnlyBox id="txtXoNo" value="" />
-      </Field> */}
-      <Field label="D/I :" labelClassName={LR1} className="lg:col-span-3">
+     
+      <Field label="D/I :" labelClassName={LR1} className="lg:col-span-3  lg:-ml-13">
         <Combo
           id="lkpDI"
           options={diOptions}
@@ -804,14 +803,23 @@ const CarHeaderGroup: React.FC<PartProps & { onFind: () => void }> = ({
           className="w-18 shrink-0"
         />
       </Field>
-      <Field label="Carrier :" labelClassName={LR2} className="lg:col-span-3">
-        <Combo
-          id="lkpCarrier"
-          options={carrierOptions}
-          value={form.carrier}
-          onChange={(v) => set("carrier", v)}
-        />
-      </Field>
+     <div className="lg:col-span-5 flex lg:-ml-22 gap-3 ">
+ <Field label="City :" labelClassName={LR2} className=" lg:w-[64.7%]  ">
+              <Combo     id="lkpCity"
+          options={cityOptions} value={null}             
+                              />
+            </Field>
+             <button
+                id="btnCity"
+                type="button"               
+                className=" border p-1 w-[30px] rounded-full text-white bg-green-400 border-black cursor-pointer hover:bg-green-500 flex justify-center items-center"
+              >
+              <FaPlus />       
+              </button>        
+   </div>
+
+  
+   
 
       {/* row 3 : Pick Point | Country | Void */}
       <Field
@@ -1072,54 +1080,8 @@ const CarSupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             containerClassName="flex min-w-0 flex-1 items-center gap-1.5"
           />
         </Field>
-        <Field
-          label="Sup. Payment :"
-          labelClassName={SB}
-          className="sm:col-span-2 lg:col-span-6"
-        >
-          <PairCombo
-            idId="lkpSupPaymentID"
-            nameId="lkpSupPaymentName"
-            idOptions={supPaymentIdOptions}
-            nameOptions={supPaymentNameOptions}
-            value={form.supPayment}
-            onChange={(v) => set("supPayment", v)}
-            idWidth="w-[110px]"
-            containerClassName="flex min-w-0 flex-1 items-center gap-1.5"
-          />
-        </Field>
 
-        {/* row 2 : Sup. Inv. No. + Date | Supplier Name */}
-        <div className="flex min-w-0 items-center gap-3 sm:col-span-2 lg:col-span-6">
-          <Field
-            label="Sup. Inv. No. :"
-            labelClassName={SA}
-            className="min-w-0 flex-1"
-          >
-            <ReadOnlyBox id="txtSuppInvNo" value="" />
-          </Field>
-          <Field label="Sup. Inv. Date :" className="min-w-0 flex-1">
-            <div className="w-35 shrink-0">
-              <AppDatePicker
-                id="dtpSuppInvDate"
-                label="Sup. Inv. Date"
-                value={form.suppInvDate}
-                onChange={(v) => set("suppInvDate", v)}
-                disabled
-              />
-            </div>
-          </Field>
-        </div>
-        <Field
-          label="Supplier Name :"
-          labelClassName={SB}
-          className="sm:col-span-2 lg:col-span-6"
-        >
-          <ReadOnlyBox id="txtSupplierName" value={supplierName} />
-        </Field>
-
-        {/* row 3 : Confirmation No. | Currency | Supplier Amt. (FC) */}
-        <Field
+ <Field
           label="Confirmation No. :"
           htmlFor="txtConfirmationNo"
           labelClassName={SA}
@@ -1132,7 +1094,25 @@ const CarSupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             className={inputClass}
           />
         </Field>
-        <Field label="Currency :" labelClassName={SB} className="lg:col-span-3">
+
+
+        
+
+
+
+
+        {/* row 2 : Sup. Inv. No. + Date | Supplier Name */}
+       
+          <Field
+          label="Supplier Name :"
+          labelClassName={SB}
+          className="sm:col-span-2 lg:col-span-6 lg:ml-1.5"
+        >
+          <ReadOnlyBox id="txtSupplierName" value={supplierName} />
+        </Field>
+
+        {/* row 3 : Confirmation No. | Currency | Supplier Amt. (FC) */}
+       <Field label="Sup. Currency :" labelClassName={SB} className="lg:col-span-3 lg:ml-1.5">
           <Combo
             id="lkpCurrency"
             options={currencyOptions}
@@ -1162,32 +1142,82 @@ const CarSupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             onChange={(v) => set("supplierAmtFc", v)}
           />
         </Field>
+ 
+{/* suppl */}
 
-        {/* row 4 : Supplier Excl. VAT | Sup. VAT | Supplier Amt. */}
+      
+
         <Field
+          label="Sup. Payment :"
+          labelClassName={SB}
+          className="sm:col-span-2 lg:col-span-6 lg:ml-1.5"
+        >
+          <PairCombo
+            idId="lkpSupPaymentID"
+            nameId="lkpSupPaymentName"
+            idOptions={supPaymentIdOptions}
+            nameOptions={supPaymentNameOptions}
+            value={form.supPayment}
+            onChange={(v) => set("supPayment", v)}
+            idWidth="w-[110px]"
+            containerClassName="flex min-w-0 flex-1 items-center gap-1.5"
+          />
+  </Field>
+
+
+ 
+          <Field
           label="Supplier Excl. VAT :"
           labelClassName={SA}
-          className="sm:col-span-2 lg:col-span-6"
+          className="sm:col-span-2 lg:col-span-3"
         >
-          <div className="w-30 max-w-full">
+          <div className=" max-w-full">
             <MoneyInput
               id="txtSupplierExclVat"
               value={form.supplierExclVat}
               onChange={(v) => set("supplierExclVat", v)}
             />
           </div>
-        </Field>
-        <Field label="Sup. VAT :" labelClassName={SB} className="lg:col-span-3">
+</Field>
+
+<Field label="Sup. VAT :" labelClassName={SB} className="lg:col-span-3 lg:ml-1.5">
           <MoneyInput
             id="txtSupVat"
             value={form.supVat}
             onChange={(v) => set("supVat", v)}
           />
-        </Field>
-        <Field
+   </Field>
+      
+
+        {/* row 4 : Supplier Excl. VAT | Sup. VAT | Supplier Amt. */}
+       
+ <div className="flex min-w-0 items-center gap-3 sm:col-span-2 lg:col-span-6">
+          <Field
+            label="Sup. Inv. No. :"
+            labelClassName={SA}
+            className="min-w-0 flex-1"
+          >
+            <ReadOnlyBox id="txtSuppInvNo" value="" />
+          </Field>
+          <Field label="Sup. Inv. Date :" className="min-w-0 flex-1">
+            <div className="w-35 shrink-0">
+              <AppDatePicker
+                id="dtpSuppInvDate"
+                label="Sup. Inv. Date"
+                value={form.suppInvDate}
+                onChange={(v) => set("suppInvDate", v)}
+                disabled
+              />
+            </div>
+          </Field>
+        </div>
+
+       
+
+       <Field
           label="Supplier Amt. :"
           labelClassName={SC}
-          className="lg:col-span-3"
+          className="lg:col-span-3 lg:-ml-4"
         >
           <ReadOnlyBox
             id="txtSupplierAmt"
@@ -1195,6 +1225,8 @@ const CarSupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
             right
           />
         </Field>
+
+
       </div>
     </GroupBox>
   );

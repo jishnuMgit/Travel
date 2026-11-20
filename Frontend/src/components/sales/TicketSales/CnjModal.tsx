@@ -2,10 +2,11 @@ import React, { useEffect, useRef } from "react";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
 import { formatRoute, ROUTE_MAX_LENGTH } from "./ticketSalesValidation";
 
-/* Sales Conjunction (the old frmTktSalesCnj): opens when CNJ. is Yes (or from the CNJ button). The conjunction ticket of this
-   ticket: CNJ Ticket No., Route, Carrier, Class. One conjunction ticket per ticket (the table has one row per ticket), so the
-   grid has one row. Esc, the X button or Close closes it; the row stays on the screen. The screen behind is not blocked
-   (no dark layer). */
+/* Ticket Sales-Conjunction (the old frmTktSalesCnj): opens when CNJ. is Yes (or from the CNJ button). The conjunction tickets of
+   this ticket, one row each: CNJ Ticket No., Route, Carrier, Class. The grid always ends with an empty row; typing in it adds the
+   next one. The CNJ Ticket No. of a row is filled by itself when it is empty and you type in the row: the Ticket No. + 1 for
+   the first row, the row above + 1 for the next ones (you can change it). It cannot be the Ticket No. itself, and not the same
+   twice. Esc or the X button closes it; the rows stay on the screen. The screen behind is not blocked (no dark layer). */
 
 export type CnjRow = {
   txtCnjTktSlNo: string; // CNJ Ticket No. (fCnjTktSlNo)
@@ -18,6 +19,14 @@ export const emptyCnjRow = (): CnjRow => ({ txtCnjTktSlNo: "", txtCnjRoute: "", 
 
 export const isEmptyCnjRow = (row: CnjRow) =>
   row.txtCnjTktSlNo.trim() === "" && row.txtCnjRoute.trim() === "" && row.txtCnjCarrier.trim() === "" && row.txtCnjClass.trim() === "";
+
+/* The number after a ticket number, keeping its length and leading zeros ("1234567890" -> "1234567891",
+   "0012345678" -> "0012345679"). A number with letters (or empty) has no next one: "". */
+export const nextTicketNo = (no: string): string => {
+  const t = no.trim();
+  if (!/^\d+$/.test(t)) return "";
+  return (BigInt(t) + 1n).toString().padStart(t.length, "0");
+};
 
 type Column = {
   key: keyof CnjRow;
@@ -42,13 +51,15 @@ const cell = `h-[28px] border border-[#B7ECD0] p-0 ${GRID_CELL_FOCUS_CLASS}`;
 type CnjModalProps = {
   open: boolean;
   rows: CnjRow[];
+  /** the Ticket No. of the ticket: the first CNJ Ticket No. is this + 1, and no CNJ Ticket No. can be this one */
+  mainTicketNo: string;
   onChange: (rows: CnjRow[]) => void;
   onClose: () => void;
 };
 
 const MIN_ROWS = 6; // the grid is as tall as the old one even when it has few rows
 
-const CnjModal: React.FC<CnjModalProps> = ({ open, rows, onChange, onClose }) => {
+const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange, onClose }) => {
   const firstCellRef = useRef<HTMLInputElement>(null);
 
   // the cursor goes into the first cell ONLY when the popup opens (not on every key typed: onClose is a new function on
@@ -76,12 +87,29 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, onChange, onClose }) =>
 
   if (!open) return null;
 
-  // one conjunction ticket per ticket (the table has one row per ticket, as the old form which used only the first row)
-  const shown = [rows[0] ?? emptyCnjRow()];
+  // the saved rows, then one empty row to type the next one in
+  const shown = [...rows, emptyCnjRow()];
   const blanks = Math.max(0, MIN_ROWS - shown.length);
 
-  const update = (_index: number, key: keyof CnjRow, value: string) => {
-    onChange([{ ...(rows[0] ?? emptyCnjRow()), [key]: value }]);
+  /* The CNJ Ticket No. a row gets by itself: the number after the row above (the Ticket No. for the first row), skipping the
+     Ticket No. itself and the numbers the other rows already have. "" when there is no number to add one to. */
+  const defaultNo = (index: number): string => {
+    const above = rows.slice(0, index).reverse().find((row) => row.txtCnjTktSlNo.trim() !== "")?.txtCnjTktSlNo ?? mainTicketNo;
+    const used = new Set(rows.map((row, i) => (i === index ? "" : row.txtCnjTktSlNo.trim())));
+    used.add(mainTicketNo.trim());
+    let no = nextTicketNo(above);
+    for (let guard = 0; no !== "" && used.has(no) && guard < 1000; guard++) no = nextTicketNo(no);
+    return no;
+  };
+
+  const update = (index: number, key: keyof CnjRow, value: string) => {
+    const base = index < rows.length ? rows[index] : emptyCnjRow();
+    const next: CnjRow = { ...base, [key]: value };
+    // typing in the row (Route ...) with no CNJ Ticket No. yet: it becomes the Ticket No. + 1 (or the row above + 1)
+    if (key !== "txtCnjTktSlNo" && next.txtCnjTktSlNo.trim() === "" && value.trim() !== "") {
+      next.txtCnjTktSlNo = defaultNo(index);
+    }
+    onChange(index < rows.length ? rows.map((row, i) => (i === index ? next : row)) : [...rows, next]);
   };
 
   return (
@@ -94,7 +122,7 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, onChange, onClose }) =>
       >
         <div className="flex h-7.5 items-center justify-between border-b border-slate-300 bg-[#a5e0c3] px-3">
           <h2 id="cnj-modal-title" className="text-[15px] font-semibold text-slate-700">
-            Sales Conjunction
+            Ticket Sales-Conjunction
           </h2>
           <button
             type="button"
@@ -129,7 +157,7 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, onChange, onClose }) =>
                 {shown.map((row, index) => (
                   <tr key={index}>
                     <td className="h-[28px] border border-[#B7ECD0] bg-[#fafbfc] text-center text-[8px] text-[#405066]">
-                      {index === 0 ? "▶" : ""}
+                      {index === rows.length ? "▶" : ""}
                     </td>
                     {COLUMNS.map((column, columnIndex) => (
                       <td key={column.key} className={cell}>
@@ -159,12 +187,6 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, onChange, onClose }) =>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="mt-3 flex justify-center">
-            <button type="button" id="btnCnjClose" onClick={onClose} className="btn-style">
-              Close
-            </button>
           </div>
         </div>
       </div>
