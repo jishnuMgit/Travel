@@ -16,6 +16,7 @@
     "@mui/x-date-pickers": "^8.29.5",
     "@tailwindcss/vite": "^4.3.3",
     "dayjs": "^1.11.23",
+    "exceljs": "^4.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-icons": "^5.7.0",
