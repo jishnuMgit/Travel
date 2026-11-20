@@ -1809,8 +1809,8 @@ console.log(onClose);
         setIataBspAccounts(
           Object.fromEntries(
             rows
-              .filter((r) => (r.fbsppurchase_csaccountid ?? "").trim() !== "")
-              .map((r) => [r.fiatacode, (r.fbsppurchase_csaccountid ?? "").trim()]),
+              .filter((r) => (r.fbspurchase_csaccountid ?? "").trim() !== "")
+              .map((r) => [r.fiatacode, (r.fbspurchase_csaccountid ?? "").trim()]),
           ),
         );
         setIataIdOptions(
