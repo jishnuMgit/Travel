@@ -340,6 +340,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
           fileName: "",
           previewUrl: null,
           previewBlob: null,
+          note: "",
           storedDox: null,
           rowState: row.original ? "modified" : "added",
         };
