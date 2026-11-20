@@ -99,13 +99,13 @@ export type ServiceChargePolicy = {
   fservicetypeid: string;
   fmf: NumLike;
   fd_servicechargetype: string | null;
-  fd_servicechgper: NumLike;
-  fd_minservicechgamt: NumLike;
-  fd_servicechgamt: NumLike;
+  fd_servicechargeper: NumLike;
+  fd_minservicechargeamt: NumLike;
+  fd_servicechargeamt: NumLike;
   fi_servicechargetype: string | null;
-  fi_servicechgper: NumLike;
-  fi_minservicechgamt: NumLike;
-  fi_servicechgamt: NumLike;
+  fi_servicechargeper: NumLike;
+  fi_minservicechargeamt: NumLike;
+  fi_servicechargeamt: NumLike;
 };
 
 /* What the grid needs to know from the Ticket Sales form (the fares panel and the header). */
@@ -152,10 +152,10 @@ export const calcPolicyCharge = (
   let minAmt = 0;
 
   if (type === "A") {
-    amount = num(domestic ? policy.fd_servicechgamt : policy.fi_servicechgamt);
+    amount = num(domestic ? policy.fd_servicechargeamt : policy.fi_servicechargeamt);
   } else {
-    per = num(domestic ? policy.fd_servicechgper : policy.fi_servicechgper);
-    minAmt = num(domestic ? policy.fd_minservicechgamt : policy.fi_minservicechgamt);
+    per = num(domestic ? policy.fd_servicechargeper : policy.fi_servicechargeper);
+    minAmt = num(domestic ? policy.fd_minservicechargeamt : policy.fi_minservicechargeamt);
   }
 
   if (amount === 0 && per > 0) {
