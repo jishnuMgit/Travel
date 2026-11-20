@@ -28,11 +28,7 @@ const rowSaveModes = ["S", "SR", "M1", "MR1"];
 
 
 type ServiceChargePolicySaveRow = {
-  intSlNo?: number | string;
-  Original_fSlNo?: number | string;
   StrServiceTypeID?: string | null;
-  strServiceTypeGroupID?: string | null;
-  StrDivID?: string | null;
   lkpDServiceChargeType?: string | null;
   StrDServiceChargePre?: number | string | null;
   StrDMinServiceChargeAmt?: number | string | null;
@@ -52,12 +48,9 @@ export const handleServiceChargePolicy = async (
     StrMode,
     PstrCoID,
     StrCustomerID = null,
-    intSlNo = 0,
     StrSR = null,
     NumMerchantFeePer = 0,
     StrServiceTypeID = null,
-    strServiceTypeGroupID = null,
-    Original_fSlNo = 0,
     lkpDServiceChargeType = null,
     StrDServiceChargePre = 0,
     StrDMinServiceChargeAmt = 0,
@@ -279,15 +272,15 @@ export const copyServiceChargePolicy = async (
   const {
     PstrCoID,
     StrCustomerID,
-    StrSourceCustomerID,
+    StrCopyToCustomerID,
     StrMenuName = "Service Charge Policy",
     OverwriteExisting = false,
   } = req.body;
 
-  if (!PstrCoID || !StrCustomerID || !StrSourceCustomerID) {
+  if (!PstrCoID || !StrCustomerID || !StrCopyToCustomerID) {
     res.status(400).json({
       success: false,
-      message: "Company ID, destination customer, and source customer are required",
+      message: "Company ID, destination customer, and copy to customer are required",
     });
     return;
   }
@@ -300,7 +293,7 @@ export const copyServiceChargePolicy = async (
     return;
   }
 
-  if (StrCustomerID === StrSourceCustomerID) {
+  if (StrCustomerID === StrCopyToCustomerID) {
     res.status(400).json({
       success: false,
       message: "Source and destination customers must be different",
@@ -339,7 +332,7 @@ export const copyServiceChargePolicy = async (
       [
         PstrCoID,
         StrCustomerID,
-        StrSourceCustomerID,
+        StrCopyToCustomerID,
         req.user?.userId ?? null,
         StrMenuName,
       ]
