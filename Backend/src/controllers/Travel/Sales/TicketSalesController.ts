@@ -283,7 +283,7 @@ export const getTicketSalesServiceChargePolicies = async (
 
   try {
     const result = await pool.query(
-      `SELECT fcustomerid, fservicetypeid, fmf,
+      `SELECT fcustomerid, fservicetypeid, fmerchantfeeper AS fmf,
               fd_servicechargetype, fd_servicechargeper, fd_minservicechargeamt, fd_servicechargeamt,
               fi_servicechargetype, fi_servicechargeper, fi_minservicechargeamt, fi_servicechargeamt
          FROM dbo.tblservicechargepolicy

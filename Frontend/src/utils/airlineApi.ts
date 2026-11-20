@@ -326,13 +326,13 @@ export type ServiceChargePolicyRecord = {
   fservicetypeid: string;
   fmf: string | null;
   fd_servicechargetype: string | null;
-  fd_servicechgper: string | null;
-  fd_minservicechgamt: string | null;
-  fd_servicechgamt: string | null;
+  fd_servicechargeper: string | null;
+  fd_minservicechargeamt: string | null;
+  fd_servicechargeamt: string | null;
   fi_servicechargetype: string | null;
-  fi_servicechgper: string | null;
-  fi_minservicechgamt: string | null;
-  fi_servicechgamt: string | null;
+  fi_servicechargeper: string | null;
+  fi_minservicechargeamt: string | null;
+  fi_servicechargeamt: string | null;
 };
 
 export const getTicketSalesServiceChargePolicies = (PstrCoID: string) =>
