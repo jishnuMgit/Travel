@@ -7,7 +7,13 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import selectComponents from "../../../components/common/selectComponents";
 import { fieldSelectProps, type Option } from "../../../components/common/Combo";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
-import { getBudgetFillCombos } from "../../../utils/Api";
+import {
+  applyBudgetChanges,
+  getBudgetFillCombos,
+  getBudgetRows,
+  type BudgetMutationRow,
+  type BudgetRecord,
+} from "../../../utils/Api";
 
 /* =====================================================================
    FILE MAP
@@ -44,6 +50,16 @@ type BudgetRow = {
   key: number;
   accountId: string | null;
   months: string[]; // 12 values, "" when empty
+  originalSlNo: number | null;
+  note: string;
+};
+
+type SavedBudgetRow = {
+  key: number;
+  originalSlNo: number;
+  accountId: string;
+  months: string[];
+  note: string;
 };
 
 type PairOption = {
@@ -159,6 +175,8 @@ const emptyRow = (): BudgetRow => ({
   key: nextKey(),
   accountId: null,
   months: Array<string>(12).fill(""),
+  originalSlNo: null,
+  note: "",
 });
 
 const isEmptyRow = (row: BudgetRow) =>
@@ -176,10 +194,75 @@ const padRows = (rows: BudgetRow[]): BudgetRow[] => {
 
 const buildRows = (): BudgetRow[] => padRows([]);
 
+const readRecordField = (record: BudgetRecord, field: string): unknown => {
+  const key = Object.keys(record).find(
+    (candidate) => candidate.toLowerCase() === field.toLowerCase(),
+  );
+  return key ? record[key] : undefined;
+};
+
+const mapBudgetRecord = (
+  record: BudgetRecord,
+): { row: BudgetRow; savedRow: SavedBudgetRow } => {
+  const originalSlNo = Number(readRecordField(record, "fSlNo"));
+  const rawAccountId = readRecordField(record, "fGAccountID");
+  if (!Number.isInteger(originalSlNo) || originalSlNo < 0 || rawAccountId == null) {
+    throw new Error("The budget response contains an invalid account row.");
+  }
+
+  const accountId = String(rawAccountId).trim();
+  if (!accountId) {
+    throw new Error("The budget response contains a row without an account ID.");
+  }
+  const months = MONTHS.map((_, index) => {
+    const rawAmount = readRecordField(record, `fMonthAmt${index + 1}`);
+    const amount = Number(rawAmount ?? 0);
+    if (!Number.isFinite(amount)) {
+      throw new Error("The budget response contains an invalid monthly amount.");
+    }
+    return String(amount);
+  });
+  const rawNote = readRecordField(record, "fNote");
+  const note = rawNote == null ? "" : String(rawNote);
+  const key = nextKey();
+
+  return {
+    row: { key, accountId, months, originalSlNo, note },
+    savedRow: { key, accountId, months, originalSlNo, note },
+  };
+};
+
+const toBudgetMutationRow = (
+  row: BudgetRow,
+  fSlNo: number,
+): BudgetMutationRow => ({
+  fSlNo,
+  fGAccountID: row.accountId ?? "",
+  fMonthAmt1: toNumber(row.months[0]),
+  fMonthAmt2: toNumber(row.months[1]),
+  fMonthAmt3: toNumber(row.months[2]),
+  fMonthAmt4: toNumber(row.months[3]),
+  fMonthAmt5: toNumber(row.months[4]),
+  fMonthAmt6: toNumber(row.months[5]),
+  fMonthAmt7: toNumber(row.months[6]),
+  fMonthAmt8: toNumber(row.months[7]),
+  fMonthAmt9: toNumber(row.months[8]),
+  fMonthAmt10: toNumber(row.months[9]),
+  fMonthAmt11: toNumber(row.months[10]),
+  fMonthAmt12: toNumber(row.months[11]),
+  fTotAmt: rowTotal(row),
+  fNote: row.note,
+});
+
 const toNumber = (value: string) => {
   const parsed = parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const isValidAmount = (value: string) =>
+  value === "" ||
+  (/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(value) &&
+    Number.isFinite(Number(value)));
 
 const formatAmount = (value: number) =>
   value.toLocaleString("en-US", {
@@ -287,9 +370,10 @@ const LabeledCombo: React.FC<{
 const NumberCell: React.FC<{
   label: string;
   value: string;
+  disabled?: boolean;
   onFocus: () => void;
   onChange: (value: string) => void;
-}> = ({ label, value, onFocus, onChange }) => {
+}> = ({ label, value, disabled = false, onFocus, onChange }) => {
   const [focused, setFocused] = useState(false);
   const shown =
     focused || value === "" ? value : formatAmount(toNumber(value));
@@ -299,6 +383,7 @@ const NumberCell: React.FC<{
       aria-label={label}
       inputMode="decimal"
       value={shown}
+      disabled={disabled}
       onFocus={(event) => {
         setFocused(true);
         onFocus();
@@ -473,20 +558,20 @@ const BudgetHeader: React.FC<{
   year: string;
   onYearChange: (value: string) => void;
   headTypeOptions: Option[];
-  headType: string | null;
+  lkpHeadType: string | null;
   onHeadTypeChange: (value: string | null) => void;
   branchOptions: Option[];
-  branch: string | null;
+  lkpBranch: string | null;
   onBranchChange: (value: string | null) => void;
   loadingCombos: boolean;
 }> = ({
   year,
   onYearChange,
   headTypeOptions,
-  headType,
+  lkpHeadType,
   onHeadTypeChange,
   branchOptions,
-  branch,
+  lkpBranch,
   onBranchChange,
   loadingCombos,
 }) => (
@@ -566,7 +651,7 @@ const BudgetHeader: React.FC<{
       id="lkpBudgetHeadType"
       label="Budget Head Type :"
       options={headTypeOptions}
-      value={headType}
+      value={lkpHeadType}
       onChange={onHeadTypeChange}
       className="w-[220px]"
     />
@@ -581,7 +666,7 @@ const BudgetHeader: React.FC<{
       id="lkpBranch"
       label="Branch :"
       options={branchOptions}
-      value={branch}
+      value={lkpBranch}
       onChange={onBranchChange}
       className="w-[220px]"
     />
@@ -593,6 +678,7 @@ const BudgetGrid: React.FC<{
   rows: BudgetRow[];
   accountIdOptions: PairOption[];
   accountNameOptions: PairOption[];
+  disabled: boolean;
   activeKey: number | null;
   onActivate: (key: number) => void;
   onAccountChange: (key: number, accountId: string | null) => void;
@@ -601,6 +687,7 @@ const BudgetGrid: React.FC<{
   rows,
   accountIdOptions,
   accountNameOptions,
+  disabled,
   activeKey,
   onActivate,
   onAccountChange,
@@ -690,6 +777,7 @@ const BudgetGrid: React.FC<{
             aria-label="Account ID"
             options={options}
             value={value}
+            isDisabled={disabled}
             components={{
               ...selectComponents,
               MenuList: AccountIdMenuList,
@@ -744,6 +832,7 @@ const BudgetGrid: React.FC<{
             aria-label="Account Name"
             options={options}
             value={value}
+            isDisabled={disabled}
             components={{
               ...selectComponents,
               MenuList: AccountNameMenuList,
@@ -780,6 +869,7 @@ const BudgetGrid: React.FC<{
           <NumberCell
             label={`${month} amount`}
             value={row.months[index]}
+            disabled={disabled}
             onFocus={() => onActivate(row.key)}
             onChange={(value) => onMonthChange(row.key, index, value)}
           />
@@ -824,27 +914,46 @@ const BudgetGrid: React.FC<{
        "Saved By" on the right */
 const BudgetFooter: React.FC<{
   savedBy: string;
+  busy: boolean;
+  saving: boolean;
   onCopy: () => void;
   onSave: () => void;
   onDelete: () => void;
   onPrint: () => void;
-  onCancel: () => void;
+  onClear: () => void;
   onClose: () => void;
-}> = ({ savedBy, onCopy, onSave, onDelete, onPrint, onCancel, onClose }) => (
+}> = ({
+  savedBy,
+  busy,
+  saving,
+  onCopy,
+  onSave,
+  onDelete,
+  onPrint,
+  onClear,
+  onClose,
+}) => (
   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
     <button id="btnCopy" type="button" onClick={onCopy} className="btn-style">
       Copy
     </button>
 
     <div className="flex flex-wrap justify-center gap-2">
-      <button id="btnSave" type="button" onClick={onSave} className="btn-style">
-        <u>S</u>ave
+      <button
+        id="btnSave"
+        type="button"
+        onClick={onSave}
+        disabled={busy}
+        className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {saving ? "Saving..." : <><u>S</u>ave</>}
       </button>
       <button
         id="btnDelete"
         type="button"
         onClick={onDelete}
-        className="btn-style"
+        disabled={busy}
+        className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
       >
         <u>D</u>elete
       </button>
@@ -857,21 +966,15 @@ const BudgetFooter: React.FC<{
         <u>P</u>rint
       </button>
       <button
-        id="btnCancel"
+        id="btnClear"
         type="button"
-        onClick={onCancel}
-        className="btn-style"
+        onClick={onClear}
+        disabled={saving}
+        className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <u>C</u>ancel
+        <u>C</u>lear
       </button>
-      <button
-        id="btnClose"
-        type="button"
-        onClick={onClose}
-        className="btn-style"
-      >
-        Cl<u>o</u>se
-      </button>
+    
     </div>
 
     <span className="min-w-50 text-right text-[12px] text-[#7a8794]">
@@ -899,16 +1002,20 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 }) => {
   const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
   const [year, setYear] = useState(String(new Date().getFullYear())); // txtYear
-  const [headType, setHeadType] = useState<string | null>(null); // lkpBudgetHeadType
-  const [branch, setBranch] = useState<string | null>(null); // lkpBranch
+  const [lkpHeadType, setlkpHeadType] = useState<string | null>(null); // lkpBudgetlkpHeadType
+  const [lkpBranch, setlkpBranch] = useState<string | null>(null); // lkplkpBranch
   const [headTypeOptions, setHeadTypeOptions] = useState<Option[]>([]);
   const [branchOptions, setBranchOptions] = useState<Option[]>([]);
   const [accountIdOptions, setAccountIdOptions] = useState<PairOption[]>([]);
   const [accountNameOptions, setAccountNameOptions] = useState<PairOption[]>([]);
   const [defaultBranch, setDefaultBranch] = useState<string | null>(null);
   const [loadingCombos, setLoadingCombos] = useState(true);
+  const [loadingBudget, setLoadingBudget] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   const [rows, setRows] = useState<BudgetRow[]>(() => buildRows());
+  const [savedRows, setSavedRows] = useState<SavedBudgetRow[]>([]);
   const [activeKey, setActiveKey] = useState<number | null>(null);
   const [savedBy, setSavedBy] = useState("");
   const [error, setError] = useState("");
@@ -960,8 +1067,8 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
             ?.value ??
           nextBranchOptions[0]?.value ??
           null;
-        setHeadType(nextHeadTypeOptions[0]?.value ?? null);
-        setBranch(defaultBranch);
+        setlkpHeadType(nextHeadTypeOptions[0]?.value ?? null);
+        setlkpBranch(defaultBranch);
         setDefaultBranch(defaultBranch);
       } catch (loadError) {
         if (!cancelled) {
@@ -982,17 +1089,68 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
     };
   }, [PstrCoID]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!PstrCoID || year.length !== 4 || !lkpBranch || !lkpHeadType) {
+      setRows(buildRows());
+      setSavedRows([]);
+      setLoadingBudget(false);
+      return;
+    }
+
+    const loadBudget = async () => {
+      setLoadingBudget(true);
+      setRows(buildRows());
+      setSavedRows([]);
+      setActiveKey(null);
+      setError("");
+      try {
+        const data = await getBudgetRows(
+          PstrCoID,
+          Number(year),
+          lkpBranch,
+          lkpHeadType,
+        );
+        if (!Array.isArray(data)) {
+          throw new Error("The budget response is not a list of account rows.");
+        }
+
+        const mappedRows = data.map(mapBudgetRecord);
+        if (cancelled) return;
+        const loaded = mappedRows.map((item) => item.row);
+        setRows(padRows(loaded));
+        setSavedRows(mappedRows.map((item) => item.savedRow));
+        setActiveKey(loaded[0]?.key ?? null);
+      } catch (loadError) {
+        if (!cancelled) {
+          setRows(buildRows());
+          setSavedRows([]);
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load budget rows.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingBudget(false);
+      }
+    };
+
+    void loadBudget();
+    return () => {
+      cancelled = true;
+    };
+  }, [PstrCoID, year, lkpBranch, lkpHeadType, refreshVersion]);
+
   const reload = () => {
-    const fresh = buildRows();
-    setRows(fresh);
-    setActiveKey(fresh[0]?.key ?? null);
     setSavedBy("");
     setError("");
+    setRefreshVersion((version) => version + 1);
   };
 
   const handleHeadTypeChange = (value: string | null) => {
-    setHeadType(value);
-    reload();
+    setlkpHeadType(value);
+    setSavedBy("");
   };
 
   const updateRow = (key: number, patch: (row: BudgetRow) => BudgetRow) =>
@@ -1000,13 +1158,14 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
       padRows(prev.map((row) => (row.key === key ? patch(row) : row))),
     );
 
-  const handleSave = () => {
-    if (year.length !== 4 || !headType || !branch) {
-      setError("Enter the year and select the budget head type and branch.");
+  const handleSave = async () => {
+    if (saving || loadingBudget || loadingCombos) return;
+    if (year.length !== 4 || !lkpHeadType || !lkpBranch) {
+      setError("Enter the year and select the budget head type and lkpBranch.");
       return;
     }
     const lines = rows.filter((row) => !isEmptyRow(row));
-    if (lines.length === 0) {
+    if (lines.length === 0 && savedRows.length === 0) {
       setError("Add at least one account line.");
       return;
     }
@@ -1014,44 +1173,108 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
       setError("Every line needs an account.");
       return;
     }
+    if (lines.some((row) => row.months.some((amount) => !isValidAmount(amount)))) {
+      setError("Monthly amounts must be valid numbers with at most two decimal places.");
+      return;
+    }
+
+    const savedByKey = new Map(savedRows.map((row) => [row.key, row]));
+    const currentSavedSlNos = new Set<number>();
+    let nextSlNo = savedRows.reduce(
+      (max, row) => Math.max(max, row.originalSlNo),
+      0,
+    );
+    const Inserted: BudgetMutationRow[] = [];
+    const Updated: (BudgetMutationRow & { OriginalSlNo: number })[] = [];
+
+    for (const row of lines) {
+      if (row.originalSlNo === null) {
+        nextSlNo += 1;
+        Inserted.push(toBudgetMutationRow(row, nextSlNo));
+        continue;
+      }
+
+      const original = savedByKey.get(row.key);
+      if (!original) {
+        setError("Could not match an edited budget row to its saved version.");
+        return;
+      }
+      currentSavedSlNos.add(original.originalSlNo);
+      const changed =
+        row.accountId !== original.accountId ||
+        row.months.some(
+          (amount, index) =>
+            toNumber(amount) !== toNumber(original.months[index]),
+        );
+      if (changed) {
+        Updated.push({
+          ...toBudgetMutationRow(row, original.originalSlNo),
+          OriginalSlNo: original.originalSlNo,
+        });
+      }
+    }
+
+    const Deleted = savedRows
+      .filter((row) => !currentSavedSlNos.has(row.originalSlNo))
+      .map((row) => ({ OriginalSlNo: row.originalSlNo }));
+
+    if (Inserted.length === 0 && Updated.length === 0 && Deleted.length === 0) {
+      setError("There are no budget changes to save.");
+      return;
+    }
+
+    setSaving(true);
     setError("");
-    console.log({
-      year: Number(year),
-      headType,
-      branch,
-      lines: lines.map((row) => ({
-        accountId: row.accountId,
-        months: row.months.map(toNumber),
-        total: rowTotal(row),
-      })),
-    });
-    setSavedBy(`${currentUser} ${dayjs().format("DD/MM/YYYY HH:mm:ss")}`);
+    try {
+      const response = await applyBudgetChanges({
+        PstrCoID,
+        IntYear: Number(year),
+        StrBrID: lkpBranch,
+        StrBudgetHeadType: lkpHeadType,
+        Inserted,
+        Updated,
+        Deleted,
+      });
+      if (!response.success) {
+        throw new Error(response.message || "Failed to save budget.");
+      }
+      setSavedBy(`${currentUser} ${dayjs().format("DD/MM/YYYY HH:mm:ss")}`);
+      setRefreshVersion((version) => version + 1);
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to save budget.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Delete removes the highlighted account line
   const handleDelete = () => {
-    if (activeKey === null) return;
+    if (activeKey === null || saving || loadingBudget) return;
     setRows((prev) => padRows(prev.filter((row) => row.key !== activeKey)));
     setActiveKey(null);
   };
 
   const handlePrint = () => {
-    console.log("print budget", { year, headType, branch });
+    console.log("print budget", { year, lkpHeadType, lkpBranch });
     onPrint?.();
   };
 
   const handleCopy = () => {
-    console.log("copy budget", { year, headType, branch });
+    console.log("copy budget", { year, lkpHeadType, lkpBranch });
     onCopy?.();
   };
 
   // Cancel throws away the changes and reloads the saved budget
-  const handleCancel = () => reload();
+  const handleClear = () => reload();
 
   const handleClose = () => {
     setYear(String(new Date().getFullYear()));
-    setHeadType(headTypeOptions[0]?.value ?? null);
-    setBranch(defaultBranch);
+    setlkpHeadType(headTypeOptions[0]?.value ?? null);
+    setlkpBranch(defaultBranch);
     reload();
     onClose?.();
   };
@@ -1072,23 +1295,31 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
               onYearChange={(value) => {
                 setYear(value);
                 setError("");
+                setSavedBy("");
               }}
               headTypeOptions={headTypeOptions}
-              headType={headType}
+              lkpHeadType={lkpHeadType}
               onHeadTypeChange={handleHeadTypeChange}
               branchOptions={branchOptions}
-              branch={branch}
+              lkpBranch={lkpBranch}
               onBranchChange={(value) => {
-                setBranch(value);
-                reload();
+                setlkpBranch(value);
+                setSavedBy("");
               }}
               loadingCombos={loadingCombos}
             />
+
+            {loadingBudget && (
+              <p className="m-0 text-[12px] text-[#667085]">
+                Loading budget...
+              </p>
+            )}
 
             <BudgetGrid
               rows={rows}
               accountIdOptions={accountIdOptions}
               accountNameOptions={accountNameOptions}
+              disabled={saving || loadingBudget || loadingCombos}
               activeKey={activeKey}
               onActivate={setActiveKey}
               onAccountChange={(key, accountId) => {
@@ -1112,11 +1343,13 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
             <BudgetFooter
               savedBy={savedBy}
+              busy={saving || loadingBudget || loadingCombos}
+              saving={saving}
               onCopy={handleCopy}
               onSave={handleSave}
               onDelete={handleDelete}
               onPrint={handlePrint}
-              onCancel={handleCancel}
+              onClear={handleClear}
               onClose={handleClose}
             />
           </section>

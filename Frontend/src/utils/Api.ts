@@ -64,6 +64,51 @@ export type BudgetComboResponse = {
 export const getBudgetFillCombos = (PstrCoID: string) =>
   request<BudgetComboResponse>(`/budget/FillCombos/${encode(PstrCoID)}`);
 
+export type BudgetRecord = Record<string, unknown>;
+
+export type BudgetMutationRow = {
+  fSlNo: number;
+  fGAccountID: string;
+  fMonthAmt1: number;
+  fMonthAmt2: number;
+  fMonthAmt3: number;
+  fMonthAmt4: number;
+  fMonthAmt5: number;
+  fMonthAmt6: number;
+  fMonthAmt7: number;
+  fMonthAmt8: number;
+  fMonthAmt9: number;
+  fMonthAmt10: number;
+  fMonthAmt11: number;
+  fMonthAmt12: number;
+  fTotAmt: number;
+  fNote: string;
+};
+
+export const getBudgetRows = (
+  PstrCoID: string,
+  IntYear: number,
+  StrBrID: string,
+  StrType: string,
+) =>
+  request<BudgetRecord[]>(
+    `/budget/GetDataTL/${encode(PstrCoID)}/${encode(String(IntYear))}/${encode(StrBrID)}/${encode(StrType)}`,
+  );
+
+export const applyBudgetChanges = (payload: {
+  PstrCoID: string;
+  IntYear: number;
+  StrBrID: string;
+  StrBudgetHeadType: string;
+  Inserted: BudgetMutationRow[];
+  Updated: (BudgetMutationRow & { OriginalSlNo: number })[];
+  Deleted: { OriginalSlNo: number }[];
+}) =>
+  request<{ success: boolean; message: string }>("/budget/Apply", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
 export type TktTypeRecord = {
   ftickettypeid: string;
   ftickttypename: string | null;

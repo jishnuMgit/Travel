@@ -47,7 +47,7 @@ const callBudgetProcedure = async (
     ((row as unknown as Record<string, number | undefined>)?.[`fMonthAmt${i}`] ?? 0);
 
   const result = await client.query(
-    `CALL dbo.sp_frmbudget(
+    `CALL dbo.sp_pagebudget(
       NULL::jsonb,
       $1::varchar,  $2::varchar,  $3::smallint, $4::varchar,  $5::varchar,
       $6::smallint, $7::varchar,
