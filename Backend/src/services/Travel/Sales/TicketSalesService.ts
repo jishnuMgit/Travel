@@ -12,6 +12,7 @@
 import type { PoolClient } from "pg";
 import pool from "../../../DB/db";
 import { joinNote, userAuditWith, type UserAuditAction } from "../../common/UserAuditService";
+import { resolveServerDate } from "../../common/ServerDateService";
 
 type Db = Pick<PoolClient, "query">;
 type Bag = Record<string, unknown>;
@@ -144,6 +145,7 @@ type TicketSalesBValues = {
 type CallParams = {
   strmode: string; // G get | S save | M modify | D delete
   PstrUserID?: string;
+  dtpServerDate?: string | null; // the time of the save (YYYY-MM-DD HH:mm:ss): the page's, checked by resolveServerDate
   cursorName?: string; // the cursor of mode G
 };
 
@@ -218,7 +220,8 @@ async function callSpTicketSalesPage(
       p_txtinvnote         => $58::varchar,
       p_txtnote            => $59::varchar,
       p_pstruserid         => $60::varchar,
-      p_result_cursor      => $61::refcursor
+      p_result_cursor      => $61::refcursor,
+      p_dtpserverdate      => $62::timestamp
     )
     `,
     [
@@ -283,6 +286,7 @@ async function callSpTicketSalesPage(
       p.txtNote ?? null,
       p.PstrUserID ?? null,
       p.cursorName ?? newCursorName("cur_ticketsales"),
+      p.dtpServerDate ?? null,
     ],
   );
 }
@@ -326,7 +330,8 @@ async function callSpTicketSalesBPage(
       p_txtref4          => $29::varchar,
       p_pstruserid       => $30::varchar,
       p_result_cursor    => $31::refcursor,
-      p_txtslno          => $32::smallint
+      p_txtslno          => $32::smallint,
+      p_dtpserverdate    => $33::timestamp
     )
     `,
     [
@@ -362,6 +367,7 @@ async function callSpTicketSalesBPage(
       p.PstrUserID ?? null,
       p.cursorName ?? newCursorName("cur_ticketsalesb"),
       p.txtSlNo ?? 1,
+      p.dtpServerDate ?? null,
     ],
   );
 }
@@ -628,14 +634,18 @@ export const saveTicketSalesWith = async (
 ): Promise<SavedTicketSales> => {
   const { key, ticket, customerLine, cnj, saved } = cleanTicketSales(payload);
 
+  // the time of the save: the page's server date (checked: "YYYY-MM-DD HH:mm:ss", within 5 minutes of the server's clock), else
+  // the server's own; the same time goes on the ticket, its line and the user audit
+  const dtpServerDate = await resolveServerDate(db, payload.dtpServerDate);
+
   // 1) the ticket, 2) its customer line (it needs the ticket), 3) its conjunction ticket (CNJ. = Yes)
-  await callSpTicketSalesPage(db, { strmode: "S", ...key, ...ticket, PstrUserID });
-  await callSpTicketSalesBPage(db, { strmode: "S", ...key, ...customerLine, PstrUserID });
+  await callSpTicketSalesPage(db, { strmode: "S", ...key, ...ticket, PstrUserID, dtpServerDate });
+  await callSpTicketSalesBPage(db, { strmode: "S", ...key, ...customerLine, PstrUserID, dtpServerDate });
   for (const row of cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...row });
 
   // the user audit (S): what was saved
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
-  if (after) await writeTicketAudit(db, after, "S", auditSavedNote(after), PstrUserID);
+  if (after) await writeTicketAudit(db, after, "S", auditSavedNote(after), PstrUserID, dtpServerDate);
 
   return saved;
 };
@@ -689,8 +699,10 @@ export const modifyTicketSalesWith = async (
   // the ticket as it was, for the audit note (a ticket that is not saved is refused by the procedure below)
   const before = await fetchTicketSalesWith(db, loadKeyOf(key));
 
-  await callSpTicketSalesPage(db, { strmode: "M", ...key, ...ticket, PstrUserID });
-  await callSpTicketSalesBPage(db, { strmode: "M", ...key, ...customerLine, PstrUserID });
+  const dtpServerDate = await resolveServerDate(db, payload.dtpServerDate); // the page's server date, as in the save
+
+  await callSpTicketSalesPage(db, { strmode: "M", ...key, ...ticket, PstrUserID, dtpServerDate });
+  await callSpTicketSalesBPage(db, { strmode: "M", ...key, ...customerLine, PstrUserID, dtpServerDate });
 
   // the conjunction ticket is replaced: the old one is deleted, the new one (CNJ. = Yes) is saved
   await callSpTicketSalesCnjPage(db, { strmode: "D", ...key });
@@ -698,7 +710,7 @@ export const modifyTicketSalesWith = async (
 
   // the user audit (M): what changed, field by field
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
-  if (before && after) await writeTicketAudit(db, after, "M", auditChangedNote(before, after), PstrUserID);
+  if (before && after) await writeTicketAudit(db, after, "M", auditChangedNote(before, after), PstrUserID, dtpServerDate);
 
   return saved;
 };
@@ -960,6 +972,7 @@ export const deleteTicketSalesWith = async (
   db: Db,
   key: Partial<LoadTicketSalesKey>,
   PstrUserID: string,
+  dtpServerDateSent?: unknown, // the page's server date (checked)
 ): Promise<SavedTicketSales> => {
   const PstrCoID = text(key.PstrCoID);
   const PstrYear = text(key.PstrYear);
@@ -1018,7 +1031,7 @@ export const deleteTicketSalesWith = async (
   await callSpTicketSalesPage(db, { strmode: "D", ...k });
 
   // the user audit (D): what was deleted
-  if (before) await writeTicketAudit(db, before, "D", auditSavedNote(before), PstrUserID);
+  if (before) await writeTicketAudit(db, before, "D", auditSavedNote(before), PstrUserID, await resolveServerDate(db, dtpServerDateSent));
 
   return k;
 };
@@ -1026,12 +1039,13 @@ export const deleteTicketSalesWith = async (
 export const deleteTicketSales = async (
   key: Partial<LoadTicketSalesKey>,
   PstrUserID: string,
+  dtpServerDate?: unknown,
 ): Promise<SavedTicketSales> => {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
-    const deleted = await deleteTicketSalesWith(client, key, PstrUserID);
+    const deleted = await deleteTicketSalesWith(client, key, PstrUserID, dtpServerDate);
     await client.query("COMMIT");
     return deleted;
   } catch (error) {
@@ -1124,6 +1138,7 @@ const writeTicketAudit = (
   action: UserAuditAction,
   note: string,
   PstrUserID: string,
+  dtpServerDate?: string | null,
 ) =>
   userAuditWith(db, {
     PstrCoID: ticket.PstrCoID,
@@ -1135,6 +1150,7 @@ const writeTicketAudit = (
     action,
     PstrUserID,
     note,
+    dtpServerDate,
   });
 
 /* ---------------------------------------------------------- SL. NOS */

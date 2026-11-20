@@ -7,6 +7,7 @@ import ServiceTypeRouter from "./Travel/Setup/ServiceTypeRouter";
 import AirlineRouter from "./Travel/Sales/AirlineRoutes";
 import TicketSalesRouter from "./Travel/Sales/TicketSalesRoutes";
 import ServiceChargePolicyPolicy from './Travel/Setup/ServiceChargePolicyRouter'
+import DateTimeRouter from "./common/DateTimeRouter";
 
 const router = Router();
 
@@ -17,6 +18,7 @@ router.use("/years", yearRouter);
 router.use("/service-types", ServiceTypeRouter);
 router.use("/airlines", AirlineRouter);
 router.use("/ticket-sales", TicketSalesRouter);
+router.use("/datetime", DateTimeRouter); // the server date (the page asks for it before a save)
 router.use("/ServiceChargePolicy",ServiceChargePolicyPolicy)
 
 export default router;

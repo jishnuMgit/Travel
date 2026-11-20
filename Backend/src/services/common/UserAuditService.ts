@@ -21,6 +21,7 @@ export type UserAuditEntry = {
   action: UserAuditAction;
   PstrUserID: string;
   note: string;
+  dtpServerDate?: string | null; // the time of the save (the page's, checked): the audit row carries the same time as the data
 };
 
 export const NOTE_LINE_BREAK = "\r\n"; // one "label : value" per line, as the old audit notes
@@ -29,7 +30,7 @@ export const NOTE_LINE_BREAK = "\r\n"; // one "label : value" per line, as the o
 export const joinNote = (lines: string[]): string => lines.join(NOTE_LINE_BREAK);
 
 export const userAuditWith = async (db: Db, entry: UserAuditEntry): Promise<void> => {
-  await db.query("CALL dbo.sp_useraudit($1, $2, $3, $4, $5, $6, $7, $8, $9)", [
+  await db.query("CALL dbo.sp_useraudit($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamp)", [
     entry.PstrCoID,
     entry.PstrYear,
     entry.lkpBranch,
@@ -39,6 +40,7 @@ export const userAuditWith = async (db: Db, entry: UserAuditEntry): Promise<void
     entry.action,
     entry.note,
     entry.PstrUserID,
+    entry.dtpServerDate ?? null,
   ]);
 };
 

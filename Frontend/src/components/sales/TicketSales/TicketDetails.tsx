@@ -36,6 +36,7 @@ import {
 } from "../../../utils/airlineApi";
 import CnjModal, { isEmptyCnjRow, type CnjRow } from "./CnjModal";
 import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
+import { tryGetServerDate } from "../../../utils/serverDate";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
 
@@ -2067,11 +2068,16 @@ console.log(onClose);
     detail: TicketDetailPayload,
   ) => {
     try {
+      // the time of the save comes from the database server, not the browser: the page asks for it and sends it
+      // (the backend checks it; if it cannot be had, "" is sent and the backend uses its own time)
+      const dtpServerDate = await tryGetServerDate();
+
       // a saved ticket is loaded (or was just saved) and its Ticket Type + Ticket No. are still in the boxes: Modify
       const result = await (isModify ? modifyTicketSales : saveTicketSales)({
         PstrCoID,
         PstrYear,
         PstrUserID,
+        dtpServerDate,
         // the keys are the element ids of this screen
         lkpTktType: form.lkpTktType,
         txtTktSLNo: form.txtTktSLNo,
@@ -2308,6 +2314,7 @@ console.log(onClose);
         txtTktSLNo: form.txtTktSLNo.trim(),
         lkpBranch: form.lkpBranch,
         txtSlNo: form.txtSlNo.trim() || null, // only this Sl. No.: the other Sl. Nos of the Ticket No. stay
+        dtpServerDate: (await tryGetServerDate()) || null, // the time of the user audit (the server's, not the browser's)
       });
       toast.success(result.message || "Deleted successfully");
       clearScreen();
@@ -2449,6 +2456,7 @@ console.log(onClose);
               vatPer: vat.txtSCVATPer,
               serviceId: form.lkpService ?? "",
               merchantIsAirline: form.lkpMerchant === "A",
+              merchant: form.lkpMerchant ?? undefined,
               isVoid: form.lkpVoid === "Yes",
               supplierAmt: computed.supplierAmt,
               feeVat: computed.feeVat,

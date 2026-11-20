@@ -88,6 +88,7 @@ export type SaveTicketPayload = TicketDetailPayload & {
   PstrCoID: string;
   PstrYear: string;
   PstrUserID: string; // the logged-in user, stored by the login
+  dtpServerDate?: string; // the server date the page got from /datetime/server-date: the time written on the rows (checked by the backend)
   lines: TicketLinePayload[];
   [elementId: string]: unknown;
 };
@@ -106,10 +107,11 @@ export const modifyTicketSales = (payload: SaveTicketPayload) =>
   });
 
 // ?lkpBranch=JD&txtSlNo=2 (only what is given)
-const ticketQuery = (p: { lkpBranch?: string | null; txtSlNo?: string | number | null }) => {
+const ticketQuery = (p: { lkpBranch?: string | null; txtSlNo?: string | number | null; dtpServerDate?: string | null }) => {
   const parts: string[] = [];
   if (p.lkpBranch) parts.push(`lkpBranch=${encode(p.lkpBranch)}`);
   if (p.txtSlNo !== undefined && p.txtSlNo !== null && String(p.txtSlNo).trim() !== "") parts.push(`txtSlNo=${encode(String(p.txtSlNo).trim())}`);
+  if (p.dtpServerDate) parts.push(`dtpServerDate=${encode(p.dtpServerDate)}`);
   return parts.length > 0 ? `?${parts.join("&")}` : "";
 };
 
@@ -121,6 +123,7 @@ export const deleteTicketSales = (p: {
   txtTktSLNo: string;
   lkpBranch?: string | null;
   txtSlNo?: string | number | null; // the Sl. No. to delete (a Ticket No. has a row for each Sl. No.)
+  dtpServerDate?: string | null; // the server date the page got (the time of the user audit)
 }) =>
   request<{ success: boolean; message: string }>(
     `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${ticketQuery(p)}`,
