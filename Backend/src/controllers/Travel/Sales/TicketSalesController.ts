@@ -365,7 +365,7 @@ export const getTicketSalesIatas = async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      `SELECT fiatacode, fiataname, fbsppurchase_csaccountid
+      `SELECT fiatacode, fiataname, fbspurchase_csaccountid
          FROM dbo.tbliata
         WHERE fcoid = $1
         ORDER BY fpositionno, fiatacode`,
