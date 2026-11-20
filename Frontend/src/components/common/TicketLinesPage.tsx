@@ -1592,9 +1592,10 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   if (embedded) return body;
 
   return (
-    <div className="flex min-h-fit w-full items-start justify-center bg-white px-4 pb-3 ">
+    <div className={`flex min-h-fit w-full items-start justify-center bg-white pb-3 ${context ? "px-0" : "px-4"}`}>
       <div className="min-h-fit w-full max-w-375 bg-white p-0">
-        <main className="w-full overflow-hidden border border-gray-300 rounded-sm shadow-sm bg-white -mt-3">
+        {/* on the Ticket Sales screen the grid sits in the same column as the panels above it: no extra frame or side space */}
+        <main className={`w-full overflow-hidden bg-white -mt-3 ${context ? "" : "border border-gray-300 rounded-sm shadow-sm"}`}>
           
           <section className="px-3.5 pb-3 pt-3">{body}</section>
         </main>
