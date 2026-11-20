@@ -1809,8 +1809,8 @@ console.log(onClose);
         setIataBspAccounts(
           Object.fromEntries(
             rows
-              .filter((r) => (r.fbsppurchase_csaccountid ?? "").trim() !== "")
-              .map((r) => [r.fiatacode, (r.fbsppurchase_csaccountid ?? "").trim()]),
+              .filter((r) => (r.fbspurchase_csaccountid ?? "").trim() !== "")
+              .map((r) => [r.fiatacode, (r.fbspurchase_csaccountid ?? "").trim()]),
           ),
         );
         setIataIdOptions(
@@ -2377,7 +2377,7 @@ console.log(onClose);
         <main className="h-fit w-full overflow-hidden border border-gray-400 ">
           <Header Name="Ticket Sales"/>
 
-          <section className="@container flex flex-col gap-3 px-2 pb-6 pt-3 sm:pl-3.5 sm:pr-14">
+          <section className="@container flex flex-col gap-3 px-3.5 pb-6 pt-3">
             <TicketTopBar
               form={form}
               set={set}

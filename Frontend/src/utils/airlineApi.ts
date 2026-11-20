@@ -414,7 +414,7 @@ export const getTicketSalesStaffs = (PstrCoID: string) =>
 export type IataRecord = {
   fiatacode: string;
   fiataname: string | null;
-  fbsppurchase_csaccountid?: string | null; // the BSP account of the IATA: the supplier of a BSP ticket
+  fbspurchase_csaccountid?: string | null; // the BSP account of the IATA: the supplier of a BSP ticket
 };
 
 export const getTicketSalesIatas = (PstrCoID: string) =>
