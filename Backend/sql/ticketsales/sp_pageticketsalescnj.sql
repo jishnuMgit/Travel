@@ -3,13 +3,15 @@
 -- the port of the old SP_frmTktSalesCnj (modes G, S, M1, D), for dbo.tblticketsalescnj.
 --
 -- The table: key = fcoid, fyear, fbrid, ftickettypeid, ftktslno, fslno, frevno (the ticket, as in tblticketsales /
--- tblticketsalesb), so a ticket (and Sl. No.) has ONE conjunction row, as the old form (it only used the first row).
+-- tblticketsalesb) + fcnjtktslno (the CNJ Ticket No.), so a ticket (and Sl. No.) has SEVERAL conjunction rows, one for each
+-- CNJ Ticket No.
 --
 -- Modes (p_strmode)
---   G  get     the conjunction row of the ticket (the cursor p_result_cursor)
---   S  save    insert the row (the ticket must be saved first); a second row for the ticket is refused
---   D  delete  delete the row of the ticket (nothing to delete is fine)
--- Modify = D then S (the ticket's row is replaced), done by the service in the same transaction.
+--   G  get     the conjunction rows of the ticket (the cursor p_result_cursor), by CNJ Ticket No.
+--   S  save    insert ONE row (the ticket must be saved first); the CNJ Ticket No. cannot be the Ticket No. of the ticket
+--              itself, and the same CNJ Ticket No. cannot be entered twice for the ticket
+--   D  delete  delete ALL the conjunction rows of the ticket (nothing to delete is fine)
+-- Modify = D then S for each row (the rows of the ticket are replaced), done by the service in the same transaction.
 --
 -- Parameter names follow the screen: p_<element id in lower case>; the popup columns are
 --   CNJ Ticket No. (p_txtcnjtktslno), Route (p_txtroute), Carrier (p_txtcarrier), Class (p_txtclass).
@@ -64,7 +66,11 @@ BEGIN
            AND c.ftickettypeid = p_lkptkttype
            AND c.ftktslno = p_txttktslno AND c.fslno = p_txtslno
            AND c.frevno = p_txtrevno
-         ORDER BY c.fyear DESC;   -- the year is not needed to get a ticket: the newest year first
+           -- the year is not needed to get a ticket: the rows of the newest year
+           AND c.fyear = (SELECT MAX(x.fyear) FROM dbo.tblticketsalescnj AS x
+                           WHERE x.fcoid = c.fcoid AND x.fbrid = c.fbrid AND x.ftickettypeid = c.ftickettypeid
+                             AND x.ftktslno = c.ftktslno AND x.fslno = c.fslno AND x.frevno = c.frevno)
+         ORDER BY c.fcnjtktslno;
 
     -- --------------------------------------------------------------- SAVE
     ELSIF p_strmode = 'S' THEN
@@ -88,10 +94,17 @@ BEGIN
             RAISE EXCEPTION 'Ticket ''%-%'' is not saved yet', p_lkptkttype, p_txttktslno;
         END IF;
 
+        -- the conjunction ticket is another ticket: its number cannot be the number of the ticket itself
+        IF BTRIM(p_txtcnjtktslno) = BTRIM(p_txttktslno) THEN
+            RAISE EXCEPTION '''CNJ Ticket No.'' cannot be the same as the ''Ticket No.'' (%)', BTRIM(p_txttktslno);
+        END IF;
+
+        -- a ticket has several conjunction tickets, each with its own number (the key has fcnjtktslno)
         IF EXISTS (SELECT 1 FROM dbo.tblticketsalescnj
                     WHERE fcoid = p_pstrcoid AND fyear = p_pstryear AND fbrid = p_lkpbranch
-                      AND ftickettypeid = p_lkptkttype AND ftktslno = p_txttktslno AND fslno = p_txtslno AND frevno = p_txtrevno) THEN
-            RAISE EXCEPTION 'Only one conjunction ticket can be saved for a ticket';
+                      AND ftickettypeid = p_lkptkttype AND ftktslno = p_txttktslno AND fslno = p_txtslno AND frevno = p_txtrevno
+                      AND fcnjtktslno = BTRIM(p_txtcnjtktslno)) THEN
+            RAISE EXCEPTION '''CNJ Ticket No.'' % is already entered for this ticket', BTRIM(p_txtcnjtktslno);
         END IF;
 
         INSERT INTO dbo.tblticketsalescnj

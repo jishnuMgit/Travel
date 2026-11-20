@@ -41,8 +41,6 @@ type ChargeField =
 type ServiceChargeRow = {
   txtServiceTypeID: string;
   txtServiceType: string;
-  slNo: number;
-  originalSlNo: number;
 } & {
   [Field in ChargeField]: Field extends
     | "lkpDServiceChargeType"
@@ -103,13 +101,10 @@ const firstValue = (
 const mapPolicyRows = (
   items: ServiceChargePolicyApiRow[],
 ): ServiceChargeRow[] =>
-  items.map((item, index) => {
-    const slNo = Number(item.fslno ?? item.fpositionno ?? index + 1);
+  items.map((item) => {
     return {
       txtServiceTypeID: item.fservicetypeid,
       txtServiceType: item.fservicetypename ?? item.fservicetypeid,
-      slNo,
-      originalSlNo: slNo,
       lkpDServiceChargeType: item.fd_servicechargetype === "P" ? "P" : "A",
       txtDServiceChargePer: amountValue(firstValue(
         item.fd_servicechargeper,
@@ -144,13 +139,13 @@ const blankPolicyRows = (items: ServiceChargePolicyApiRow[]) =>
   mapPolicyRows(items).map((row) => ({
     ...row,
     lkpDServiceChargeType: "A" as const,
-    txtDSCPre: "0.00",
-    txtMinDSCAmt: "0.00",
-    txtDSCAmt: "0.00",
-    lkpISCType: "A" as const,
-    txtISCPer: "0.00",
-    txtIMinSCAmt: "0.00",
-    txtISCAmt: "0.00",
+    txtDServiceChargePer: "0.00",
+    txtDMinServiceChargeAmt: "0.00",
+    txtDServiceChargeAmt: "0.00",
+    lkpIServiceChargeType: "A" as const,
+    txtIServiceChargePer: "0.00",
+    txtIMinServiceChargeAmt: "0.00",
+    txtIServiceChargeAmt: "0.00",
   }));
 
 const cellInputClass =
@@ -298,10 +293,9 @@ const ServiceChargePolicy: React.FC = () => {
       if (sequence !== requestSequence.current) return;
 
       setRows(mapPolicyRows(gridResponse.data));
-      setMerchantFee(amountValue(firstValue(
-        headerResponse.data[0]?.fmerchantfeeper,
-        headerResponse.data[0]?.fmf,
-      )));
+      setMerchantFee(amountValue(
+        firstValue(headerResponse.data[0]?.fmerchantfeeper),
+      ));
     } catch (loadError) {
       if (sequence === requestSequence.current) {
         setError(
@@ -430,8 +424,6 @@ const ServiceChargePolicy: React.FC = () => {
         StrSR: activeTab === "Sales" ? "S" : "R",
         NumMerchantFeePer: Number(merchantFee || 0),
         Rows: rows.map((row) => ({
-          intSlNo: row.slNo,
-          Original_fSlNo: row.originalSlNo,
           StrServiceTypeID: row.txtServiceTypeID,
           lkpDServiceChargeType: row.lkpDServiceChargeType,
           StrDServiceChargePre: row.txtDServiceChargePer,
@@ -471,8 +463,8 @@ const ServiceChargePolicy: React.FC = () => {
       const requestCopy = (overwriteExisting: boolean) =>
         copyServiceChargePolicy({
           PstrCoID,
-          StrCustomerID: copyTargetCustomerID,
-          StrSourceCustomerID: lkpCustomerID,
+          StrCustomerID: lkpCustomerID,
+          StrCopyToCustomerID: copyTargetCustomerID,
           StrMenuName: "Service Charge Policy",
           OverwriteExisting: overwriteExisting,
         });
@@ -481,7 +473,7 @@ const ServiceChargePolicy: React.FC = () => {
       if (response.requiresOverwriteConfirmation) {
         setCopying(false);
         const confirmed = await confirm({
-          title: "Overwrite Service Charge Policy",
+          title: "Service Charge Policy - Copy",
           message: ` Do you want to overwrite the existing data?`,
           confirmLabel: "Yes",
           cancelLabel: "No",
@@ -587,7 +579,7 @@ const ServiceChargePolicy: React.FC = () => {
                   firstHeader="Customer ID"
                   secondHeader="Customer Name"
                   firstWidth={120}
-                  secondWidth={450}
+                  secondWidth={585}
                   gap={4}
                   headerFontSize="12px"
                   menuMaxHeight={400}
@@ -712,13 +704,13 @@ const ServiceChargePolicy: React.FC = () => {
                     />
                     <th
                       colSpan={4}
-                      className="border border-emerald-200 bg-[#f7fbf3] px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-emerald-900"
+                      className="border border-emerald-200 bg-[#f7fbf3] px-2 py-2 text-center text-xs font-semibold  tracking-wide text-emerald-900"
                     >
                       Domestic
                     </th>
                     <th
                       colSpan={4}
-                      className="border border-emerald-200 bg-[#FEE4C3] px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-emerald-900"
+                      className="border border-emerald-200 bg-[#FEE4C3] px-2 py-2 text-center text-xs font-semibold  tracking-wide text-emerald-900"
                     >
                       International
                     </th>
@@ -965,7 +957,7 @@ const ServiceChargePolicy: React.FC = () => {
             </div>
           </section>
 
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <footer className="grid grid-cols-1 items-center gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[1fr_auto_1fr]">
             <button
               type="button"
               onClick={() => {
@@ -980,11 +972,11 @@ const ServiceChargePolicy: React.FC = () => {
                 attachmentsLoading
               }
               name="btnCopy"
-              className="btn-style min-w-22.5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-style min-w-22.5 justify-self-start disabled:cursor-not-allowed disabled:opacity-50"
             >
               Copy
             </button>
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap justify-center gap-2 sm:col-start-2 sm:row-start-1">
               <button
                 type="button"
                 onClick={handleSave}
@@ -1036,21 +1028,21 @@ const ServiceChargePolicy: React.FC = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="copy-service-charge-title"
-            className="w-full max-w-xl border border-slate-400 bg-white  shadow-lg"
+            className="w-full max-w-4xl border border-slate-400 bg-white shadow-lg"
           >
            <header className="flex h-8.25 items-center bg-[#9fdfbc] text-gray-800 relative">
                 <h1 className="ml-4 text-[17x] font-semibold ">
-                  Copy Service Charge Policy
+                  Service Charge Policy - Copy
                </h1>
           
                <button className="absolute right-3  hover:bg-red-100 p-0.5 rounded-full cursor-pointer"  onClick={() => setCopyModalOpen(false)} ><IoMdClose size={20}/></button>
              </header>
-           <div className="flex justify-center items-center  gap-2 mt-3 ml-3 mr-3 flex-nowrap">
+           <div className="flex justify-center items-center gap-2 mt-3 px-[5px] flex-nowrap">
              <label
               htmlFor="copyServiceChargeCustomer"
               className=" block text-[14px] text-slate-600 whitespace-nowrap"
             >
-              Customer :
+              Copy To Customer :
             </label>
             <CustomLinkedPairSelect
               firstInputId="copyServiceChargeCustomer"
@@ -1061,7 +1053,7 @@ const ServiceChargePolicy: React.FC = () => {
               firstHeader="Customer ID"
               secondHeader="Customer Name"
               firstWidth={120}
-              secondWidth={360}
+              secondWidth={585}
               gap={4}
               headerFontSize="12px"
               menuMaxHeight={400}
@@ -1082,7 +1074,7 @@ const ServiceChargePolicy: React.FC = () => {
                 disabled={!copyTargetCustomerID || copying}
                 className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {copying ? "Copying..." : "Save"}
+                {copying ? "Copying..." : "Copy"}
               </button>
             </div>
           </section>
@@ -1098,6 +1090,7 @@ const ServiceChargePolicy: React.FC = () => {
           >
             <HotelSalesAttachPage
               key={`${lkpCustomerID}-${activeTab}`}
+              headerName="Service Charge Policy - Attach"
               attachments={attachments}
               onClose={() => setAttachModalOpen(false)}
               onSave={handleSaveAttachments}

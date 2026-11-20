@@ -118,6 +118,7 @@ export type TicketLinesContext = {
   vatPer: number;
   serviceId: string;
   merchantIsAirline: boolean;
+  merchant?: string; // the Merchant box: "A" Airline, "T" Travel Agent, else none (a typed Inv. Amt. works the MF out only for A and T)
   isVoid: boolean; // the Void box is Yes
   supplierAmt: number; // for Profit Amt.
   feeVat: number;
@@ -182,3 +183,185 @@ export const calcProfitAmt = (p: {
       p.feeVat -
       (p.supplierAmt + p.kbAmt + p.mfVatTotal + p.hScVatTotal - p.k7),
   );
+
+/* =====================================================================
+   A TYPED Inv. Amt. (the old frmTktSales, grdvBilling_ValidatingEditor, the colInvAmt branch)
+   The user types the invoice amount of the line; the other amounts of the line are worked BACK out of it:
+     - with a customer service charge policy (an S. Chg. amount): what is above Fare + Tax + VAT is the S. Chg. with its VAT,
+       up to the policy's S. Chg.; whatever is still left (or missing) goes to CD. Amt. (with its VAT);
+     - without one: the whole rest is the S. Chg. with its VAT (when it is above 0), else it is CD. Amt. (a discount);
+     - then the MF of the policy is worked out from the typed amount and CD. Amt. takes what is left again;
+     - the VAT Amt. and the S. Chg. are made to agree with the typed total (the old 0.01 rules).
+   The old code kept these as many separate variables; here they are one pure function, so it can be tested.
+   ===================================================================== */
+export type InvAmtInput = {
+  invAmt: number; // the typed Inv. Amt.
+  fare: number;
+  tax: number;
+  hCharge: number; // the CD charge of the line now (fH_AgencyCharge); a negative one counts as 0
+  hScVat: number; // the CD VAT of the line now (fH_SCVATAmt); a negative one counts as 0
+  sChgV: number; // the VAT of the S. Chg. now (fSCVATAmt)
+  vatAmt: number; // the VAT Amt. now
+  mf: number; // the MF now
+  policySChg: number; // the S. Chg. of the customer's policy (CalCustomerSCharge); 0 = no policy / no S. Chg.
+  mfPer: number; // the merchant fee % of the customer's policy
+};
+
+export type InvAmtResult = {
+  invAmt: number;
+  sChg: number;
+  sChgV: number;
+  vatAmt: number;
+  cdAmt: number; // CD. Amt. with its VAT (fH_AgencyChargeWVAT)
+  hCharge: number;
+  hScVat: number;
+  mf: number;
+  mfWoVat: number;
+  mfVat: number;
+};
+
+export const calcLineFromInvAmt = (input: InvAmtInput, ctx: Pick<TicketLinesContext, "dorI" | "boxDorI" | "vatPer"> & { merchant?: string }): InvAmtResult => {
+  const { invAmt, fare, tax, policySChg, mfPer } = input;
+  const { vatPer } = ctx;
+  const vatTot = 100 + vatPer;
+
+  // CalcCustomerVATAmt(S. Chg.): the VAT of the service charge
+  const vatOnSChg = (sc: number) => (sc !== 0 ? round2(sc * vatPer * 0.01) : 0);
+  // CalcCustomerVATAmt(Fare, Tax, S. Chg.): domestic = on Fare + Tax + S. Chg., international = on the S. Chg. only
+  const vatOnLine = (sc: number) => {
+    const base = ctx.dorI === "D" ? fare + tax + sc : sc;
+    return base !== 0 ? round2(base * vatPer * 0.01) : 0;
+  };
+
+  let hCharge = Math.max(0, input.hCharge);
+  let hScVat = Math.max(0, input.hScVat);
+  let sChgV = input.sChgV;
+  let vatAmt = input.vatAmt;
+  let mf = input.mf;
+  let sChg = 0;
+  let hInc = 0; // CD. Amt. with its VAT (numH_SCAmtInclVAT)
+
+  // CD. Amt. split of what is left (the same in every branch below): a domestic ticket always has its VAT taken out, an
+  // international one only a positive amount (a negative amount is all charge)
+  const splitCd = (amount: number, round: boolean) => {
+    if (amount === 0) {
+      hCharge = 0;
+      hScVat = 0;
+    } else if (ctx.boxDorI === "D") {
+      hCharge = (amount / vatTot) * 100;
+      if (round) hCharge = round2(hCharge);
+      hScVat = amount - hCharge;
+      if (round) hScVat = round2(hScVat);
+    } else if (amount > 0) {
+      hCharge = round2((amount / vatTot) * 100);
+      hScVat = amount - hCharge;
+      if (round) hScVat = round2(hScVat);
+    } else {
+      hCharge = amount;
+      hScVat = 0;
+    }
+  };
+
+  if (policySChg !== 0) {
+    // ---- the customer has a service charge policy
+    let agInc = invAmt - (fare + tax + vatAmt - sChgV + mf);
+    hCharge = 0;
+    hScVat = 0;
+    hInc = 0;
+
+    if (agInc > 0) {
+      sChg = round2((agInc / vatTot) * 100);
+      sChgV = round2(agInc - sChg);
+      vatAmt = vatOnLine(sChg);
+
+      if (sChg >= policySChg) {
+        sChg = policySChg;
+        sChgV = vatOnSChg(sChg);
+        vatAmt = vatOnLine(sChg);
+        hInc = invAmt - (fare + tax + sChg + vatAmt + mf);
+        if (hInc !== 0) {
+          hCharge = (hInc / vatTot) * 100;
+          hScVat = hInc - hCharge;
+        }
+      }
+    } else {
+      // the typed amount is less than Fare + Tax + VAT + MF: no S. Chg., the difference is CD. Amt.
+      hInc = agInc;
+      sChgV = 0;
+      agInc = 0;
+      sChg = 0;
+      splitCd(hInc, false);
+    }
+  } else {
+    // ---- no policy S. Chg.
+    const agInc = invAmt - (fare + tax + hCharge + hScVat + vatAmt - sChgV + mf);
+    sChgV = 0;
+    sChg = 0;
+    vatAmt = vatOnLine(0);
+
+    if (agInc > 0) {
+      sChg = round2((agInc / vatTot) * 100);
+      sChgV = round2(agInc - sChg);
+      vatAmt = vatOnLine(sChg);
+    } else {
+      hInc = agInc + hCharge + hScVat;
+      hCharge = 0;
+      hScVat = 0;
+      splitCd(hInc, false);
+    }
+  }
+
+  // ---- MF of the policy, worked out from the typed amount (CalcMFFromInvoiceAmt); only for merchant T and A
+  let mfFromInv = 0;
+  if (mfPer !== 0) {
+    if (ctx.merchant === "T") {
+      mfFromInv = invAmt - round2((invAmt / (100 + mfPer)) * 100);
+    } else if (ctx.merchant === "A") {
+      const total = sChg + sChgV;
+      mfFromInv = total - round2((total / (100 + mfPer)) * 100);
+    }
+  }
+  mfFromInv = round2(mfFromInv);
+
+  if (mfFromInv !== 0) {
+    mf = mfFromInv;
+    // the MF is in the typed amount: CD. Amt. takes what is left again
+    hInc = invAmt - (fare + tax + sChg + vatAmt + mf);
+    hCharge = 0;
+    hScVat = 0;
+    splitCd(hInc, true);
+  }
+
+  let mfWoVat = 0;
+  let mfVat = 0;
+  if (mf !== 0) {
+    mfWoVat = round2((mf / vatTot) * 100);
+    mfVat = mf - mfWoVat;
+  }
+
+  // ---- the VAT Amt. and the S. Chg. agree with the typed total (the old 0.01 rules)
+  vatAmt = vatOnLine(sChg);
+  const vatDiff = round2(sChgV - vatAmt);
+  if (vatDiff === 0.01) vatAmt = vatAmt + 0.01;
+  else if (vatDiff === -0.01) vatAmt = vatAmt - 0.01;
+
+  const billing = fare + tax + hInc + sChg + vatAmt + mf;
+  const billingDiff = round2(invAmt - billing);
+  if (billingDiff === 0.01) sChg = sChg + 0.01;
+  else if (billingDiff === -0.01) sChg = sChg - 0.01;
+
+  const cdAmt = hCharge + hScVat;
+
+  return {
+    invAmt,
+    sChg: round2(sChg),
+    sChgV: round2(sChgV),
+    vatAmt: round2(vatAmt),
+    cdAmt: round2(cdAmt),
+    hCharge: round2(hCharge),
+    hScVat: round2(hScVat),
+    mf: round2(mf),
+    mfWoVat: round2(mfWoVat),
+    mfVat: round2(mfVat),
+  };
+};

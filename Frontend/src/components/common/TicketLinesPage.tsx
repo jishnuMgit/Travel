@@ -14,6 +14,7 @@ import { fieldSelectProps } from "./Combo";
 import {
   calcLineAmounts,
   calcPolicyCharge,
+  calcLineFromInvAmt,
   calcProfitAmt,
   round2,
   type TicketLinesContext,
@@ -281,6 +282,10 @@ const formatMoney = (value: number) =>
 /* grid-cell select (borderless, fills the cell) */
 const cellSelectProps = {
   ...fieldSelectProps,
+  // always open downwards: react-select flips a fixed menu upwards when less than minMenuHeight (140px) is free below the
+  // cell, which is the case for the grid at the bottom of the screen; with a small minimum the list opens down and scrolls
+  minMenuHeight: 40,
+  menuPlacement: "bottom" as const,
   classNames: {
     ...fieldSelectProps.classNames,
     control: ({ isFocused }: { isFocused: boolean }) => `
@@ -302,12 +307,17 @@ const MoneyCell: React.FC<{
   value: string;
   onFocus: () => void;
   onChange: (value: string) => void;
-}> = ({ label, value, onFocus, onChange }) => (
+  /** called when the cell is left after the amount was changed (Inv. Amt.: the line is worked out from it) */
+  onCommit?: (value: string) => void;
+}> = ({ label, value, onFocus, onChange, onCommit }) => {
+  const focusValue = React.useRef("");
+  return (
   <input
     aria-label={label}
     inputMode="decimal"
     value={value}
     onFocus={(event) => {
+      focusValue.current = value;
       onFocus();
       event.target.select();
     }}
@@ -316,10 +326,12 @@ const MoneyCell: React.FC<{
     }}
     onBlur={() => {
       if (value !== "") onChange(toNumber(value).toFixed(2));
+      if (onCommit && value !== "" && toNumber(value) !== toNumber(focusValue.current)) onCommit(toNumber(value).toFixed(2));
     }}
     className="h-6.5 w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none focus:bg-white"
   />
-);
+  );
+};
 
 /* ---------------------------------------------------------------------
    3. PARTS
@@ -345,6 +357,8 @@ const TicketLinesGrid: React.FC<{
   onDivisionChange: (key: number, value: string) => void;
   onTypeChange: (key: number, value: string) => void;
   onMoneyChange: (key: number, field: MoneyField, value: string) => void;
+  /** a typed Inv. Amt. was left: the other amounts of the line are worked out from it */
+  onInvAmtCommit: (key: number, value: string) => void;
   /** true = VAT Amt., S. Chg. V. and Inv. Amt. are worked out (read-only) */
   calculated: boolean;
 }> = ({
@@ -357,6 +371,7 @@ const TicketLinesGrid: React.FC<{
   onDivisionChange,
   onTypeChange,
   onMoneyChange,
+  onInvAmtCommit,
   calculated,
 }) => {
   // Each list is as wide as the grid cells it should cover. The widths are
@@ -712,6 +727,7 @@ const TicketLinesGrid: React.FC<{
                         onChange={(value) =>
                           onMoneyChange(row.key, field, value)
                         }
+                        onCommit={field === "txtLineInvAmt" ? (value) => onInvAmtCommit(row.key, value) : undefined}
                       />
                     </td>
                   ),
@@ -1120,6 +1136,48 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
     };
   };
 
+  /* A typed Inv. Amt. (the old colInvAmt branch): S. Chg., S. Chg. V., VAT Amt., CD. Amt. and MF are worked back out of it;
+     the typed Inv. Amt. stays as typed. */
+  const applyTypedInvAmt = (key: number, value: string) => {
+    if (!context) return;
+    setRows((prev) =>
+      padLines(
+        prev.map((row) => {
+          if (row.key !== key) return row;
+          const policySChg = row.txtLineSChgType ? toNumber(row.txtLineSChg) : 0;
+          const r = calcLineFromInvAmt(
+            {
+              invAmt: toNumber(value),
+              fare: toNumber(row.txtLineFare),
+              tax: toNumber(row.txtLineTax),
+              hCharge: row.txtLineHCharge,
+              hScVat: row.txtLineHSCVATAmt,
+              sChgV: toNumber(row.txtLineSChgV),
+              vatAmt: row.txtLineVATAmt,
+              mf: row.txtLineMF,
+              policySChg,
+              mfPer: row.txtLineMFPer,
+            },
+            context,
+          );
+          return {
+            ...row,
+            txtLineInvAmt: value,
+            txtLineSChg: r.sChg.toFixed(2),
+            txtLineSChgV: r.sChgV.toFixed(2),
+            txtLineVATAmt: r.vatAmt,
+            txtLineCDAmt: r.cdAmt.toFixed(2),
+            txtLineHCharge: r.hCharge,
+            txtLineHSCVATAmt: r.hScVat,
+            txtLineMF: r.mf,
+            txtLineMFWOVAT: r.mfWoVat,
+            txtLineMFVATAmt: r.mfVat,
+          };
+        }),
+      ),
+    );
+  };
+
   const [activeKey, setActiveKey] = useState<number | null>(() => null);
   const [detail, setDetail] = useState<DetailForm>(initialDetail);
 
@@ -1481,6 +1539,12 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
             if (saveLabel === "Modify") void handleAction("save");
           },
           d: () => void handleAction("delete"),
+          // Ctrl: S = Save / Modify (the same button), D = Delete, P = Print, F = Search, K = Clear
+          "ctrl+s": () => void handleAction("save"),
+          "ctrl+d": () => void handleAction("delete"),
+          "ctrl+p": () => void handleAction("print"),
+          "ctrl+f": () => void handleAction("search"),
+          "ctrl+k": () => void handleAction("cancel"),
         }
       : {},
   );
@@ -1503,6 +1567,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
               )
             : updateRow(key, { [field]: value }, field === "txtLineFare" || field === "txtLineTax")
         }
+        onInvAmtCommit={applyTypedInvAmt}
         calculated={context !== undefined}
         onTypeChange={(key, type) => updateRow(key, { txtLineBType: type })}
       />
