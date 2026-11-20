@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { PoolClient } from "pg";
 import pool from "../../../DB/db";
 import type { AuthenticatedRequest } from "../../../middleware/AuthMiddleware";
+import { UserAudit } from "../../../utils/UserAudit";
 
 type CustomerDivisionRow = {
   StrDivID: string;
@@ -11,7 +12,7 @@ type CustomerDivisionRow = {
 
 const callCustomerDivisionProcedure = async (
   client: PoolClient,
-  mode: "G" | "S" | "D",
+  mode: "G" | "S" | "M" | "D" | "C",
   PstrCoID: string,
   StrCustomerID: string,
   userId: string | null,
@@ -132,7 +133,7 @@ export const SaveCustomerData = async (
     await client.query("BEGIN");
     await callCustomerDivisionProcedure(
       client,
-      "D",
+      "C",
       PstrCoID,
       StrCustomerID,
       req.user?.userId ?? null,
@@ -164,6 +165,152 @@ export const SaveCustomerData = async (
     res.status(500).json({
       success: false,
       message: "Failed to save customer divisions.",
+    });
+  } finally {
+    client.release();
+  }
+};
+
+const isValidDivision = (
+  row: CustomerDivisionRow | undefined,
+): row is CustomerDivisionRow =>
+  Boolean(row?.StrDivID?.trim() && row.StrDivName?.trim());
+
+export const CreateCustomerDivision = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const { PstrCoID, StrCustomerID, Row } = req.body ?? {};
+
+
+  const client = await pool.connect();
+  try {
+    const result = await callCustomerDivisionProcedure(
+      client,
+      "S",
+      String(PstrCoID).trim(),
+      String(StrCustomerID).trim(),
+      req.user?.userId ?? null,
+      {
+        StrDivID: String(Row.StrDivID).trim(),
+        StrDivName: String(Row.StrDivName).trim(),
+        StrDivNameAr: String(Row.StrDivNameAr ?? "").trim(),
+      },
+    );
+    res.status(201).json({
+      success: true,
+      message: result?.message ?? "Customer division saved successfully.",
+    });
+  } catch (error) {
+    console.error("Customer division create error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save customer division.",
+    });
+  } finally {
+    client.release();
+  }
+};
+
+export const UpdateCustomerDivision = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const PstrCoID = String(req.params.PstrCoID ?? "").trim();
+  const StrCustomerID = String(req.params.StrCustomerID ?? "").trim();
+  const StrDivID = String(req.params.StrDivID ?? "").trim();
+  const Row = req.body as CustomerDivisionRow | undefined;
+
+  if (!PstrCoID || !StrCustomerID || !StrDivID || !isValidDivision(Row)) {
+    res.status(400).json({
+      success: false,
+      message: "Company ID, customer ID, division ID, and division name are required.",
+    });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    const result = await callCustomerDivisionProcedure(
+      client,
+      "M",
+      PstrCoID,
+      StrCustomerID,
+      req.user?.userId ?? null,
+      {
+        StrDivID,
+        StrDivName: Row.StrDivName.trim(),
+        StrDivNameAr: String(Row.StrDivNameAr ?? "").trim(),
+      },
+    );
+    if (!result?.updated_count) {
+      res.status(404).json({
+        success: false,
+        message: "Customer division not found.",
+      });
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      message: result.message ?? "Customer division modified successfully.",
+    });
+  } catch (error) {
+    console.error("Customer division update error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to modify customer division.",
+    });
+  } finally {
+    client.release();
+  }
+};
+
+export const DeleteCustomerDivision = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const PstrCoID = String(req.params.PstrCoID ?? "").trim();
+  const StrCustomerID = String(req.params.StrCustomerID ?? "").trim();
+  const StrDivID = String(req.params.StrDivID ?? "").trim();
+  const PstrYear=req.body.PstrYear
+
+  if (!PstrCoID || !StrCustomerID || !StrDivID) {
+    res.status(400).json({
+      success: false,
+      message: "Company ID, customer ID, and division ID are required.",
+    });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    const result = await callCustomerDivisionProcedure(
+      client,
+      "D",
+      PstrCoID,
+      StrCustomerID,
+      req.user?.userId ?? null,
+      { StrDivID, StrDivName: "", StrDivNameAr: "" },
+    );
+    if (!result?.deleted_count) {
+      res.status(404).json({
+        success: false,
+        message: "Customer division not found.",
+      });
+      return;
+    }
+    const user =req.user?.userId
+
+   await UserAudit(PstrCoID,PstrYear,null,null,null,"Customer Division","D",String(user),`Deleted Division ID ${StrDivID} by ${user}`)
+    res.status(200).json({
+      success: true,
+      message: result.message ?? "Customer division deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Customer division delete error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete customer division.",
     });
   } finally {
     client.release();

@@ -1,14 +1,17 @@
-import React, { useState } from "react";
-import Select from "react-select";
+import React, { useEffect, useState } from "react";
+import Select, { components, type MenuListProps } from "react-select";
 import dayjs from "dayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import selectComponents from "../../../components/common/selectComponents";
+import { fieldSelectProps, type Option } from "../../../components/common/Combo";
+import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
+import { getBudgetFillCombos } from "../../../utils/Api";
 
 /* =====================================================================
    FILE MAP
-   1. Types, constants and sample data
+   1. Types and constants
    2. Shared building blocks (Combo, NumberCell, ScrollGrid ...)
    3. Parts : BudgetHeader (year, head type, branch), BudgetGrid
               (account lines, months, row totals, column totals),
@@ -19,8 +22,6 @@ import selectComponents from "../../../components/common/selectComponents";
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE DATA
    --------------------------------------------------------------------- */
-type Option = { value: string; label: string };
-
 const MONTHS = [
   "Jan",
   "Feb",
@@ -37,42 +38,7 @@ const MONTHS = [
 ];
 
 const MIN_ROWS = 14;
-
-/* Replace these with data from your API */
-const headTypeOptions: Option[] = [
-  { value: "REVENUE", label: "Revenue" },
-  { value: "EXPENSE", label: "Expense" },
-];
-const branchOptions: Option[] = [
-  { value: "JEDDAH", label: "JEDDAH" },
-  { value: "RIYADH", label: "RIYADH" },
-];
-
-type Account = { id: string; name: string };
-
-const accountsByHeadType: Record<string, Account[]> = {
-  REVENUE: [
-    { id: "3101001", name: "TICKET COMMISSION EARNED" },
-    { id: "3101003", name: "HOTEL SERVICE  CHARGE" },
-    { id: "3102002", name: "INCENTIVE FROM GDS" },
-    { id: "3106001", name: "DISCOUNT PAID" },
-  ],
-  EXPENSE: [
-    { id: "4103024", name: "OFFICE RENT" },
-    { id: "4103031", name: "PTT - TELEPHONE and INTERNET" },
-    { id: "4103015", name: "UTILITY EXPENSES" },
-    { id: "4103033", name: "STATIONERY" },
-    { id: "4103017", name: "INSURANCE CHARGES" },
-    { id: "4103002", name: "AUDIT FEES" },
-    { id: "4103011", name: "COMPUTER MAINTENANCE" },
-    { id: "4103010", name: "CAR RUNNING COST" },
-    { id: "4103014", name: "COURRIER EXPENSES" },
-    { id: "4103023", name: "OFFICE CLEANING CHARGES" },
-    { id: "4103034", name: "SUBSCRIPTION" },
-    { id: "4103036", name: "SOFTWARE DEVELOPMENT" },
-    { id: "4103022", name: "MARKETING EXPENSES" },
-  ],
-};
+const ACCOUNT_ID_LIST_EXTRA = 44;
 
 type BudgetRow = {
   key: number;
@@ -80,46 +46,110 @@ type BudgetRow = {
   months: string[]; // 12 values, "" when empty
 };
 
-type SavedBudget = {
-  lines: { accountId: string; months: number[] }[];
-  savedBy: string;
+type PairOption = {
+  value: string;
+  label: string;
+  second: string;
 };
 
-const flat = (amount: number) => Array<number>(12).fill(amount);
+type PairColumns = { first?: string; second?: string };
+type ListSize = { width: number; firstCol: number; secondCol: number };
 
-/* Sample saved budgets. Replace with an API call that uses the year,
-   head type and branch. */
-const sampleBudgets: Record<string, SavedBudget> = {
-  REVENUE: {
-    savedBy: "ADMIN 16/06/2026 14:25:00",
-    lines: [
-      {
-        accountId: "3101001",
-        months: [68000, 59500, 89250, 56865, 51000, 62385, 68000, 59500, 59500, 59500, 61625, 61625],
-      },
-      { accountId: "3101003", months: flat(38500) },
-      { accountId: "3102002", months: flat(25000) },
-      { accountId: "3106001", months: flat(3000) },
-    ],
+const accountIdColumns: PairColumns = { first: "var(--first-col, 120px)" };
+const accountNameColumns: PairColumns = { first: "var(--first-col, 230px)" };
+
+const columnStyle = (width?: string) =>
+  width === undefined ? undefined : { width };
+const columnClass = (width?: string) =>
+  width === undefined ? "min-w-0 flex-1" : "shrink-0";
+
+const makePairMenuList = (
+  firstHeader: string,
+  secondHeader: string,
+  columns: PairColumns,
+) => {
+  const PairMenuList = (props: MenuListProps<PairOption, false>) => (
+    <components.MenuList {...props}>
+      <div className="sticky top-0 z-10 flex w-full items-stretch border-b border-[#b8c4d0] bg-[#f3f5f7] font-semibold text-[#344054]">
+        <span
+          style={columnStyle(columns.first)}
+          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-[6px] py-[4px] text-[12px]`}
+        >
+          {firstHeader}
+        </span>
+        <span
+          style={columnStyle(columns.second)}
+          className={`${columnClass(columns.second)} truncate px-[8px] py-[4px] text-[12px]`}
+        >
+          {secondHeader}
+        </span>
+      </div>
+      {props.children}
+    </components.MenuList>
+  );
+  return PairMenuList;
+};
+
+const AccountIdMenuList = makePairMenuList(
+  "Account ID",
+  "Account Name",
+  accountIdColumns,
+);
+const AccountNameMenuList = makePairMenuList(
+  "Account Name",
+  "Account ID",
+  accountNameColumns,
+);
+
+const pairOptionLabel =
+  (columns: PairColumns) =>
+  (option: PairOption, { context }: { context: "menu" | "value" }) =>
+    context === "menu" ? (
+      <div className="flex w-full items-stretch">
+        <span
+          style={columnStyle(columns.first)}
+          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-[6px] py-[4px]`}
+        >
+          {option.label}
+        </span>
+        <span
+          style={columnStyle(columns.second)}
+          className={`${columnClass(columns.second)} truncate px-[8px] py-[4px]`}
+        >
+          {option.second}
+        </span>
+      </div>
+    ) : (
+      option.label
+    );
+
+const cellSelectProps = {
+  ...fieldSelectProps,
+  classNames: {
+    ...fieldSelectProps.classNames,
+    control: ({ isFocused }: { isFocused: boolean }) => `
+      !min-h-[26px] !h-[26px] !rounded-none !border-0 !shadow-none !text-[12px]
+      !bg-transparent
+      ${isFocused ? "!bg-white !ring-1 !ring-inset !ring-[#B7ECD0]" : ""}
+    `,
+    valueContainer: () => "!h-[26px] !py-0 !px-[8px] !overflow-hidden",
+    indicatorsContainer: () => "!h-[26px]",
   },
-  EXPENSE: {
-    savedBy: "ADMIN 12/06/2026 13:40:00",
-    lines: [
-      { accountId: "4103024", months: flat(14583) },
-      { accountId: "4103031", months: flat(4100) },
-      { accountId: "4103015", months: flat(100) },
-      { accountId: "4103033", months: flat(1000) },
-      { accountId: "4103017", months: flat(600) },
-      { accountId: "4103002", months: flat(3500) },
-      { accountId: "4103011", months: flat(1000) },
-      { accountId: "4103010", months: flat(1600) },
-      { accountId: "4103014", months: flat(75) },
-      { accountId: "4103023", months: flat(1375) },
-      { accountId: "4103034", months: flat(1766) },
-      { accountId: "4103036", months: flat(1500) },
-      { accountId: "4103022", months: flat(1700) },
-    ],
-  },
+};
+
+const pairClassNames = {
+  ...cellSelectProps.classNames,
+  menuList: () => "!p-0 !max-h-[260px] !overflow-x-hidden",
+  option: ({
+    isFocused,
+    isSelected,
+  }: {
+    isFocused: boolean;
+    isSelected: boolean;
+  }) => `
+    !cursor-pointer !p-0 !text-[12px] !text-[#24364d]
+    ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
+  `,
 };
 
 let keyCounter = 0;
@@ -144,14 +174,7 @@ const padRows = (rows: BudgetRow[]): BudgetRow[] => {
   return result;
 };
 
-const buildRows = (headType: string | null): BudgetRow[] =>
-  padRows(
-    (headType ? sampleBudgets[headType]?.lines ?? [] : []).map((line) => ({
-      key: nextKey(),
-      accountId: line.accountId,
-      months: line.months.map(String),
-    })),
-  );
+const buildRows = (): BudgetRow[] => padRows([]);
 
 const toNumber = (value: string) => {
   const parsed = parseFloat(value);
@@ -213,32 +236,6 @@ const selectProps = {
   classNames: selectClassNames,
   menuPosition: "fixed" as const,
   menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-};
-
-/* select that fills a grid cell (no border) */
-const cellSelectProps = {
-  ...selectProps,
-  classNames: {
-    ...selectClassNames,
-    control: ({ isFocused }: { isFocused: boolean }) => `
-      !min-h-[26px] !h-[26px] !rounded-none !border-0 !shadow-none !text-[12px]
-      !bg-transparent
-      ${isFocused ? "!bg-white !ring-1 !ring-inset !ring-[#91a7b9]" : ""}
-    `,
-    valueContainer: () => "!h-[26px] !py-0 !px-[8px] !overflow-hidden",
-    singleValue: () => "!m-0 !text-[12px] !text-[#24364d]",
-    indicatorsContainer: () => "!h-[26px]",
-    option: ({
-      isFocused,
-      isSelected,
-    }: {
-      isFocused: boolean;
-      isSelected: boolean;
-    }) => `
-      !cursor-pointer !px-[6px] !py-[4px] !text-[12px] !text-[#24364d]
-      ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
-    `,
-  },
 };
 
 /* slim green scrollbar (Chrome, Edge, Safari) */
@@ -475,17 +472,23 @@ function ScrollGrid<R>({
 const BudgetHeader: React.FC<{
   year: string;
   onYearChange: (value: string) => void;
+  headTypeOptions: Option[];
   headType: string | null;
   onHeadTypeChange: (value: string | null) => void;
+  branchOptions: Option[];
   branch: string | null;
   onBranchChange: (value: string | null) => void;
+  loadingCombos: boolean;
 }> = ({
   year,
   onYearChange,
+  headTypeOptions,
   headType,
   onHeadTypeChange,
+  branchOptions,
   branch,
   onBranchChange,
+  loadingCombos,
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5">
     
@@ -568,6 +571,12 @@ const BudgetHeader: React.FC<{
       className="w-[220px]"
     />
 
+    {loadingCombos && (
+      <p className="m-0 text-[12px] text-[#667085]">
+        Loading budget options...
+      </p>
+    )}
+
     <LabeledCombo
       id="lkpBranch"
       label="Branch :"
@@ -582,52 +591,122 @@ const BudgetHeader: React.FC<{
 /* 3b. Grid: account id, account name, 12 months, row total, column totals */
 const BudgetGrid: React.FC<{
   rows: BudgetRow[];
-  headType: string | null;
+  accountIdOptions: PairOption[];
+  accountNameOptions: PairOption[];
   activeKey: number | null;
   onActivate: (key: number) => void;
   onAccountChange: (key: number, accountId: string | null) => void;
   onMonthChange: (key: number, month: number, value: string) => void;
 }> = ({
   rows,
-  headType,
+  accountIdOptions,
+  accountNameOptions,
   activeKey,
   onActivate,
   onAccountChange,
   onMonthChange,
 }) => {
-  const accounts = headType ? accountsByHeadType[headType] ?? [] : [];
-  const nameOf = (id: string | null) =>
-    accounts.find((a) => a.id === id)?.name ?? "";
+  const startListSize: ListSize = {
+    width: 350,
+    firstCol: 120,
+    secondCol: 230,
+  };
+  const [idList, setIdList] = useState<ListSize>(startListSize);
+  const [nameList, setNameList] = useState<ListSize>({
+    width: 308,
+    firstCol: 230,
+    secondCol: 78,
+  });
+  const accountNames = Object.fromEntries(
+    accountNameOptions.map((option) => [option.value, option.label]),
+  );
+  const accountIds = Object.fromEntries(
+    accountIdOptions.map((option) => [option.value, option.label]),
+  );
+
+  const measureList = (
+    inputId: string,
+    from: number,
+    to: number,
+    save: (size: ListSize) => void,
+  ) => {
+    const cells = document
+      .getElementById(inputId)
+      ?.closest("tr")
+      ?.querySelectorAll("td");
+    if (!cells || !cells[from] || !cells[to]) return;
+
+    const widthOf = (index: number) => cells[index].getBoundingClientRect().width;
+    let total = 0;
+    for (let index = from; index <= to; index += 1) total += widthOf(index);
+    save({
+      width: total,
+      firstCol: widthOf(from),
+      secondCol: widthOf(to),
+    });
+  };
+
+  const listMenuStyle = <T extends object>(base: T, size: ListSize) =>
+    ({
+      ...base,
+      width: size.width,
+      minWidth: size.width,
+      "--first-col": `${size.firstCol}px`,
+      "--second-col": `${size.secondCol}px`,
+    }) as T;
 
   const columns: GridColumn<BudgetRow>[] = [
     {
       id: "accountId",
       header: "Account ID",
       width: "w-[120px]",
+      cellClass: `p-0 ${GRID_CELL_FOCUS_CLASS}`,
       render: (row) => {
         // an account already used in another line is not offered again
-        const options = accounts
+        const options = accountIdOptions
           .filter(
-            (a) =>
-              a.id === row.accountId ||
-              !rows.some((r) => r.key !== row.key && r.accountId === a.id),
+            (option) =>
+              option.value === row.accountId ||
+              !rows.some(
+                (other) =>
+                  other.key !== row.key && other.accountId === option.value,
+              ),
           )
-          .map((a): Option => ({ value: a.id, label: `${a.id}  ${a.name}` }));
-        return (
-          <Select
-            inputId={`lkpAccount-${row.key}`}
-            instanceId={`lkpAccount-${row.key}`}
-            aria-label="Account ID"
-              components={selectComponents}
-            options={options}
-            value={
-              row.accountId
-                ? { value: row.accountId, label: row.accountId }
-                : null
+          .map((option) => ({
+            ...option,
+            second: accountNames[option.value] || option.second,
+          }));
+        const value: PairOption | null = row.accountId
+          ? {
+              value: row.accountId,
+              label: row.accountId,
+              second: accountNames[row.accountId] ?? "",
             }
+          : null;
+        return (
+          <Select<PairOption, false>
+            inputId={`lkpAccountID-${row.key}`}
+            instanceId={`lkpAccountID-${row.key}`}
+            aria-label="Account ID"
+            options={options}
+            value={value}
+            components={{
+              ...selectComponents,
+              MenuList: AccountIdMenuList,
+            }}
             onFocus={() => onActivate(row.key)}
-            onChange={(option) => onAccountChange(row.key, option?.value ?? null)}
+            onChange={(option) =>
+              onAccountChange(row.key, option?.value ?? null)
+            }
+            formatOptionLabel={pairOptionLabel(accountIdColumns)}
+            onMenuOpen={() =>
+              measureList(`lkpAccountID-${row.key}`, 1, 2, setIdList)
+            }
+            styles={{
+              menu: (base) => listMenuStyle(base, idList),
+            }}
             {...cellSelectProps}
+            classNames={pairClassNames}
           />
         );
       },
@@ -635,8 +714,60 @@ const BudgetGrid: React.FC<{
     {
       id: "accountName",
       header: "Account Name",
-      cellClass: "px-2",
-      render: (row) => nameOf(row.accountId),
+      width: "w-[230px]",
+      cellClass: `p-0 ${GRID_CELL_FOCUS_CLASS}`,
+      render: (row) => {
+        const options = accountNameOptions
+          .filter(
+            (option) =>
+              option.value === row.accountId ||
+              !rows.some(
+                (other) =>
+                  other.key !== row.key && other.accountId === option.value,
+              ),
+          )
+          .map((option) => ({
+            ...option,
+            second: accountIds[option.value] || option.second,
+          }));
+        const value: PairOption | null = row.accountId
+          ? {
+              value: row.accountId,
+              label: accountNames[row.accountId] ?? row.accountId,
+              second: row.accountId,
+            }
+          : null;
+        return (
+          <Select<PairOption, false>
+            inputId={`lkpAccountName-${row.key}`}
+            instanceId={`lkpAccountName-${row.key}`}
+            aria-label="Account Name"
+            options={options}
+            value={value}
+            components={{
+              ...selectComponents,
+              MenuList: AccountNameMenuList,
+            }}
+            onFocus={() => onActivate(row.key)}
+            onChange={(option) =>
+              onAccountChange(row.key, option?.value ?? null)
+            }
+            formatOptionLabel={pairOptionLabel(accountNameColumns)}
+            onMenuOpen={() =>
+              measureList(`lkpAccountName-${row.key}`, 2, 3, setNameList)
+            }
+            styles={{
+              menu: (base) =>
+                listMenuStyle(base, {
+                  ...nameList,
+                  width: nameList.width + ACCOUNT_ID_LIST_EXTRA,
+                }),
+            }}
+            {...cellSelectProps}
+            classNames={pairClassNames}
+          />
+        );
+      },
     },
     ...MONTHS.map(
       (month, index): GridColumn<BudgetRow> => ({
@@ -766,30 +897,102 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
   onPrint,
   onClose,
 }) => {
+  const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
   const [year, setYear] = useState(String(new Date().getFullYear())); // txtYear
-  const [headType, setHeadType] = useState<string | null>("REVENUE"); // lkpBudgetHeadType
-  const [branch, setBranch] = useState<string | null>("JEDDAH"); // lkpBranch
+  const [headType, setHeadType] = useState<string | null>(null); // lkpBudgetHeadType
+  const [branch, setBranch] = useState<string | null>(null); // lkpBranch
+  const [headTypeOptions, setHeadTypeOptions] = useState<Option[]>([]);
+  const [branchOptions, setBranchOptions] = useState<Option[]>([]);
+  const [accountIdOptions, setAccountIdOptions] = useState<PairOption[]>([]);
+  const [accountNameOptions, setAccountNameOptions] = useState<PairOption[]>([]);
+  const [defaultBranch, setDefaultBranch] = useState<string | null>(null);
+  const [loadingCombos, setLoadingCombos] = useState(true);
 
-  const [rows, setRows] = useState<BudgetRow[]>(() => buildRows("REVENUE"));
+  const [rows, setRows] = useState<BudgetRow[]>(() => buildRows());
   const [activeKey, setActiveKey] = useState<number | null>(null);
-  const [savedBy, setSavedBy] = useState(
-    () => sampleBudgets.REVENUE?.savedBy ?? "",
-  );
+  const [savedBy, setSavedBy] = useState("");
   const [error, setError] = useState("");
 
-  /* Loads the saved budget of the chosen head type. Replace with an API call
-     that also uses the year and the branch. */
-  const reload = (nextHeadType: string | null) => {
-    const fresh = buildRows(nextHeadType);
+  useEffect(() => {
+    let cancelled = false;
+    const loadCombos = async () => {
+      if (!PstrCoID) {
+        setError("Company ID (PstrCoID) was not found in localStorage.");
+        setLoadingCombos(false);
+        return;
+      }
+
+      try {
+        const data = await getBudgetFillCombos(PstrCoID);
+        if (!data.success) {
+          throw new Error(data.message ?? "Failed to load budget options.");
+        }
+        if (cancelled) return;
+
+        const nextHeadTypeOptions = data.Types.map((type) => ({
+          value: type.fpid,
+          label: type.fpname ?? type.fpid,
+        }));
+        const nextBranchOptions = data.Branches.map((item) => ({
+          value: item.fbrid,
+          label: item.fbrname ?? item.fbrid,
+        }));
+
+        setHeadTypeOptions(nextHeadTypeOptions);
+        setBranchOptions(nextBranchOptions);
+        setAccountIdOptions(
+          data.AccountsByID.map((account) => ({
+            value: account.faccountid,
+            label: account.faccountid,
+            second: account.faccountname ?? "",
+          })),
+        );
+        setAccountNameOptions(
+          data.AccountsByName.map((account) => ({
+            value: account.faccountid,
+            label: account.faccountname ?? account.faccountid,
+            second: account.faccountid,
+          })),
+        );
+
+        const defaultBranch =
+          nextBranchOptions.find((option) => option.value === data.DefaultBrID)
+            ?.value ??
+          nextBranchOptions[0]?.value ??
+          null;
+        setHeadType(nextHeadTypeOptions[0]?.value ?? null);
+        setBranch(defaultBranch);
+        setDefaultBranch(defaultBranch);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load budget options.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingCombos(false);
+      }
+    };
+
+    void loadCombos();
+    return () => {
+      cancelled = true;
+    };
+  }, [PstrCoID]);
+
+  const reload = () => {
+    const fresh = buildRows();
     setRows(fresh);
     setActiveKey(fresh[0]?.key ?? null);
-    setSavedBy(nextHeadType ? sampleBudgets[nextHeadType]?.savedBy ?? "" : "");
+    setSavedBy("");
     setError("");
   };
 
   const handleHeadTypeChange = (value: string | null) => {
     setHeadType(value);
-    reload(value);
+    reload();
   };
 
   const updateRow = (key: number, patch: (row: BudgetRow) => BudgetRow) =>
@@ -843,13 +1046,13 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
   };
 
   // Cancel throws away the changes and reloads the saved budget
-  const handleCancel = () => reload(headType);
+  const handleCancel = () => reload();
 
   const handleClose = () => {
     setYear(String(new Date().getFullYear()));
-    setHeadType("REVENUE");
-    setBranch("JEDDAH");
-    reload("REVENUE");
+    setHeadType(headTypeOptions[0]?.value ?? null);
+    setBranch(defaultBranch);
+    reload();
     onClose?.();
   };
 
@@ -870,18 +1073,22 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
                 setYear(value);
                 setError("");
               }}
+              headTypeOptions={headTypeOptions}
               headType={headType}
               onHeadTypeChange={handleHeadTypeChange}
+              branchOptions={branchOptions}
               branch={branch}
               onBranchChange={(value) => {
                 setBranch(value);
-                reload(headType);
+                reload();
               }}
+              loadingCombos={loadingCombos}
             />
 
             <BudgetGrid
               rows={rows}
-              headType={headType}
+              accountIdOptions={accountIdOptions}
+              accountNameOptions={accountNameOptions}
               activeKey={activeKey}
               onActivate={setActiveKey}
               onAccountChange={(key, accountId) => {

@@ -8,6 +8,7 @@ import AirlineRouter from "./Travel/Sales/AirlineRoutes";
 import TicketSalesRouter from "./Travel/Sales/TicketSalesRoutes";
 import ServiceChargePolicyPolicy from './Travel/Setup/ServiceChargePolicyRouter'
 import CustomerDivison from './Travel/Setup/CustomerDivisionRouter'
+import Budget from './Travel/Sales/BudgetRoutes'
 const router = Router();
 
 router.use("/auth", authRouter);
@@ -19,5 +20,6 @@ router.use("/airlines", AirlineRouter);
 router.use("/ticket-sales", TicketSalesRouter);
 router.use("/ServiceChargePolicy",ServiceChargePolicyPolicy)
 router.use("/customer-division",CustomerDivison)
+router.use("/budget",Budget)
 
 export default router;

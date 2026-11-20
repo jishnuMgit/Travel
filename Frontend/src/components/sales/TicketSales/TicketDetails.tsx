@@ -33,7 +33,7 @@ import {
   type TicketDetailPayload,
   type TicketLinePayload,
   type TktTypeRecord,
-} from "../../../utils/airlineApi";
+} from "../../../utils/Api";
 import CnjModal, { isEmptyCnjRow, type CnjRow } from "./CnjModal";
 import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";

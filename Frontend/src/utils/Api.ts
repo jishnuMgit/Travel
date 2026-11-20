@@ -45,6 +45,25 @@ const encode = (value: string) => encodeURIComponent(value);
 export const getAirlines = (PstrCoID: string) =>
   request<AirlineRecord[]>(`/airlines/${encode(PstrCoID)}`);
 
+export type BudgetComboResponse = {
+  success: boolean;
+  message?: string;
+  DefaultBrID: string | null;
+  Branches: { fbrid: string; fbrname: string | null }[];
+  Types: { fpid: string; fpname: string | null }[];
+  AccountsByID: {
+    faccountid: string;
+    faccountname: string | null;
+  }[];
+  AccountsByName: {
+    faccountid: string;
+    faccountname: string | null;
+  }[];
+};
+
+export const getBudgetFillCombos = (PstrCoID: string) =>
+  request<BudgetComboResponse>(`/budget/FillCombos/${encode(PstrCoID)}`);
+
 export type TktTypeRecord = {
   ftickettypeid: string;
   ftickttypename: string | null;
@@ -379,6 +398,43 @@ export const saveCustomerDivisionRows = (payload: {
       method: "POST",
       body: JSON.stringify(payload),
     },
+  );
+
+export const createCustomerDivision = (payload: {
+  PstrCoID: string;
+  StrCustomerID: string;
+  Row: CustomerDivisionSaveRow;
+}) =>
+  request<{ success: boolean; message: string }>("/customer-division/row", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const updateCustomerDivision = (
+  PstrCoID: string,
+  StrCustomerID: string,
+  StrDivID: string,
+  row: CustomerDivisionSaveRow,
+) =>
+  request<{ success: boolean; message: string }>(
+    `/customer-division/row/${encode(PstrCoID)}/${encode(StrCustomerID)}/${encode(StrDivID)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(row),
+    },
+  );
+
+export const deleteCustomerDivision = (
+  PstrCoID: string,
+  StrCustomerID: string,
+  StrDivID: string,
+  PstrYear:string
+) =>
+  request<{ success: boolean; message: string }>(
+    `/customer-division/row/${encode(PstrCoID)}/${encode(StrCustomerID)}/${encode(StrDivID)}`,
+    { method: "DELETE",
+      body:JSON.stringify({PstrYear})
+     },
   );
 
 export const getTicketSalesCustomers = (PstrCoID: string) =>
