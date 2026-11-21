@@ -398,6 +398,7 @@ export const handleGetServiceChargePolicyAttachmentFile = async (
       return;
     }
 
+    res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("Content-Type", file.mime);
     res.setHeader("Content-Length", file.bytes.length);
     res.setHeader(

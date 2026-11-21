@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS dbo.tblticketsalesattach
+(
+    fcoid          character varying(3)   NOT NULL,
+    fyear          character varying(4),
+    fbrid          character varying(3)   NOT NULL,
+    ftickettypeid  character varying(4)   NOT NULL,
+    fticketslno    character varying(12)  NOT NULL,
+    fslno          smallint               NOT NULL,
+    fnote          character varying(100),
+    fdoxname       character varying(255),
+    fdoxtype       character varying(5),
+    fdox           bytea,
+    fcuserid       character varying(30),
+    fcuserdate     timestamp without time zone,
+    fmuserid       character varying(30),
+    fmuserdate     timestamp without time zone,
+    CONSTRAINT pk_tblticketsalesattach PRIMARY KEY (fcoid, fbrid, ftickettypeid, fticketslno, fslno)
+);
+

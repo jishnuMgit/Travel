@@ -1,9 +1,12 @@
 import type { Request, Response } from "express";
 import pool from "../../../DB/db";
 import type { AuthenticatedRequest } from "../../../middleware/AuthMiddleware";
+import { getAttachFile } from "../../../services/Travel/Sales/TicketSalesAttachService";
 import {
   ApiError,
   deleteTicketSales as deleteTicketSalesRecord,
+  deleteTicketSalesAttachLine as deleteTicketSalesAttachLineRecord,
+  deleteTicketSalesCnjRow as deleteTicketSalesCnjRowRecord,
   fetchTicketSales as fetchTicketSalesRecord,
   fetchTicketSalesSlNos as fetchTicketSalesSlNosRecord,
   fetchTicketSalesVat,
@@ -186,7 +189,7 @@ export const getTicketSalesServiceTypes = async (
       `SELECT fservicetypeid, fservicetypename
          FROM dbo.tblservicetype
         WHERE fcoid = $1
-          AND fservicetypegroupid = 'TKT'
+          AND fservicetypegroupid = '1TKT'
         ORDER BY fpositionno, fservicetypeid`,
       [PstrCoID],
     );
@@ -646,5 +649,114 @@ export const deleteTicketSales = async (req: AuthenticatedRequest, res: Response
       success: false,
       message: "Internal server error while deleting the ticket.",
     });
+  }
+};
+
+// One file of the Customer Attach popup of a ticket (to view / download it).
+export const getTicketSalesAttachFile = async (req: Request, res: Response) => {
+  const param = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const txtAttachSlNo = Number(req.params.txtAttachSlNo);
+
+  if (!Number.isInteger(txtAttachSlNo) || txtAttachSlNo < 1) {
+    res.status(400).json({ success: false, message: "Line is not valid" });
+    return;
+  }
+
+  try {
+    const file = await getAttachFile(
+      {
+        PstrCoID: param(req.params.PstrCoID),
+        lkpBranch: param(req.params.lkpBranch),
+        lkpTktType: param(req.params.lkpTktType),
+        txtTktSLNo: param(req.params.txtTktSLNo),
+      },
+      txtAttachSlNo,
+    );
+    if (!file) {
+      res.status(404).json({ success: false, message: "Attachment not found." });
+      return;
+    }
+
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Content-Type", file.mime);
+    res.setHeader("Content-Length", file.bytes.length);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(file.name)}"`);
+    res.status(200).send(file.bytes);
+  } catch (error) {
+    console.error("Ticket sales attachment download error:", error);
+    res.status(500).json({ success: false, message: "Failed to load the attachment." });
+  }
+};
+
+// Delete one line of the Customer Attach popup of a ticket (the x of the popup): the file is deleted from the database at once.
+export const deleteTicketSalesAttachLine = async (req: AuthenticatedRequest, res: Response) => {
+  const param = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const PstrUserID = req.user?.userId;
+
+  if (!PstrUserID) {
+    res.status(401).json({ success: false, message: "Authentication required" });
+    return;
+  }
+
+  try {
+    await deleteTicketSalesAttachLineRecord(
+      {
+        PstrCoID: param(req.params.PstrCoID),
+        PstrYear: param(req.query.PstrYear),
+        lkpBranch: param(req.params.lkpBranch),
+        lkpTktType: param(req.params.lkpTktType),
+        txtTktSLNo: param(req.params.txtTktSLNo),
+      },
+      Number(req.params.txtAttachSlNo),
+      PstrUserID,
+      param(req.query.dtpServerDate) || undefined,
+    );
+
+    res.status(200).json({ success: true, message: "Deleted successfully" });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      res.status(error.status).json({ success: false, message: error.message });
+      return;
+    }
+
+    console.error("Ticket sales attachment delete error:", error);
+    res.status(500).json({ success: false, message: "Internal server error while deleting the attachment." });
+  }
+};
+
+// Delete one line of the Sales Conjunction popup of a ticket (the x of the popup): deleted from the database at once.
+export const deleteTicketSalesCnjRow = async (req: AuthenticatedRequest, res: Response) => {
+  const param = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const PstrUserID = req.user?.userId;
+
+  if (!PstrUserID) {
+    res.status(401).json({ success: false, message: "Authentication required" });
+    return;
+  }
+
+  try {
+    const deleted = await deleteTicketSalesCnjRowRecord(
+      {
+        PstrCoID: param(req.params.PstrCoID),
+        PstrYear: param(req.params.PstrYear),
+        lkpTktType: param(req.params.lkpTktType),
+        txtTktSLNo: param(req.params.txtTktSLNo),
+        lkpBranch: param(req.query.lkpBranch) || null,
+        txtSlNo: param(req.query.txtSlNo) || null,
+      },
+      param(req.params.txtCnjTktSlNo),
+      PstrUserID,
+      param(req.query.dtpServerDate) || undefined,
+    );
+
+    res.status(200).json({ success: true, message: "Deleted successfully", deleted });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      res.status(error.status).json({ success: false, message: error.message });
+      return;
+    }
+
+    console.error("Ticket sales CNJ delete error:", error);
+    res.status(500).json({ success: false, message: "Internal server error while deleting the conjunction line." });
   }
 };

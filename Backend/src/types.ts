@@ -17,5 +17,4 @@ export interface AttachViewDto {
   fDoxType: string | null;
   mimeType: string;
   fDox: string | null;           // raw base64
-  dataUrl: string | null;        // data:mime;base64,...
 }

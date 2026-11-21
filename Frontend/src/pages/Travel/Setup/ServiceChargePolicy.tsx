@@ -12,6 +12,7 @@ import {
 } from "../../../utils/Api";
 import {
   copyServiceChargePolicy,
+  getServiceChargePolicyAttachmentFile,
   getServiceChargePolicyAttachments,
   runServiceChargePolicy,
   saveServiceChargePolicyAttachments,
@@ -1092,6 +1093,17 @@ const ServiceChargePolicy: React.FC = () => {
               key={`${lkpCustomerID}-${activeTab}`}
               headerName="Service Charge Policy - Attach"
               attachments={attachments}
+              loadAttachmentFile={(slNo) => {
+                if (!lkpCustomerID) {
+                  throw new Error("Select a customer before viewing attachments.");
+                }
+                return getServiceChargePolicyAttachmentFile(
+                  PstrCoID,
+                  lkpCustomerID,
+                  activeTab === "Sales" ? "S" : "R",
+                  slNo,
+                );
+              }}
               onClose={() => setAttachModalOpen(false)}
               onSave={handleSaveAttachments}
             />

@@ -21,6 +21,9 @@ import {
   getTicketSalesServiceTypes,
   getTicketSalesStaffs,
   getTicketSalesSuppliers,
+  deleteTicketAttachLine,
+  deleteTicketCnjRow,
+  getTicketAttachFile,
   getTicketSales,
   getTicketSalesSlNos,
   getTicketSalesTktTypes,
@@ -35,8 +38,17 @@ import {
   type TktTypeRecord,
 } from "../../../utils/Api";
 import CnjModal, { isEmptyCnjRow, type CnjRow } from "./CnjModal";
-import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
+import { cnjCarrierIssue, formatAirportCode, formatCarrierCodes, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader, MOBILE_MAX, MOBILE_CHARS, EMAIL_MAX } from "./ticketSalesValidation";
 import { tryGetServerDate } from "../../../utils/serverDate";
+import { base64ToBlob } from "../../../utils/fileUpload";
+import {
+  applyPopupPayload,
+  attachPayload,
+  entriesAfterSave,
+  entriesFromLoaded,
+  popupAttachments,
+  type AttachEntry,
+} from "./ticketAttach";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
 
@@ -1013,7 +1025,11 @@ const TicketDetailsFields: React.FC<
       <input
         id="txtMobile"
         value={form.txtMobile}
-        onChange={(event) => set("txtMobile", event.target.value)}
+        maxLength={MOBILE_MAX}
+        inputMode="tel"
+        onChange={(event) => {
+          if (MOBILE_CHARS.test(event.target.value)) set("txtMobile", event.target.value);
+        }}
         className={inputClass}
       />
     </Field>
@@ -1027,6 +1043,7 @@ const TicketDetailsFields: React.FC<
       <input
         id="txtEmail"
         type="email"
+        maxLength={EMAIL_MAX}
         value={form.txtEmail}
         onChange={(event) => set("txtEmail", event.target.value)}
         className={inputClass}
@@ -1083,7 +1100,7 @@ const TicketRoutePanel: React.FC<
 > = ({ form, set, onCnjChange }) => (
   <div className="@container min-w-0">
     <div
-      className={`${panelClass} grid h-full grid-cols-1 items-center gap-x-4 gap-y-2 @md:grid-cols-2`}
+      className={`${panelClass} grid h-full grid-cols-1 items-center gap-x-4 gap-y-2`}
     >
       <Field
         label="Route :"
@@ -2002,6 +2019,10 @@ console.log(onClose);
         if (cnjRoute !== "" && !/^[A-Z0-9]{3}( [A-Z0-9]{3}){1,4}$/.test(cnjRoute.toUpperCase())) {
           return cnjIssue("'Route' of the conjunction ticket should be 2 to 5 airport codes of 3 characters, like IND BHA");
         }
+
+        // one Carrier Code (2 characters) for each sector of the Route: JED DXB -> SV, JED DXB CBB -> SV SV
+        const carrierIssue = cnjCarrierIssue(cnjRoute, row.txtCnjCarrier);
+        if (carrierIssue) return cnjIssue(carrierIssue);
       }
     }
 
@@ -2020,6 +2041,8 @@ console.log(onClose);
       supplier: form.lkpSupplier,
       supPayment: form.lkpPaySupplierID,
       pax: form.txtPaxName,
+      mobile: form.txtMobile,
+      email: form.txtEmail,
       staff: form.lkpStaffID,
       trip: form.lkpTrip,
       returnDate: form.dtpReturnDate,
@@ -2063,6 +2086,63 @@ console.log(onClose);
   /* Save a new ticket: the form (header) + the customer grid lines + the
      detail fields go to the server, which inserts tblticketsales and
      tblticketsalesb in one transaction. */
+  /* Customer Attach (the popup of the Cust. Attach button): the files are kept here and sent WITH the ticket (attachRows) when
+     it is saved / modified; they are loaded with the ticket. null = the popup was not used: nothing is sent. */
+  const [attachEntries, setAttachEntries] = useState<AttachEntry[]>([]);
+  const [attachTouched, setAttachTouched] = useState(false);
+
+  // the old ValidateMe("A"): the Ticket Type and the Ticket No. are needed before the popup opens
+  const canOpenAttach = () => {
+    if (!form.lkpTktType) {
+      toast.error("Please select a 'Ticket Type'");
+      document.getElementById("lkpTktType")?.focus();
+      return false;
+    }
+    if (form.txtTktSLNo.trim() === "") {
+      toast.error("Please input 'Ticket No.'");
+      document.getElementById("txtTktSLNo")?.focus();
+      return false;
+    }
+    return true;
+  };
+
+  const handleAttachSave = (rows: Parameters<typeof applyPopupPayload>[1]) => {
+    setAttachEntries((prev) => applyPopupPayload(prev, rows));
+    setAttachTouched(true);
+  };
+
+  // Yes of "Do you want to delete Line n?": a saved file is deleted from the database at once; a file that is only in the page
+  // is just dropped. An error (thrown) keeps the line in the popup.
+  const removeAttachLine = async (line: { fSlNo: number } | null) => {
+    if (!line) return;
+    const entry = attachEntries.find((e) => e.txtAttachSlNo === line.fSlNo);
+    if (entry?.fromDb) {
+      await deleteTicketAttachLine({
+        PstrCoID,
+        PstrYear,
+        lkpBranch: form.lkpBranch ?? "",
+        lkpTktType: form.lkpTktType ?? "",
+        txtTktSLNo: form.txtTktSLNo.trim(),
+        txtAttachSlNo: line.fSlNo,
+        dtpServerDate: (await tryGetServerDate()) || null,
+      });
+    }
+    setAttachEntries((prev) => prev.filter((e) => e.txtAttachSlNo !== line.fSlNo));
+  };
+
+  // View: a file just attached is in the page; a saved file is read from the server
+  const loadAttachFile = async (txtAttachSlNo: number): Promise<Blob> => {
+    const entry = attachEntries.find((e) => e.txtAttachSlNo === txtAttachSlNo);
+    if (entry && !entry.fromDb && entry.imgDox) return base64ToBlob(entry.imgDox, entry.txtDoxName ?? "");
+    return getTicketAttachFile({
+      PstrCoID,
+      lkpBranch: form.lkpBranch ?? "",
+      lkpTktType: form.lkpTktType ?? "",
+      txtTktSLNo: form.txtTktSLNo.trim(),
+      txtAttachSlNo,
+    });
+  };
+
   const handleSave = async (
     lines: TicketLinePayload[],
     detail: TicketDetailPayload,
@@ -2137,13 +2217,19 @@ console.log(onClose);
               .filter((row) => !isEmptyCnjRow(row))
               .map((row) => ({ ...row }))
           : [],
+        // the files of the Customer Attach popup (only when the popup was used)
+        ...(attachTouched ? { attachRows: attachPayload(attachEntries) } : {}),
         ...detail,
       });
       toast.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
       // a modify clears the screen but keeps the Ticket Type and the Ticket No.: type a Sl. No. to load a ticket again;
       // a new ticket stays on the screen and the button is Modify from here
       if (isModify) clearAfterModify();
-      else setSavedKey(ticketKey);
+      else {
+        setSavedKey(ticketKey);
+        setAttachEntries((prev) => entriesAfterSave(prev)); // the files are saved with the ticket now
+        setAttachTouched(false);
+      }
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -2185,11 +2271,13 @@ console.log(onClose);
       setError("");
       setForm((prev) => ({ ...prev, ...formFromTicket(ticket, tktName) }));
       setLoaded({ version: Date.now(), ticket });
+      setAttachEntries(entriesFromLoaded(ticket.attachments));
+      setAttachTouched(false);
       setCnjRows(
         (ticket.cnjRows ?? []).map((row) => ({
           txtCnjTktSlNo: row.txtCnjTktSlNo,
           txtCnjRoute: row.txtCnjRoute,
-          txtCnjCarrier: row.txtCnjCarrier,
+          txtCnjCarrier: formatCarrierCodes(row.txtCnjCarrier),
           txtCnjClass: row.txtCnjClass,
         })),
       );
@@ -2242,6 +2330,21 @@ console.log(onClose);
     set("txtK7", round2(supplierAmtWoComm - withoutVat).toFixed(2));
   };
 
+  // Yes of "Do you want to delete Line n?" in the CNJ popup: a line of a saved ticket is deleted from the database at once
+  const removeCnjRow = async (row: CnjRow) => {
+    if (!isModify || row.txtCnjTktSlNo.trim() === "") return;
+    await deleteTicketCnjRow({
+      PstrCoID,
+      PstrYear,
+      lkpTktType: form.lkpTktType ?? "",
+      txtTktSLNo: form.txtTktSLNo.trim(),
+      lkpBranch: form.lkpBranch,
+      txtSlNo: form.txtSlNo.trim() || null,
+      txtCnjTktSlNo: row.txtCnjTktSlNo.trim(),
+      dtpServerDate: (await tryGetServerDate()) || null,
+    });
+  };
+
   const closeCnj = () => {
     setCnjRows((rows) => rows.filter((row) => !isEmptyCnjRow(row))); // the empty rows are not kept
     setCnjOpen(false);
@@ -2264,6 +2367,8 @@ console.log(onClose);
     });
     setSavedKey("");
     setLoaded(undefined);
+    setAttachEntries([]);
+    setAttachTouched(false);
     setCnjRows([]);
     setCnjOpen(false);
     lastAutoKey.current = "";
@@ -2286,6 +2391,8 @@ console.log(onClose);
     });
     setSavedKey("");
     setLoaded(undefined);
+    setAttachEntries([]);
+    setAttachTouched(false);
     setCnjRows([]);
     setCnjOpen(false);
     lastAutoKey.current = ""; // so leaving the Sl. No. box loads the ticket
@@ -2441,6 +2548,11 @@ console.log(onClose);
             cnjEnabled={form.lkpCNJ === "Yes"}
             clearVersion={clearVersion}
             loaded={loaded}
+            attachments={popupAttachments(attachEntries)}
+            canOpenAttach={canOpenAttach}
+            onAttachSave={handleAttachSave}
+            loadAttachFile={loadAttachFile}
+            onAttachRemove={removeAttachLine}
             onAction={(name) => {
               if (name === "search") handleSearch();
               if (name === "cnj") openCnj();
@@ -2465,7 +2577,7 @@ console.log(onClose);
           />
         </main>
         {dialog}
-        <CnjModal open={cnjOpen} rows={cnjRows} mainTicketNo={form.txtTktSLNo} onChange={setCnjRows} onClose={closeCnj} />
+        <CnjModal open={cnjOpen} rows={cnjRows} mainTicketNo={form.txtTktSLNo} onChange={setCnjRows} onClose={closeCnj} onRemoveRow={removeCnjRow} />
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
-import { formatRoute, ROUTE_MAX_LENGTH } from "./ticketSalesValidation";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import { CARRIER_MAX_LENGTH, cnjCarrierIssue, formatCarrierCodes, formatRoute, ROUTE_MAX_LENGTH, routeSectors } from "./ticketSalesValidation";
 
 /* Ticket Sales-Conjunction (the old frmTktSalesCnj): opens when CNJ. is Yes (or from the CNJ button). The conjunction tickets of
    this ticket, one row each: CNJ Ticket No., Route, Carrier, Class. The grid always ends with an empty row; typing in it adds the
@@ -41,7 +43,7 @@ const upper = (value: string) => value.toUpperCase();
 const COLUMNS: Column[] = [
   { key: "txtCnjTktSlNo", label: "CNJ Ticket No.", width: "w-[26%]", maxLength: 12 },
   { key: "txtCnjRoute", label: "Route", width: "w-[30%]", maxLength: ROUTE_MAX_LENGTH, format: formatRoute },
-  { key: "txtCnjCarrier", label: "Carrier", width: "w-[24%]", maxLength: 8, format: upper },
+  { key: "txtCnjCarrier", label: "Carrier Code", width: "w-[24%]", maxLength: CARRIER_MAX_LENGTH, format: formatCarrierCodes },
   { key: "txtCnjClass", label: "Class", width: "w-[20%]", maxLength: 8, format: upper },
 ];
 
@@ -55,12 +57,17 @@ type CnjModalProps = {
   mainTicketNo: string;
   onChange: (rows: CnjRow[]) => void;
   onClose: () => void;
+  /** Yes of the delete line: deletes the saved line from the database; an error (thrown) keeps the line */
+  onRemoveRow?: (row: CnjRow) => void | Promise<void>;
 };
 
 const MIN_ROWS = 6; // the grid is as tall as the old one even when it has few rows
 
-const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange, onClose }) => {
+const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange, onClose, onRemoveRow }) => {
   const firstCellRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog } = useConfirmModal();
+  const [carrierLeft, setCarrierLeft] = useState<number[]>([]); // the rows whose Carrier Code box was left: a wrong one shows in red
+  const confirmingRef = useRef(false); // the confirm window is open: Esc is for it, not for this popup
 
   // the cursor goes into the first cell ONLY when the popup opens (not on every key typed: onClose is a new function on
   // every render of the screen, so it must not be a dependency of this effect)
@@ -76,7 +83,7 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
     if (!open) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !confirmingRef.current) {
         event.preventDefault();
         onCloseRef.current();
       }
@@ -102,9 +109,28 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
     return no;
   };
 
+  // the x at the end of a line: asks "Do you want to delete Line n?", then the line is taken out (the lines below move up)
+  const removeRow = async (index: number) => {
+    confirmingRef.current = true;
+    const yes = await confirm({ message: `Do you want to delete Line ${index + 1}?` });
+    setTimeout(() => { confirmingRef.current = false; }, 0);
+    if (!yes) return;
+    try {
+      await onRemoveRow?.(rows[index]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to delete the line.");
+      return;
+    }
+    onChange(rows.filter((_, i) => i !== index));
+  };
+
   const update = (index: number, key: keyof CnjRow, value: string) => {
     const base = index < rows.length ? rows[index] : emptyCnjRow();
     const next: CnjRow = { ...base, [key]: value };
+    // the Carrier Code has one code for each sector of the Route: a shorter Route cuts the codes it has no sector for
+    if (key === "txtCnjRoute" && routeSectors(next.txtCnjRoute) > 0) {
+      next.txtCnjCarrier = formatCarrierCodes(next.txtCnjCarrier, routeSectors(next.txtCnjRoute));
+    }
     // typing in the row (Route ...) with no CNJ Ticket No. yet: it becomes the Ticket No. + 1 (or the row above + 1)
     if (key !== "txtCnjTktSlNo" && next.txtCnjTktSlNo.trim() === "" && value.trim() !== "") {
       next.txtCnjTktSlNo = defaultNo(index);
@@ -161,6 +187,7 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
                     </td>
                     {COLUMNS.map((column, columnIndex) => (
                       <td key={column.key} className={cell}>
+                        <div className="flex h-full items-center">
                         <input
                           ref={index === 0 && columnIndex === 0 ? firstCellRef : undefined}
                           id={`cnj-${index}-${column.key}`}
@@ -168,11 +195,45 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
                           value={row[column.key]}
                           maxLength={column.maxLength}
                           onFocus={(event) => event.target.select()}
+                          onBlur={() => {
+                            // leaving the Carrier Code box: it must be one code of 2 characters for each sector of the Route
+                            if (column.key !== "txtCnjCarrier" || index >= rows.length) return;
+                            const issue = cnjCarrierIssue(row.txtCnjRoute, row.txtCnjCarrier);
+                            setCarrierLeft((previous) => (previous.includes(index) ? previous : [...previous, index]));
+                            if (issue) toast.error(issue);
+                          }}
                           onChange={(event) =>
-                            update(index, column.key, column.format ? column.format(event.target.value) : event.target.value)
+                            update(
+                              index,
+                              column.key,
+                              column.key === "txtCnjCarrier"
+                                ? // as many codes as the Route has sectors (4 at most; no Route yet: 4)
+                                  formatCarrierCodes(event.target.value, routeSectors(row.txtCnjRoute) || undefined)
+                                : column.format
+                                  ? column.format(event.target.value)
+                                  : event.target.value,
+                            )
                           }
-                          className="h-full w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none"
+                          className={`h-full min-w-0 flex-1 bg-transparent px-2 text-[12px] outline-none ${
+                            column.key === "txtCnjCarrier" && carrierLeft.includes(index) && cnjCarrierIssue(row.txtCnjRoute, row.txtCnjCarrier)
+                              ? "text-[#c0392b]"
+                              : "text-[#24364d]"
+                          }`}
                         />
+                        {/* the x of the line: at the end of the last column, for a line that has something in it */}
+                        {columnIndex === COLUMNS.length - 1 && index < rows.length && !isEmptyCnjRow(row) && (
+                          <button
+                            type="button"
+                            title={`Delete Line ${index + 1}`}
+                            aria-label={`Delete Line ${index + 1}`}
+                            tabIndex={-1}
+                            onClick={() => void removeRow(index)}
+                            className="mr-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[14px] leading-none text-gray-600 hover:bg-red-50 hover:text-red-600"
+                          >
+                            ×
+                          </button>
+                        )}
+                        </div>
                       </td>
                     ))}
                   </tr>
@@ -190,6 +251,7 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
           </div>
         </div>
       </div>
+      <div className="pointer-events-auto">{dialog}</div>
     </div>
   );
 };

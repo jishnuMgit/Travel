@@ -87,7 +87,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-3" /* above the conjunction popup (z-50) */
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-3" /* above the conjunction popup (z-50) */
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}

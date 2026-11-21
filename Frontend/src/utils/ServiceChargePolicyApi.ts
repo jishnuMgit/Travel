@@ -51,7 +51,6 @@ export type ServiceChargePolicyAttachment = {
   fDoxType: string | null;
   mimeType: string;
   fDox: string | null;
-  dataUrl: string | null;
 };
 
 export type ServiceChargePolicyAttachmentSave = {
@@ -129,6 +128,41 @@ export const getServiceChargePolicyAttachments = (
   return request<ServiceChargePolicyAttachment[]>(
     `/ServiceChargePolicy/attachments?${query.toString()}`,
   );
+};
+
+export const getServiceChargePolicyAttachmentFile = async (
+  PstrCoID: string,
+  StrCustomerID: string,
+  StrSR: "S" | "R",
+  slNo: number,
+): Promise<Blob> => {
+  const query = new URLSearchParams({ PstrCoID, StrCustomerID, StrSR });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/ServiceChargePolicy/attachments/file/${slNo}?${query.toString()}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.message || `Request failed (${response.status})`);
+    }
+    return await response.blob();
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("Timed out while loading the attachment file.", {
+        cause: error,
+      });
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 };
 
 export const saveServiceChargePolicyAttachments = (payload: {
