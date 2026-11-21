@@ -436,6 +436,23 @@ const textOrNull = (value: unknown, max: number, label: string): string | null =
   return result;
 };
 
+// Mobile: up to 20 characters, digits + - ( ) and spaces. E-mail: up to 50 characters, a valid address.
+const mobileOrNull = (value: unknown): string | null => {
+  const result = textOrNull(value, 20, "Mobile");
+  if (result !== null && !/^[0-9+\-() ]+$/.test(result)) {
+    throw new ApiError(400, "Mobile can have only digits, + - ( ) and spaces");
+  }
+  return result;
+};
+
+const emailOrNull = (value: unknown): string | null => {
+  const result = textOrNull(value, 50, "E-mail");
+  if (result !== null && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(result)) {
+    throw new ApiError(400, "Please input a valid E-mail");
+  }
+  return result;
+};
+
 const money = (value: unknown): number => {
   const parsed =
     typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
@@ -516,8 +533,8 @@ const cleanTicketSales = (payload: SaveTicketSalesPayload) => {
     lkpVoid: text(payload.lkpVoid) === "Yes",
     lkpService: textOrNull(payload.lkpService, 4, "Service Type"),
     txtSalesGDSLogin: textOrNull(payload.txtSalesGDSLogin, 6, "Sales GDS Login"),
-    txtMobile: textOrNull(payload.txtMobile, 20, "Mobile"),
-    txtEmail: textOrNull(payload.txtEmail, 50, "E-mail"),
+    txtMobile: mobileOrNull(payload.txtMobile),
+    txtEmail: emailOrNull(payload.txtEmail),
     lkpTrip: textOrNull(payload.lkpTrip, 2, "Trip"),
     txtTourCode: textOrNull(payload.txtTourCode, 15, "Tour Code"),
     txtRoute: textOrNull(payload.txtRoute, 40, "Route"),

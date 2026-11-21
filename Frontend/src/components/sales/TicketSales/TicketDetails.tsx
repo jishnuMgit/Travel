@@ -35,7 +35,7 @@ import {
   type TktTypeRecord,
 } from "../../../utils/airlineApi";
 import CnjModal, { isEmptyCnjRow, type CnjRow } from "./CnjModal";
-import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader } from "./ticketSalesValidation";
+import { formatAirportCode, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader, MOBILE_MAX, MOBILE_CHARS, EMAIL_MAX } from "./ticketSalesValidation";
 import { tryGetServerDate } from "../../../utils/serverDate";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import { useEnterAsTab } from "../../../hooks/useEnterAsTab";
@@ -1013,7 +1013,11 @@ const TicketDetailsFields: React.FC<
       <input
         id="txtMobile"
         value={form.txtMobile}
-        onChange={(event) => set("txtMobile", event.target.value)}
+        maxLength={MOBILE_MAX}
+        inputMode="tel"
+        onChange={(event) => {
+          if (MOBILE_CHARS.test(event.target.value)) set("txtMobile", event.target.value);
+        }}
         className={inputClass}
       />
     </Field>
@@ -1027,6 +1031,7 @@ const TicketDetailsFields: React.FC<
       <input
         id="txtEmail"
         type="email"
+        maxLength={EMAIL_MAX}
         value={form.txtEmail}
         onChange={(event) => set("txtEmail", event.target.value)}
         className={inputClass}
@@ -2020,6 +2025,8 @@ console.log(onClose);
       supplier: form.lkpSupplier,
       supPayment: form.lkpPaySupplierID,
       pax: form.txtPaxName,
+      mobile: form.txtMobile,
+      email: form.txtEmail,
       staff: form.lkpStaffID,
       trip: form.lkpTrip,
       returnDate: form.dtpReturnDate,

@@ -32,6 +32,8 @@ export type HeaderInput = {
   supplier: string | null;
   supPayment: string | null;
   pax: string;
+  mobile: string; // up to 20 characters: digits, + - ( ) and spaces
+  email: string; // up to 50 characters, a valid e-mail address
   staff: string | null;
   trip: string | null;
   returnDate: string; // Return Date (DD-MM-YYYY): required when the Trip is Round Trip (RT)
@@ -85,6 +87,11 @@ export const formatRoute = (value: string): string => {
 /* Destination (the old txtDestID: upper case, 3 characters): an airport code, capital letters whatever is typed. */
 export const formatAirportCode = (value: string): string =>
   value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
+
+export const MOBILE_MAX = 20;
+export const EMAIL_MAX = 50;
+export const MOBILE_CHARS = /^[0-9+\-() ]*$/;
+export const EMAIL_FORMAT = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 
 export type HeaderResult = { error?: Issue; warnings: string[] };
 
@@ -193,6 +200,18 @@ export const validateTicketHeader = (i: HeaderInput): HeaderResult => {
   }
 
   // ---- the customer lines
+  // Mobile and E-mail are optional, but when typed they must be valid
+  const mobile = i.mobile.trim();
+  if (mobile !== "") {
+    if (mobile.length > MOBILE_MAX) return fail(`'Mobile' can be ${MOBILE_MAX} characters at most`, "txtMobile");
+    if (!MOBILE_CHARS.test(mobile)) return fail("'Mobile' can have only digits, + - ( ) and spaces", "txtMobile");
+  }
+  const email = i.email.trim();
+  if (email !== "") {
+    if (email.length > EMAIL_MAX) return fail(`'E-mail' can be ${EMAIL_MAX} characters at most`, "txtEmail");
+    if (!EMAIL_FORMAT.test(email)) return fail("Please input a valid 'E-mail'", "txtEmail");
+  }
+
   if (i.lines.length === 0) {
     return fail("There is no 'Billing information' for Saving,\nPlease Input the 'Billing information'.");
   }
