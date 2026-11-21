@@ -88,6 +88,33 @@ export const formatRoute = (value: string): string => {
 export const formatAirportCode = (value: string): string =>
   value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
+/* Carrier Code of a conjunction ticket: one carrier (2 characters) for each SECTOR of its Route, with a space between them.
+   Route JED DXB (1 sector) -> SV ; Route JED DXB CBB (2 sectors) -> SV SV. The space is put in while typing: "svsv" -> "SV SV". */
+export const CARRIER_MAX_CODES = ROUTE_MAX_CODES - 1;
+export const CARRIER_MAX_LENGTH = CARRIER_MAX_CODES * 3 - 1;
+// maxCodes: the codes the Route allows (one for each sector); typing more is not possible
+export const formatCarrierCodes = (value: string, maxCodes: number = CARRIER_MAX_CODES): string => {
+  const letters = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, Math.min(maxCodes, CARRIER_MAX_CODES) * 2);
+  return (letters.match(/.{1,2}/g) ?? []).join(" ");
+};
+
+// the sectors of a Route (JED DXB = 1, JED DXB CBB = 2); 0 = no Route yet
+export const routeSectors = (route: string): number => (route.trim() === "" ? 0 : Math.max(0, route.trim().split(/\s+/).length - 1));
+
+// "" = fine, else the message: the Carrier Code has one code of 2 characters for each sector of the Route
+export const cnjCarrierIssue = (route: string, carrier: string): string => {
+  const sectors = routeSectors(route);
+  const codes = carrier.trim() === "" ? [] : carrier.trim().split(/\s+/);
+
+  if (sectors === 0) {
+    return codes.length > 0 ? "Please input the 'Route' of the conjunction ticket" : "";
+  }
+  if (codes.length !== sectors || codes.some((code) => code.length !== 2)) {
+    return "Please input 'Carrier Code' correctly";
+  }
+  return "";
+};
+
 export const MOBILE_MAX = 20;
 export const EMAIL_MAX = 50;
 export const MOBILE_CHARS = /^[0-9+\-() ]*$/;

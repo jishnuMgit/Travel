@@ -14,6 +14,15 @@ import pool from "../../../DB/db";
 import { joinNote, userAuditWith, type UserAuditAction } from "../../common/UserAuditService";
 import { resolveServerDate } from "../../common/ServerDateService";
 
+import { cleanAttachRows, UploadError } from "../../../utils/fileUpload";
+import {
+  deleteAttachLineWith,
+  deleteAttachWith,
+  fetchAttachListWith,
+  saveAttachRowsWith,
+  type AttachKey,
+} from "./TicketSalesAttachService";
+
 type Db = Pick<PoolClient, "query">;
 type Bag = Record<string, unknown>;
 
@@ -619,10 +628,23 @@ const cleanTicketSales = (payload: SaveTicketSalesPayload) => {
       if (cnj.some((other) => other.txtCnjTktSlNo === cnjNo)) {
         throw new ApiError(400, `'CNJ Ticket No.' ${cnjNo} is entered twice`);
       }
+      // one Carrier Code (2 characters) for each sector of the Route: JED DXB -> SV, JED DXB CBB -> SV SV. It is saved without the
+      // spaces (SVSV, 8 characters at most) and shown with them.
+      const cnjRoute = textOrNull(row.txtCnjRoute, 19, "CNJ Route");
+      const carrierCodes = text(row.txtCnjCarrier).toUpperCase().split(/\s+/).filter((code) => code !== "");
+      const sectors = cnjRoute ? cnjRoute.split(/\s+/).length - 1 : 0;
+      if (sectors === 0 ? carrierCodes.length > 0 : carrierCodes.length !== sectors || carrierCodes.some((code) => code.length !== 2)) {
+        throw new ApiError(
+          400,
+          sectors === 0
+            ? "Please input the 'Route' of the conjunction ticket"
+            : "Please input 'Carrier Code' correctly",
+        );
+      }
       cnj.push({
         txtCnjTktSlNo: cnjNo,
-        txtCnjRoute: textOrNull(row.txtCnjRoute, 19, "CNJ Route"),
-        txtCnjCarrier: textOrNull(row.txtCnjCarrier, 8, "CNJ Carrier"),
+        txtCnjRoute: cnjRoute,
+        txtCnjCarrier: carrierCodes.length > 0 ? carrierCodes.join("") : null,
         txtCnjClass: textOrNull(row.txtCnjClass, 8, "CNJ Class"),
       });
     }
@@ -630,6 +652,15 @@ const cleanTicketSales = (payload: SaveTicketSalesPayload) => {
 
   return { key, ticket, customerLine, cnj, saved };
 };
+
+// the ticket the attached files belong to (the Ticket Type + Ticket No. of the branch)
+const attachKeyOf = (key: TicketSalesKey): AttachKey => ({
+  PstrCoID: key.PstrCoID,
+  PstrYear: key.PstrYear,
+  lkpBranch: key.lkpBranch ?? "",
+  lkpTktType: key.lkpTktType ?? "",
+  txtTktSLNo: key.txtTktSLNo ?? "",
+});
 
 // the key of a save / modify as the key of a load (the ticket type and no. are checked by cleanTicketSales)
 const loadKeyOf = (key: TicketSalesKey) => ({
@@ -660,6 +691,9 @@ export const saveTicketSalesWith = async (
   await callSpTicketSalesBPage(db, { strmode: "S", ...key, ...customerLine, PstrUserID, dtpServerDate });
   for (const row of cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...row });
 
+  // 4) the files of the Customer Attach popup (saved with the ticket; none when the popup was not opened)
+  await saveAttachRowsWith(db, attachKeyOf(key), cleanAttachRows(payload.attachRows), PstrUserID, dtpServerDate);
+
   // the user audit (S): what was saved
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
   if (after) await writeTicketAudit(db, after, "S", auditSavedNote(after), PstrUserID, dtpServerDate);
@@ -670,6 +704,7 @@ export const saveTicketSalesWith = async (
 // A rule of a procedure (RAISE EXCEPTION, SQLSTATE P0001) -> its message, as it is.
 const toApiError = (error: unknown): unknown => {
   if (error instanceof ApiError) return error;
+  if (error instanceof UploadError) return new ApiError(400, error.message);
 
   const pgError = error as { code?: string; message?: string };
   if (pgError?.code === "P0001") return new ApiError(400, pgError.message ?? "");
@@ -724,6 +759,9 @@ export const modifyTicketSalesWith = async (
   // the conjunction ticket is replaced: the old one is deleted, the new one (CNJ. = Yes) is saved
   await callSpTicketSalesCnjPage(db, { strmode: "D", ...key });
   for (const row of cnj) await callSpTicketSalesCnjPage(db, { strmode: "S", ...key, ...row });
+
+  // the files of the Customer Attach popup: only the lines that were added / changed / removed are sent
+  await saveAttachRowsWith(db, attachKeyOf(key), cleanAttachRows(payload.attachRows), PstrUserID, dtpServerDate);
 
   // the user audit (M): what changed, field by field
   const after = await fetchTicketSalesWith(db, loadKeyOf(key));
@@ -890,12 +928,16 @@ const mapRefs = (r: Bag) => ({
 const mapCnjRow = (r: Bag) => ({
   txtCnjTktSlNo: toText(r.fcnjtktslno),
   txtCnjRoute: toText(r.froute),
-  txtCnjCarrier: toText(r.fcarrier),
+  txtCnjCarrier: (toText(r.fcarrier).match(/.{1,2}/g) ?? []).join(" "), // saved as SVSV, shown as SV SV
   txtCnjClass: toText(r.fclass),
 });
 
 export type LoadedTicketSales = { PstrCoID: string; PstrYear: string } & ReturnType<typeof mapTicketRow> &
-  ReturnType<typeof mapRefs> & { lines: ReturnType<typeof mapLineRow>[]; cnjRows: ReturnType<typeof mapCnjRow>[] };
+  ReturnType<typeof mapRefs> & {
+    lines: ReturnType<typeof mapLineRow>[];
+    cnjRows: ReturnType<typeof mapCnjRow>[];
+    attachments: Awaited<ReturnType<typeof fetchAttachListWith>>; // the files of the Customer Attach popup (no file content)
+  };
 
 // The ticket (mode G of the two procedures) on one connection / transaction. null = no such ticket.
 export const fetchTicketSalesWith = async (
@@ -948,6 +990,8 @@ export const fetchTicketSalesWith = async (
   await callSpTicketSalesCnjPage(db, { strmode: "G", ...k, cursorName: cnjCursor });
   const cnjRows = await db.query(`FETCH ALL FROM "${cnjCursor}"`);
 
+  const attachments = await fetchAttachListWith(db, { PstrCoID, PstrYear, lkpBranch, lkpTktType, txtTktSLNo });
+
   return {
     PstrCoID,
     PstrYear,
@@ -955,6 +999,7 @@ export const fetchTicketSalesWith = async (
     ...mapRefs(lines.rows[0] ?? {}),
     lines: lines.rows.map(mapLineRow),
     cnjRows: cnjRows.rows.map(mapCnjRow),
+    attachments,
   };
 };
 
@@ -1047,6 +1092,13 @@ export const deleteTicketSalesWith = async (
   await callSpTicketSalesBPage(db, { strmode: "D", ...k });
   await callSpTicketSalesPage(db, { strmode: "D", ...k });
 
+  // the files of the ticket go with its LAST Sl. No. (all the Sl. Nos of a Ticket No. share them)
+  const remaining = await db.query(
+    `SELECT 1 FROM dbo.tblticketsales WHERE fcoid = $1 AND fbrid = $2 AND ftickettypeid = $3 AND fticketslno = $4 LIMIT 1`,
+    [PstrCoID, lkpBranch, lkpTktType, txtTktSLNo],
+  );
+  if (remaining.rows.length === 0) await deleteAttachWith(db, attachKeyOf(k));
+
   // the user audit (D): what was deleted
   if (before) await writeTicketAudit(db, before, "D", auditSavedNote(before), PstrUserID, await resolveServerDate(db, dtpServerDateSent));
 
@@ -1097,6 +1149,7 @@ const AUDIT_LABELS: Record<string, string> = {
   txtALComAmt: "A/L Com. Amt.", txtALCVat: "A/L C. VAT", txtFopEp: "FOP EP", txtK7: "K7", txtSupplierAmt: "Supplier Amt.",
   txtKbAmt: "KB. Amt.", lkpKbAccount: "KB. Account", txtInvNote: "INV. Note", txtNote: "Note",
   txtRef1: "Ref. 1", txtRef2: "Ref. 2", txtRef3: "Ref. 3", txtRef4: "Ref. 4",
+  txtDoxName: "Attached File", txtAttachNote: "Attach Note", // the Customer Attach popup: one of each for every line (the line no. after #)
   lkpLineCustomer: "Customer ID", lkpLineDivision: "Division", txtLineBType: "B.Type", txtLineFare: "Customer Fare",
   txtLineTax: "Customer Tax", txtLineCDAmt: "CD. Amt.", txtLineSChg: "S. Chg.", txtLineVATAmt: "VAT Amt.",
   txtLineSChgV: "S. Chg. V.", txtLineMF: "MF", txtLineInvAmt: "Inv. Amt.", txtLineVATPer: "VAT %",
@@ -1115,13 +1168,19 @@ type AuditView = Record<string, string | number>;
 
 // the ticket, its refs and its customer line as one list of boxes
 const auditView = (ticket: LoadedTicketSales): AuditView => {
-  const { lines, cnjRows, PstrCoID: _co, PstrYear: _year, ...boxes } = ticket;
+  const { lines, cnjRows, attachments, PstrCoID: _co, PstrYear: _year, ...boxes } = ticket;
   const cnjBoxes: AuditView = {};
   cnjRows.forEach((row, i) => {
     // the first conjunction row has the plain keys; the others a number after the key (CNJ Ticket No. (2) ...)
     for (const [key, value] of Object.entries(row)) cnjBoxes[i === 0 ? key : `${key}#${i + 1}`] = value;
   });
-  return { ...boxes, ...(lines[0] ?? {}), ...cnjBoxes } as AuditView;
+  // the files of the Customer Attach popup: the file name and the note of each line (the line no. is the number after the key)
+  const attachBoxes: AuditView = {};
+  for (const file of attachments) {
+    attachBoxes[`txtDoxName#${file.txtAttachSlNo}`] = file.txtDoxName ?? "";
+    if (file.txtNote) attachBoxes[`txtAttachNote#${file.txtAttachSlNo}`] = file.txtNote;
+  }
+  return { ...boxes, ...(lines[0] ?? {}), ...cnjBoxes, ...attachBoxes } as AuditView;
 };
 
 const auditShow = (key: string, value: string | number | undefined): string =>
@@ -1135,14 +1194,17 @@ const auditLabel = (key: string) => {
 // save / delete: the main boxes
 const auditSavedNote = (ticket: LoadedTicketSales): string => {
   const view = auditView(ticket);
-  return joinNote(AUDIT_SUMMARY_KEYS.filter((key) => key in view).map((key) => `${auditLabel(key)} : ${auditShow(key, view[key])}`));
+  const keys = [...AUDIT_SUMMARY_KEYS, ...Object.keys(view).filter((key) => key.startsWith("txtDoxName#") || key.startsWith("txtAttachNote#"))];
+  return joinNote(keys.filter((key) => key in view).map((key) => `${auditLabel(key)} : ${auditShow(key, view[key])}`));
 };
 
 // modify: every box that is not as it was
 const auditChangedNote = (before: LoadedTicketSales, after: LoadedTicketSales): string => {
   const was = auditView(before);
   const now = auditView(after);
-  const lines = Object.keys(now)
+  // a removed file is in `was` only
+  const keys = [...Object.keys(now), ...Object.keys(was).filter((key) => (key.startsWith("txtDoxName#") || key.startsWith("txtAttachNote#")) && !(key in now))];
+  const lines = keys
     .filter((key) => auditShow(key, was[key]) !== auditShow(key, now[key]))
     .map((key) => `${auditLabel(key)} : Changed from ${auditShow(key, was[key])} to ${auditShow(key, now[key])}`);
 
@@ -1169,6 +1231,128 @@ const writeTicketAudit = (
     note,
     dtpServerDate,
   });
+
+/* ------------------------------------------------ ATTACH: DELETE A LINE */
+
+// The x of the Customer Attach popup: the file line is deleted from the database at once (not with the ticket save), with
+// its user audit row, in one transaction.
+export const deleteTicketSalesAttachLine = async (
+  key: { PstrCoID: string; PstrYear: string; lkpBranch: string; lkpTktType: string; txtTktSLNo: string },
+  txtAttachSlNo: number,
+  PstrUserID: string,
+  dtpServerDateSent?: unknown,
+): Promise<void> => {
+  if (!key.PstrCoID || !key.lkpBranch || !key.lkpTktType || !key.txtTktSLNo) throw new ApiError(400, "The ticket is not given");
+  if (!Number.isInteger(txtAttachSlNo) || txtAttachSlNo < 1) throw new ApiError(400, "Line is not valid");
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const dtpServerDate = await resolveServerDate(client, dtpServerDateSent);
+    const name = await deleteAttachLineWith(client, key, txtAttachSlNo, PstrUserID, dtpServerDate);
+    if (name === null) throw new ApiError(404, "Attachment not found.");
+
+    await userAuditWith(client, {
+      PstrCoID: key.PstrCoID,
+      PstrYear: key.PstrYear,
+      lkpBranch: key.lkpBranch,
+      Type: key.lkpTktType,
+      txtDocNo: key.txtTktSLNo,
+      screenName: AUDIT_SCREEN,
+      action: "D1",
+      PstrUserID,
+      note: `${auditLabel(`txtDoxName#${txtAttachSlNo}`)} : Changed from ${name} to `,
+      dtpServerDate,
+    });
+    await client.query("COMMIT");
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* ignore */
+    }
+    throw toApiError(error);
+  } finally {
+    client.release();
+  }
+};
+
+/* ------------------------------------------- CNJ: DELETE A LINE */
+
+// The x of the Sales Conjunction popup: one conjunction line is deleted from the database at once (not with the ticket
+// modify), with its user audit row, in one transaction. The procedure deletes ALL the conjunction rows of a ticket (mode D), so
+// the other rows are saved again after it (the same as the modify does). false = that CNJ Ticket No. is not saved: nothing to delete.
+export const deleteTicketSalesCnjRow = async (
+  key: { PstrCoID: string; PstrYear: string; lkpTktType: string; txtTktSLNo: string; lkpBranch?: string | null; txtSlNo?: string | null },
+  txtCnjTktSlNo: string,
+  PstrUserID: string,
+  dtpServerDateSent?: unknown,
+): Promise<boolean> => {
+  const cnjNo = text(txtCnjTktSlNo);
+  if (cnjNo === "") throw new ApiError(400, "Please input 'CNJ Ticket No.'");
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const ticket = await fetchTicketSalesWith(client, key);
+    if (!ticket) throw new ApiError(404, "The ticket is not saved");
+
+    const row = ticket.cnjRows.find((r) => r.txtCnjTktSlNo === cnjNo);
+    if (!row) {
+      await client.query("COMMIT");
+      return false;
+    }
+
+    const k = {
+      PstrCoID: ticket.PstrCoID,
+      PstrYear: ticket.PstrYear,
+      lkpTktType: ticket.lkpTktType,
+      txtTktSLNo: ticket.txtTktSLNo,
+      lkpBranch: ticket.lkpBranch,
+      txtSlNo: Number(ticket.txtSlNo),
+    };
+    const dtpServerDate = await resolveServerDate(client, dtpServerDateSent);
+
+    await callSpTicketSalesCnjPage(client, { strmode: "D", ...k });
+    for (const other of ticket.cnjRows.filter((r) => r !== row)) {
+      await callSpTicketSalesCnjPage(client, {
+        strmode: "S",
+        ...k,
+        txtCnjTktSlNo: other.txtCnjTktSlNo,
+        txtCnjRoute: other.txtCnjRoute || null,
+        txtCnjCarrier: other.txtCnjCarrier || null,
+        txtCnjClass: other.txtCnjClass || null,
+      });
+    }
+
+    const position = ticket.cnjRows.indexOf(row) + 1;
+    await userAuditWith(client, {
+      PstrCoID: ticket.PstrCoID,
+      PstrYear: ticket.PstrYear,
+      lkpBranch: ticket.lkpBranch,
+      Type: ticket.lkpTktType,
+      txtDocNo: ticket.txtTktSLNo,
+      screenName: AUDIT_SCREEN,
+      action: "D1",
+      PstrUserID,
+      note: `${auditLabel(position === 1 ? "txtCnjTktSlNo" : `txtCnjTktSlNo#${position}`)} : Changed from ${cnjNo} to `,
+      dtpServerDate,
+    });
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* ignore */
+    }
+    throw toApiError(error);
+  } finally {
+    client.release();
+  }
+};
 
 /* ---------------------------------------------------------- SL. NOS */
 

@@ -2,6 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../../../components/common/Header";
 import { MdAttachFile, MdClose, MdVisibility } from "react-icons/md";
 import { toast } from "react-toastify";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import {
+  base64ByteSize,
+  checkUploadFile,
+  checkUploadTotal,
+  fileExtension,
+  fileToBase64,
+  mimeTypeOf,
+} from "../../../utils/fileUpload";
 import type {
   ServiceChargePolicyAttachment,
   ServiceChargePolicyAttachmentSave,
@@ -27,6 +36,21 @@ type HotelSalesAttachPageProps = {
   attachments?: ServiceChargePolicyAttachment[];
   loadAttachmentFile?: (slNo: number) => Promise<Blob>;
   onSave?: (rows: AttachSavePayload) => void | Promise<void>;
+  /** the size limits (bytes): one file, and all the files of one save; the default is 250 MB for both */
+  maxFileBytes?: number;
+  maxTotalBytes?: number;
+  /** the message after Save (default "Saved successfully") */
+  saveMessage?: string;
+  /** the File Name can be typed / changed (default: it is only filled when a file is chosen) */
+  fileNameEditable?: boolean;
+  /** a new empty line is added whenever every line has a file or a note (default: the 6 lines stay as they are) */
+  autoAddRow?: boolean;
+  /** removing a file asks "Do you want to delete line n?" first (default: it is removed at once) */
+  confirmRemove?: boolean;
+  /** confirmRemove: called when Yes is clicked, with the saved line (null = a line that is not saved); it deletes it from the database; an error keeps the line */
+  onRemoveLine?: (line: ServiceChargePolicyAttachment | null) => void | Promise<void>;
+  /** as the Sales Conjunction popup: closing the popup (x / Esc) also keeps what was changed (given to onSave) */
+  saveOnClose?: boolean;
 };
 
 const MIN_ROWS = 6;
@@ -90,7 +114,8 @@ const thClass =
 
 const isImage = (row: AttachRow) =>
   row.file?.type.startsWith("image/") ||
-  row.original?.mimeType.startsWith("image/");
+  row.original?.mimeType.startsWith("image/") ||
+  mimeTypeOf(row.fileName).startsWith("image/");
 const isPdf = (row: AttachRow) =>
   row.file?.type === "application/pdf" ||
   row.original?.mimeType === "application/pdf" ||
@@ -104,39 +129,6 @@ const isExcelFile = (row: AttachRow) =>
   [".xlsx", ".xlsm"].some((extension) =>
     row.fileName.toLowerCase().endsWith(extension),
   );
-
-const fileToBase64 = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error(`Unable to read ${file.name}.`));
-        return;
-      }
-      const separator = reader.result.indexOf(",");
-      if (separator < 0) {
-        reject(new Error(`Unable to encode ${file.name}.`));
-        return;
-      }
-      resolve(reader.result.slice(separator + 1));
-    };
-    reader.onerror = () =>
-      reject(reader.error ?? new Error(`Unable to read ${file.name}.`));
-    reader.readAsDataURL(file);
-  });
-
-const fileExtension = (fileName: string) => {
-  const extensionStart = fileName.lastIndexOf(".");
-  return extensionStart < 0 ? "" : fileName.slice(extensionStart + 1).toLowerCase();
-};
-
-const base64ByteSize = (value: string | null) => {
-  if (!value) return 0;
-  const prefixLength = value.indexOf("base64,");
-  const encodedLength = value.length - (prefixLength >= 0 ? prefixLength + 7 : 0);
-  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
-  return Math.floor((encodedLength * 3) / 4) - padding;
-};
 
 const parseExcelPreview = (
   data: ArrayBuffer,
@@ -177,7 +169,17 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
   attachments = [],
   loadAttachmentFile,
   onSave,
+  maxFileBytes = MAX_SAVE_BYTES,
+  maxTotalBytes = MAX_SAVE_BYTES,
+  saveMessage = "Saved successfully",
+  fileNameEditable = false,
+  autoAddRow = false,
+  confirmRemove = false,
+  onRemoveLine,
+  saveOnClose = false,
 }) => {
+  const { confirm, dialog } = useConfirmModal();
+  const confirmingRef = useRef(false);
   const [rows, setRows] = useState<AttachRow[]>(() => initialRows(attachments));
   const [selectedKey, setSelectedKey] = useState<number | null>(rows[0]?.key ?? null);
   const [previewRow, setPreviewRow] = useState<AttachRow | null>(null);
@@ -189,6 +191,8 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
   >(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // saved lines that were deleted in this popup (the line is gone from the list; it is deleted when the ticket is saved)
+  const [deletedLines, setDeletedLines] = useState<ServiceChargePolicyAttachment[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pickingKeyRef = useRef<number | null>(null);
@@ -202,6 +206,13 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
       urls.clear();
     };
   }, []);
+
+  // every line is used: a new empty one is added
+  useEffect(() => {
+    if (autoAddRow && !rows.some((row) => isEmptyRow(row))) {
+      setRows((previous) => [...previous, emptyRow()]);
+    }
+  }, [autoAddRow, rows]);
 
   const firstEmptyKey = useMemo(
     () => rows.find((row) => isEmptyRow(row))?.key ?? null,
@@ -304,8 +315,9 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     event.target.value = "";
     pickingKeyRef.current = null;
     if (!file || key === null) return;
-    if (file.size > MAX_SAVE_BYTES) {
-      toast.error("Attachment files cannot exceed 250 MB.");
+    const fileProblem = checkUploadFile(file, maxFileBytes);
+    if (fileProblem) {
+      toast.error(fileProblem);
       return;
     }
 
@@ -366,51 +378,106 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     );
   };
 
-  const handleSave = async () => {
+  const updateFileName = (key: number, fileName: string) => {
+    setRows((previous) =>
+      previous.map((row) =>
+        row.key === key
+          ? { ...row, fileName, rowState: row.original ? "modified" : "added" }
+          : row,
+      ),
+    );
+  };
+
+  // confirmRemove: the line is taken out of the list (the lines below move up); a saved line is remembered as deleted
+  const removeLine = async (key: number) => {
+    const row = rows.find((r) => r.key === key);
+    if (!row) return;
+
+    // the saved line is deleted from the database at once (when the screen does it); else it is deleted with the ticket save
+    if (onRemoveLine) {
+      try {
+        await onRemoveLine(row.original);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Unable to delete the line.");
+        return;
+      }
+    } else if (row.original) {
+      setDeletedLines((previous) => [...previous, row.original as ServiceChargePolicyAttachment]);
+    }
+
+    releaseUrl(row.previewUrl);
+    setRows((previous) => {
+      const next = previous.filter((r) => r.key !== key);
+      while (next.length < MIN_ROWS) next.push(emptyRow());
+      return next;
+    });
+    setPreviewRow((current) => (current?.key === key ? null : current));
+    setPreviewContent(null);
+  };
+
+  // the lines that were added / changed / removed, as the rows the screen gets
+  const changedLines = () =>
+    rows.filter(
+      (row) =>
+        row.rowState !== "unchanged" &&
+        (row.original || row.fileName || row.note.trim()),
+    );
+
+  const toPayload = async (changed: AttachRow[]): Promise<AttachSavePayload> => {
     let nextSlNo =
       Math.max(0, ...rows.map((row) => row.original?.fSlNo ?? 0)) + 1;
-    const changedRows = rows
-      .map((row) => ({ row }))
-      .filter(
-        ({ row }) =>
-          row.rowState !== "unchanged" &&
-          (row.original || row.fileName || row.note.trim()),
-      );
+    const deleted = deletedLines.map((line) => ({
+      fSlNo: line.fSlNo,
+      fNote: null,
+      fDoxName: null,
+      fDoxType: null,
+      fDox: null,
+      originalSlNo: line.fSlNo,
+      rowState: "deleted" as const,
+    }));
+    const kept = await Promise.all(
+      changed.map(async (row) => ({
+        fSlNo: row.original?.fSlNo ?? nextSlNo++,
+        fNote: row.note.trim() || null,
+        fDoxName: row.fileName || null,
+        fDoxType: row.file
+          ? fileExtension(row.file.name)
+          : row.fileName
+            ? row.original?.fDoxType ?? fileExtension(row.fileName)
+            : null,
+        fDox: row.file ? await fileToBase64(row.file) : row.storedDox,
+        ...(row.original ? { originalSlNo: row.original.fSlNo } : {}),
+        rowState: row.original ? row.rowState : ("added" as const),
+      })),
+    );
+    return [...deleted, ...kept];
+  };
 
-    if (changedRows.length === 0) {
+  // the message when the files of the lines are too big together, "" when they are fine
+  const totalSizeProblem = (changed: AttachRow[]) =>
+    checkUploadTotal(
+      changed.reduce((total, row) => total + (row.file?.size ?? base64ByteSize(row.storedDox)), 0),
+      maxTotalBytes,
+    );
+
+  const handleSave = async () => {
+    const changed = changedLines();
+
+    if (changed.length === 0 && deletedLines.length === 0) {
       toast.error("Attach a file or add a note before saving.");
       return;
     }
-    const totalFileSize = changedRows.reduce(
-      (total, { row }) =>
-        total + (row.file?.size ?? base64ByteSize(row.storedDox)),
-      0,
-    );
-    if (totalFileSize > MAX_SAVE_BYTES) {
-      toast.error("Combined attachment files cannot exceed 250 MB per save.");
+    const totalProblem = totalSizeProblem(changed);
+    if (totalProblem) {
+      toast.error(totalProblem);
       return;
     }
 
     setSaving(true);
     let saved = false;
     try {
-      const payload = await Promise.all(
-        changedRows.map(async ({ row }) => ({
-          fSlNo: row.original?.fSlNo ?? nextSlNo++,
-          fNote: row.note.trim() || null,
-          fDoxName: row.fileName || null,
-          fDoxType: row.file
-            ? fileExtension(row.file.name)
-            : row.fileName
-              ? row.original?.fDoxType ?? fileExtension(row.fileName)
-              : null,
-          fDox: row.file ? await fileToBase64(row.file) : row.storedDox,
-          ...(row.original ? { originalSlNo: row.original.fSlNo } : {}),
-          rowState: row.original ? row.rowState : "added",
-        })),
-      );
-      await onSave?.(payload);
-      toast.success("Saved successfully");
+      await onSave?.(await toPayload(changed));
+      toast.success(saveMessage);
       saved = true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to save documents.");
@@ -420,7 +487,42 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     }
   };
 
+  // saveOnClose (as the Sales Conjunction popup): closing keeps what was changed
+  const handleClose = async () => {
+    if (!saveOnClose) {
+      onClose?.();
+      return;
+    }
+    const changed = changedLines();
+    if (changed.length > 0 || deletedLines.length > 0) {
+      const totalProblem = totalSizeProblem(changed);
+      if (totalProblem) {
+        toast.error(totalProblem);
+        return;
+      }
+      try {
+        await onSave?.(await toPayload(changed));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Unable to keep the documents.");
+        return;
+      }
+    }
+    onClose?.();
+  };
+
+  // Esc closes it (saveOnClose), unless the confirm window or a preview is open
+  useEffect(() => {
+    if (!saveOnClose) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || confirmingRef.current || previewRow) return;
+      void handleClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
   const handleCancel = () => {
+    setDeletedLines([]);
     rows.forEach((row) => releaseUrl(row.previewUrl));
     const fresh = initialRows(attachments);
     setRows(fresh);
@@ -429,11 +531,35 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     setPreviewContent(null);
   };
 
+  // the x that removes a line (the file and its note): at the end of the File Name, or (confirmRemove) at the end of the Note
+  const removeLineButton = (row: AttachRow, index: number) => (
+    <button
+      type="button"
+      title={`Remove line ${index + 1}`}
+      aria-label={`Remove file from line ${index + 1}`}
+      onClick={async (event) => {
+        event.stopPropagation();
+        if (confirmRemove) {
+          confirmingRef.current = true;
+          const yes = await confirm({ message: `Do you want to delete Line ${index + 1}?` });
+          setTimeout(() => { confirmingRef.current = false; }, 0);
+          if (!yes) return;
+          await removeLine(row.key);
+          return;
+        }
+        clearFile(row.key);
+      }}
+      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-600 hover:bg-red-50 hover:text-red-600"
+    >
+      <MdClose size={14} />
+    </button>
+  );
+
   return (
     <div className="flex min-h-full w-full items-start justify-center   ">
       <div className="min-h-fit w-262 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <Header Name={headerName} onClose={onClose} />
+          <Header Name={headerName} onClose={saveOnClose ? () => void handleClose() : onClose} />
 
           <section className="px-3.5 pb-3 pt-3">
             <input
@@ -487,26 +613,26 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
 
                         <td className="border border-[#B7ECD0] px-2 py-1">
                           <div className="flex items-center gap-1">
-                            <span
-                              className="min-w-0 flex-1 truncate"
-                              title={row.fileName}
-                            >
-                              {row.fileName}
-                            </span>
-                            {row.fileName && (
-                              <button
-                                type="button"
-                                title={`Remove ${row.fileName}`}
-                                aria-label={`Remove file from line ${index + 1}`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  clearFile(row.key);
-                                }}
-                                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-600 hover:bg-red-50 hover:text-red-600"
+                            {fileNameEditable ? (
+                              // the name is filled when a file is chosen (the paperclip) and can also be typed / changed
+                              <input
+                                aria-label={`File name for line ${index + 1}`}
+                                value={row.fileName}
+                                maxLength={100}
+                                title={row.fileName}
+                                onFocus={() => setSelectedKey(row.key)}
+                                onChange={(event) => updateFileName(row.key, event.target.value)}
+                                className="h-6 min-w-0 flex-1 truncate bg-transparent px-1 text-[13px] outline-none focus:bg-[#E6F6F8]"
+                              />
+                            ) : (
+                              <span
+                                className="min-w-0 flex-1 truncate"
+                                title={row.fileName}
                               >
-                                <MdClose size={14} />
-                              </button>
+                                {row.fileName}
+                              </span>
                             )}
+                            {!confirmRemove && row.fileName && removeLineButton(row, index)}
                           </div>
                         </td>
 
@@ -545,14 +671,17 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
                         </td>
 
                         <td className="border border-[#B7ECD0] p-0">
-                          <input
-                            aria-label={`Note for line ${index + 1}`}
-                            value={row.note}
-                            maxLength={200}
-                            onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) => updateNote(row.key, event.target.value)}
-                            className="h-7.5 w-full bg-transparent px-2 text-[13px] outline-none focus:bg-[#E6F6F8]"
-                          />
+                          <div className="flex items-center">
+                            <input
+                              aria-label={`Note for line ${index + 1}`}
+                              value={row.note}
+                              maxLength={200}
+                              onFocus={() => setSelectedKey(row.key)}
+                              onChange={(event) => updateNote(row.key, event.target.value)}
+                              className="h-7.5 min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none focus:bg-[#E6F6F8]"
+                            />
+                            {confirmRemove && (row.fileName || row.note) && <span className="pr-2">{removeLineButton(row, index)}</span>}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -696,6 +825,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 };

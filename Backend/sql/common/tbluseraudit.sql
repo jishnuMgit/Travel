@@ -7,7 +7,7 @@
 --   fdoctype     document type    (Ticket Sales: the Ticket Type, B / O / X ...)
 --   fscreenname  the screen = its menu caption (Ticket Sales)
 --   fscreenkey   branch + document type + document no. glued together (set by dbo.sp_useraudit)
---   faction      S save, M modify, D delete
+--   faction      S save, M modify, D delete, D1 delete of ONE line (an attached file / a CNJ line)
 --   fnote        what was done / what changed (one "label : value" per line)
 --   fuserid      the logged-in user      fuserdate  the server date (dbo.getserverdate())
 -- =====================================================================
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS dbo.tbluseraudit (
     fdoctype     varchar(4)    NULL,
     fscreenname  varchar(100)  NULL,
     fscreenkey   varchar(50)   NULL,
-    faction      varchar(1)    NULL,
+    faction      varchar(2)    NULL,
     fnote        text          NULL,
     fuserid      varchar(30)   NULL,
     fuserdate    timestamp     NULL,

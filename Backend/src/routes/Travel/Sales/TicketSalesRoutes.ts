@@ -16,6 +16,9 @@ import {
   getTicketSalesServiceTypes,
   getTicketSalesSlNos,
   getTicketSalesStaffs,
+  getTicketSalesAttachFile,
+  deleteTicketSalesAttachLine,
+  deleteTicketSalesCnjRow,
   getTicketSalesSuppliers,
   getTicketSalesTktTypes,
   getTicketSalesVat,
@@ -62,6 +65,24 @@ TicketSalesRouter.get(
   "/ticket/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo/sl-nos",
   requireAuthentication,
   getTicketSalesSlNos,
+);
+// One file attached to a ticket (the Customer Attach popup): view / download.
+TicketSalesRouter.get(
+  "/attach-file/:PstrCoID/:lkpBranch/:lkpTktType/:txtTktSLNo/:txtAttachSlNo",
+  requireAuthentication,
+  getTicketSalesAttachFile,
+);
+// Delete one line of the Customer Attach popup (the x of the popup).
+TicketSalesRouter.delete(
+  "/attach/:PstrCoID/:lkpBranch/:lkpTktType/:txtTktSLNo/:txtAttachSlNo",
+  requireAuthentication,
+  deleteTicketSalesAttachLine,
+);
+// Delete one line of the Sales Conjunction popup (the x of the popup).
+TicketSalesRouter.delete(
+  "/cnj/:PstrCoID/:PstrYear/:lkpTktType/:txtTktSLNo/:txtCnjTktSlNo",
+  requireAuthentication,
+  deleteTicketSalesCnjRow,
 );
 TicketSalesRouter.post("/", requireAuthentication, saveTicketSales);
 // Modify a saved ticket (the Save button is Modify while a saved ticket is loaded).

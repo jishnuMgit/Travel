@@ -11,6 +11,9 @@ import selectComponents from "./selectComponents";
 import { validateTicketLines } from "../sales/TicketSales/ticketSalesValidation";
 import TicketLinesFields from "./TicketLinesFields";
 import { fieldSelectProps } from "./Combo";
+import HotelSalesAttachPage, { type AttachSavePayload } from "../../pages/Travel/Setup/HotelSalesAttachPage";
+import type { ServiceChargePolicyAttachment } from "../../utils/ServiceChargePolicyApi";
+import { UPLOAD_MAX_FILE_BYTES, UPLOAD_MAX_TOTAL_BYTES } from "../../utils/fileUpload";
 import {
   calcLineAmounts,
   calcPolicyCharge,
@@ -995,6 +998,12 @@ type TicketLinesPageProps = {
   saveLabel?: string;
   /** a saved ticket to show: its customer line, Ref. 1-4, KB. Amt., KB. Account, INV. Note and Note (a new version loads it again) */
   loaded?: { version: number; ticket: LoadedTicket };
+  /** Customer Attach popup (the Ticket Sales screen keeps the files and sends them with the ticket) */
+  attachments?: ServiceChargePolicyAttachment[];
+  canOpenAttach?: () => boolean; // false = the popup does not open (the Ticket Type / Ticket No. are needed)
+  onAttachSave?: (rows: AttachSavePayload) => void;
+  loadAttachFile?: (slNo: number) => Promise<Blob>;
+  onAttachRemove?: (line: ServiceChargePolicyAttachment | null) => void | Promise<void>; // Yes of the delete line: deletes a saved file at once
   onClose?: () => void;
 };
 
@@ -1010,6 +1019,11 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   clearVersion,
   context,
   loaded,
+  attachments = [],
+  canOpenAttach,
+  onAttachSave,
+  loadAttachFile,
+  onAttachRemove,
   onClose,
 }) => {
   const [rows, setRows] = useState<LineRow[]>(() => padLines([]));
@@ -1429,8 +1443,19 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
       );
   };
 
+  /* Cust. Attach: the same attachment popup as Service Charge Policy (the look only: nothing is loaded or saved yet). */
+  const [attachOpen, setAttachOpen] = useState(false);
+
   const handleAction = async (name: ActionName) => {
     switch (name) {
+      case "customerAttach":
+        if (context) {
+          if (!canOpenAttach || canOpenAttach()) setAttachOpen(true);
+          break;
+        }
+        onAction?.(name);
+        break;
+
       case "save": {
         const lines: TicketLinePayload[] = rows
           .filter((row) => !isEmptyLine(row))
@@ -1600,6 +1625,31 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
           <section className="px-3.5 pb-3 pt-3">{body}</section>
         </main>
       </div>
+      {attachOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ticket Sales - Customer Attach"
+            className="max-h-[95vh] w-full max-w-[1050px] overflow-auto bg-white shadow-xl"
+          >
+            <HotelSalesAttachPage
+              headerName="Ticket Sales - Customer Attach"
+              autoAddRow
+              confirmRemove
+              onRemoveLine={onAttachRemove}
+              saveOnClose
+              saveMessage="Ticket Sales - Customer Attach files added"
+              attachments={attachments}
+              loadAttachmentFile={loadAttachFile}
+              maxFileBytes={UPLOAD_MAX_FILE_BYTES}
+              maxTotalBytes={UPLOAD_MAX_TOTAL_BYTES}
+              onClose={() => setAttachOpen(false)}
+              onSave={onAttachSave}
+            />
+          </section>
+        </div>
+      )}
     </div>
   );
 };
