@@ -966,9 +966,9 @@ const HotelHeaderGroup: React.FC<
           className="w-full"
         />
       </Field> */}
-      <Field label="Carrier :" labelClassName={HE} className="md:col-span-2">
+      <Field label="Service Type :" labelClassName={HE} className="md:col-span-2">
         <Combo
-          id="lkpCarrier"
+          id="lkpServiceType"
           options={carrierOptions}
           value={form.carrier}
           onChange={(v) => set("carrier", v)}
