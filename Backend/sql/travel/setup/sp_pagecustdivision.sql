@@ -62,6 +62,7 @@ BEGIN
     ELSIF v_mode = 'M' THEN
         UPDATE dbo.tblcustdivision
         SET
+            fdivid = p_strdivid,
             fdivname = p_strdivname,
             fdivname_ar = p_strdivname_a,
             fmuserid = p_gstruserid,
@@ -80,10 +81,26 @@ BEGIN
             END
         );
 
-    ELSIF v_mode = 'D' THEN
+    ELSIF v_mode = 'C' THEN
         DELETE FROM dbo.tblcustdivision
         WHERE fcoid = p_gstrcoid
           AND fcustomerid = p_strcustomerid;
+
+        GET DIAGNOSTICS v_row_count = ROW_COUNT;
+        p_result := jsonb_build_object(
+            'deleted_count', v_row_count,
+            'message',
+            CASE WHEN v_row_count > 0
+                THEN 'Customer division deleted successfully'
+                ELSE 'No matching customer division found'
+            END
+        );
+
+    ELSIF v_mode = 'D' THEN
+        DELETE FROM dbo.tblcustdivision
+        WHERE fcoid = p_gstrcoid
+          AND fcustomerid = p_strcustomerid
+          AND fdivid = p_strdivid;
 
         GET DIAGNOSTICS v_row_count = ROW_COUNT;
         p_result := jsonb_build_object(

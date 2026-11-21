@@ -8,8 +8,8 @@ import {
   deleteAirline,
   getAirlines,
   updateAirline,
-} from "../../../utils/airlineApi";
-import type { AirlinePayload, AirlineRecord } from "../../../utils/airlineApi";
+} from "../../../utils/Api";
+import type { AirlinePayload, AirlineRecord } from "../../../utils/Api";
 import { FiTrash2 } from "react-icons/fi";
 import { HiOutlinePencilAlt } from "react-icons/hi";
 import { toast } from "react-toastify";
