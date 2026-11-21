@@ -214,6 +214,7 @@ export type SaveTicketPayload = TicketDetailPayload & {
   PstrCoID: string;
   PstrYear: string;
   PstrUserID: string; // the logged-in user, stored by the login
+  dtpServerDate?: string; // the server date the page got from /datetime/server-date: the time written on the rows (checked by the backend)
   lines: TicketLinePayload[];
   [elementId: string]: unknown;
 };
@@ -232,10 +233,11 @@ export const modifyTicketSales = (payload: SaveTicketPayload) =>
   });
 
 // ?lkpBranch=JD&txtSlNo=2 (only what is given)
-const ticketQuery = (p: { lkpBranch?: string | null; txtSlNo?: string | number | null }) => {
+const ticketQuery = (p: { lkpBranch?: string | null; txtSlNo?: string | number | null; dtpServerDate?: string | null }) => {
   const parts: string[] = [];
   if (p.lkpBranch) parts.push(`lkpBranch=${encode(p.lkpBranch)}`);
   if (p.txtSlNo !== undefined && p.txtSlNo !== null && String(p.txtSlNo).trim() !== "") parts.push(`txtSlNo=${encode(String(p.txtSlNo).trim())}`);
+  if (p.dtpServerDate) parts.push(`dtpServerDate=${encode(p.dtpServerDate)}`);
   return parts.length > 0 ? `?${parts.join("&")}` : "";
 };
 
@@ -247,6 +249,7 @@ export const deleteTicketSales = (p: {
   txtTktSLNo: string;
   lkpBranch?: string | null;
   txtSlNo?: string | number | null; // the Sl. No. to delete (a Ticket No. has a row for each Sl. No.)
+  dtpServerDate?: string | null; // the server date the page got (the time of the user audit)
 }) =>
   request<{ success: boolean; message: string }>(
     `/ticket-sales/ticket/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}${ticketQuery(p)}`,
@@ -449,13 +452,13 @@ export type ServiceChargePolicyRecord = {
   fservicetypeid: string;
   fmf: string | null;
   fd_servicechargetype: string | null;
-  fd_servicechgper: string | null;
-  fd_minservicechgamt: string | null;
-  fd_servicechgamt: string | null;
+  fd_servicechargeper: string | null;
+  fd_minservicechargeamt: string | null;
+  fd_servicechargeamt: string | null;
   fi_servicechargetype: string | null;
-  fi_servicechgper: string | null;
-  fi_minservicechgamt: string | null;
-  fi_servicechgamt: string | null;
+  fi_servicechargeper: string | null;
+  fi_minservicechargeamt: string | null;
+  fi_servicechargeamt: string | null;
 };
 
 export const getTicketSalesServiceChargePolicies = (PstrCoID: string) =>
@@ -574,7 +577,7 @@ export const getTicketSalesStaffs = (PstrCoID: string) =>
 export type IataRecord = {
   fiatacode: string;
   fiataname: string | null;
-  fbsppurchase_csaccountid?: string | null; // the BSP account of the IATA: the supplier of a BSP ticket
+  fbspurchase_csaccountid?: string | null; // the BSP account of the IATA: the supplier of a BSP ticket
 };
 
 export const getTicketSalesIatas = (PstrCoID: string) =>

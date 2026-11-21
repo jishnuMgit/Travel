@@ -94,6 +94,7 @@ CREATE OR REPLACE PROCEDURE dbo.sp_pageticketsales
     IN    p_txtinvnote        varchar(60)   DEFAULT NULL,
     IN    p_txtnote           varchar(100)  DEFAULT NULL,
     IN    p_pstruserid        varchar(30)   DEFAULT NULL,
+    IN    p_dtpserverdate     timestamp     DEFAULT NULL,   -- the time of the save: the page gets it from /datetime/server-date and sends it
     INOUT p_result_cursor     refcursor     DEFAULT 'ticketsales_cursor'
 )
 LANGUAGE plpgsql
@@ -104,7 +105,8 @@ DECLARE
     v_bspdate      date;
     v_commper      numeric(18,2);
     v_commamt      numeric(18,2);
-    v_now          timestamp := dbo.getserverdate();   -- the common server date (sql/common/fn_getserverdate.sql)
+    -- the time of the save: the one the page sent (checked by the service), else the common server date (sql/common/fn_getserverdate.sql)
+    v_now          timestamp := COALESCE(p_dtpserverdate, dbo.getserverdate());
 BEGIN
 
     -- the ticket this call is about

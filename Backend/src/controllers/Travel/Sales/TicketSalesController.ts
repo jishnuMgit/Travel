@@ -283,9 +283,9 @@ export const getTicketSalesServiceChargePolicies = async (
 
   try {
     const result = await pool.query(
-      `SELECT fcustomerid, fservicetypeid, fmf,
-              fd_servicechargetype, fd_servicechgper, fd_minservicechgamt, fd_servicechgamt,
-              fi_servicechargetype, fi_servicechgper, fi_minservicechgamt, fi_servicechgamt
+      `SELECT fcustomerid, fservicetypeid, fmerchantfeeper AS fmf,
+              fd_servicechargetype, fd_servicechargeper, fd_minservicechargeamt, fd_servicechargeamt,
+              fi_servicechargetype, fi_servicechargeper, fi_minservicechargeamt, fi_servicechargeamt
          FROM dbo.tblservicechargepolicy
         WHERE fcoid = $1
           AND fsr = 'S'
@@ -365,7 +365,7 @@ export const getTicketSalesIatas = async (req: Request, res: Response) => {
 
   try {
     const result = await pool.query(
-      `SELECT fiatacode, fiataname, fbsppurchase_csaccountid
+      `SELECT fiatacode, fiataname, fbspurchase_csaccountid
          FROM dbo.tbliata
         WHERE fcoid = $1
         ORDER BY fpositionno, fiatacode`,
@@ -631,6 +631,7 @@ export const deleteTicketSales = async (req: AuthenticatedRequest, res: Response
       txtSlNo: param(req.query.txtSlNo) || null,
       },
       PstrUserID,
+      param(req.query.dtpServerDate) || undefined, // the server date the page got from /datetime/server-date (checked by the service)
     );
 
     res.status(200).json({ success: true, message: "Deleted successfully", ticket: deleted });
