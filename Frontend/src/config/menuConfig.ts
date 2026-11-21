@@ -425,16 +425,23 @@ export const ADMINISTRATION_NODE: MenuNode = {
       fmenucaption: "Branch",
       fmenubuttons: "0",
       children: [],
-    },
-     {
+    },{
       fmenuid: "9903",
-      fmenuname: "mnuYear",
-      fmenucaption: "Year",
+      fmenuname: "mnuIATA",
+      fmenucaption: "IATA",
       fmenubuttons: "0",
       children: [],
     },
      {
       fmenuid: "9904",
+      fmenuname: "mnuYear",
+      fmenucaption: "Year",
+      fmenubuttons: "0",
+      children: [],
+    },
+     
+     {
+      fmenuid: "9905",
       fmenuname: "mnuDocument",
       fmenucaption: "Document",
       fmenubuttons: "0",
