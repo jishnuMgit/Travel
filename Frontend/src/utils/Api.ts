@@ -45,6 +45,132 @@ const encode = (value: string) => encodeURIComponent(value);
 export const getAirlines = (PstrCoID: string) =>
   request<AirlineRecord[]>(`/airlines/${encode(PstrCoID)}`);
 
+export type BudgetComboResponse = {
+  Year: never[];
+  success: boolean;
+  message?: string;
+  DefaultBrID: string | null;
+  Branches: { fbrid: string; fbrname: string | null }[];
+  Types: { fpid: string; fpname: string | null }[];
+  AccountsByID: {
+    faccountid: string;
+    faccountname: string | null;
+  }[];
+  AccountsByName: {
+    faccountid: string;
+    faccountname: string | null;
+  }[];
+};
+
+export const getBudgetFillCombos = (PstrCoID: string) =>
+  request<BudgetComboResponse>(`/budget/FillCombos/${encode(PstrCoID)}`);
+
+export type BudgetRecord = Record<string, unknown>;
+
+export type BudgetMutationRow = {
+  fSlNo: number;
+  fGAccountID: string;
+  fMonthAmt1: number;
+  fMonthAmt2: number;
+  fMonthAmt3: number;
+  fMonthAmt4: number;
+  fMonthAmt5: number;
+  fMonthAmt6: number;
+  fMonthAmt7: number;
+  fMonthAmt8: number;
+  fMonthAmt9: number;
+  fMonthAmt10: number;
+  fMonthAmt11: number;
+  fMonthAmt12: number;
+  fTotAmt: number;
+  fNote: string;
+};
+
+export const getBudgetRows = (
+  PstrCoID: string,
+  IntYear: number,
+  StrBrID: string,
+  StrType: string,
+) =>
+  request<BudgetRecord[]>(
+    `/budget/GetDataTL/${encode(PstrCoID)}/${encode(String(IntYear))}/${encode(StrBrID)}/${encode(StrType)}`,
+  );
+
+export const applyBudgetChanges = (payload: {
+  PstrCoID: string;
+  PstrUserID: string;
+  IntYear: number;
+  StrBrID: string;
+  StrBudgetHeadType: string;
+  Inserted: BudgetMutationRow[];
+  Updated: (BudgetMutationRow & { OriginalSlNo: number })[];
+  Deleted: { OriginalSlNo: number }[];
+}) =>
+  request<{ success: boolean; message: string }>("/budget/Apply", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+type BudgetKeyArgs = {
+  PstrCoID: string;
+  IntYear: number;
+  StrBrID: string;
+  StrType: string;
+  
+};
+
+const keyPath = (k: BudgetKeyArgs) =>
+  [k.PstrCoID, k.IntYear, k.StrBrID, k.StrType]
+    .map(encodeURIComponent)
+    .join("/");
+
+/** mode S – insert one row */
+export const saveBudgetRow = (
+  key: Omit<BudgetKeyArgs, "StrType"> & {
+    StrBudgetHeadType: string;
+  },
+  Row: BudgetMutationRow
+) =>
+  request<{ success: boolean; message?: string }>("/budget/SaveBudget", {
+    method: "POST",
+    body: JSON.stringify({ ...key, Row }),
+  });
+
+/** mode M1 – update one row */
+export const updateBudgetRow = (
+  key: BudgetKeyArgs,
+  originalSlNo: number,
+  row: BudgetMutationRow
+) =>
+  request<{ success: boolean; message?: string }>(
+    `/budget/UpdateBudget/${keyPath(key)}/${originalSlNo}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(row),
+    }
+  );
+
+/** mode D1 – delete one row */
+export const deleteBudgetRow = (
+  key: BudgetKeyArgs,
+  originalSlNo: number
+) =>
+  request<{ success: boolean; message?: string }>(
+    `/budget/DeleteBudget/${keyPath(key)}/${originalSlNo}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+/** mode D – delete all rows */
+export const deleteAllBudget = (key: BudgetKeyArgs) =>
+  request<{ success: boolean; message?: string }>(
+    `/budget/ApplyD/${keyPath(key)}`,
+    {
+      method: "DELETE",
+    }
+  );
+
 export type TktTypeRecord = {
   ftickettypeid: string;
   ftickttypename: string | null;
@@ -408,6 +534,43 @@ export const saveCustomerDivisionRows = (payload: {
     },
   );
 
+export const createCustomerDivision = (payload: {
+  PstrCoID: string;
+  StrCustomerID: string;
+  Row: CustomerDivisionSaveRow;
+}) =>
+  request<{ success: boolean; message: string }>("/customer-division/row", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const updateCustomerDivision = (
+  PstrCoID: string,
+  StrCustomerID: string,
+  StrDivID: string,
+  row: CustomerDivisionSaveRow,
+) =>
+  request<{ success: boolean; message: string }>(
+    `/customer-division/row/${encode(PstrCoID)}/${encode(StrCustomerID)}/${encode(StrDivID)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(row),
+    },
+  );
+
+export const deleteCustomerDivision = (
+  PstrCoID: string,
+  StrCustomerID: string,
+  StrDivID: string,
+  PstrYear:string
+) =>
+  request<{ success: boolean; message: string }>(
+    `/customer-division/row/${encode(PstrCoID)}/${encode(StrCustomerID)}/${encode(StrDivID)}`,
+    { method: "DELETE",
+      body:JSON.stringify({PstrYear})
+     },
+  );
+
 export const getTicketSalesCustomers = (PstrCoID: string) =>
   request<CustomerRecord[]>(`/ticket-sales/customers/${encode(PstrCoID)}`);
 
@@ -535,3 +698,6 @@ export const deleteTicketCnjRow = (p: {
     `/ticket-sales/cnj/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}/${encode(p.txtCnjTktSlNo)}${ticketQuery(p)}`,
     { method: "DELETE" },
   );
+
+
+  

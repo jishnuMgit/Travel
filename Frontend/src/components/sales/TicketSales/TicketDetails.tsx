@@ -36,7 +36,7 @@ import {
   type TicketDetailPayload,
   type TicketLinePayload,
   type TktTypeRecord,
-} from "../../../utils/airlineApi";
+} from "../../../utils/Api";
 import CnjModal, { isEmptyCnjRow, type CnjRow } from "./CnjModal";
 import { cnjCarrierIssue, formatAirportCode, formatCarrierCodes, formatRoute, ROUTE_MAX_LENGTH, validateTicketHeader, MOBILE_MAX, MOBILE_CHARS, EMAIL_MAX } from "./ticketSalesValidation";
 import { tryGetServerDate } from "../../../utils/serverDate";

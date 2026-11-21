@@ -32,7 +32,7 @@ import {
   type ServiceChargePolicyRecord,
   type TicketDetailPayload,
   type TicketLinePayload,
-} from "../../utils/airlineApi";
+} from "../../utils/Api";
 
 /* =====================================================================
    FILE MAP

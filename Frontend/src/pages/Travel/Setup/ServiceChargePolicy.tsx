@@ -9,7 +9,7 @@ import Header from "../../../components/common/Header";
 import {
   getTicketSalesCustomers,
   type CustomerRecord,
-} from "../../../utils/airlineApi";
+} from "../../../utils/Api";
 import {
   copyServiceChargePolicy,
   getServiceChargePolicyAttachmentFile,
