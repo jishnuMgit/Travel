@@ -12,6 +12,7 @@ type AttachRow = {
   file: File | null;
   fileName: string;
   previewUrl: string | null;
+  previewBlob: Blob | null;
   note: string;
   storedDox: string | null;
   original: ServiceChargePolicyAttachment | null;
@@ -24,11 +25,14 @@ type HotelSalesAttachPageProps = {
   headerName?: string;
   onClose?: () => void;
   attachments?: ServiceChargePolicyAttachment[];
+  loadAttachmentFile?: (slNo: number) => Promise<Blob>;
   onSave?: (rows: AttachSavePayload) => void | Promise<void>;
 };
 
 const MIN_ROWS = 6;
 const MAX_SAVE_BYTES = 250 * 1024 * 1024;
+const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024;
+const MAX_SPREADSHEET_PREVIEW_BYTES = 50 * 1024 * 1024;
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
 
@@ -37,6 +41,7 @@ const emptyRow = (): AttachRow => ({
   file: null,
   fileName: "",
   previewUrl: null,
+  previewBlob: null,
   note: "",
   storedDox: null,
   original: null,
@@ -53,7 +58,8 @@ const initialRows = (
     key: nextKey(),
     file: null,
     fileName: attachment.fDoxName ?? "",
-    previewUrl: attachment.dataUrl,
+    previewUrl: null,
+    previewBlob: null,
     note: attachment.fNote ?? "",
     storedDox: attachment.fDox,
     original: attachment,
@@ -89,6 +95,15 @@ const isPdf = (row: AttachRow) =>
   row.file?.type === "application/pdf" ||
   row.original?.mimeType === "application/pdf" ||
   row.fileName.toLowerCase().endsWith(".pdf");
+const isTextFile = (row: AttachRow) =>
+  row.file?.type.startsWith("text/") ||
+  ["txt", "csv", "tsv", "log", "json", "xml"].includes(
+    fileExtension(row.fileName),
+  );
+const isExcelFile = (row: AttachRow) =>
+  [".xlsx", ".xlsm"].some((extension) =>
+    row.fileName.toLowerCase().endsWith(extension),
+  );
 
 const fileToBase64 = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -123,15 +138,56 @@ const base64ByteSize = (value: string | null) => {
   return Math.floor((encodedLength * 3) / 4) - padding;
 };
 
+const parseExcelPreview = (
+  data: ArrayBuffer,
+): Promise<{ sheetName: string; rows: string[][]; truncated: boolean }> =>
+  new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL("./ExcelPreviewWorker.ts", import.meta.url),
+      { type: "module" },
+    );
+    const timeoutId = window.setTimeout(() => {
+      worker.terminate();
+      reject(new Error("Excel preview timed out. Download the workbook to view it."));
+    }, 60_000);
+
+    worker.onmessage = (event: MessageEvent<
+      | { success: true; sheetName: string; rows: string[][]; truncated: boolean }
+      | { success: false; message: string }
+    >) => {
+      window.clearTimeout(timeoutId);
+      worker.terminate();
+      if (event.data.success) {
+        resolve(event.data);
+      } else {
+        reject(new Error(event.data.message));
+      }
+    };
+    worker.onerror = (event) => {
+      window.clearTimeout(timeoutId);
+      worker.terminate();
+      reject(new Error(event.message || "Unable to preview this workbook."));
+    };
+    worker.postMessage(data, [data]);
+  });
+
 const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
   headerName = "Attach",
   onClose,
   attachments = [],
+  loadAttachmentFile,
   onSave,
 }) => {
   const [rows, setRows] = useState<AttachRow[]>(() => initialRows(attachments));
   const [selectedKey, setSelectedKey] = useState<number | null>(rows[0]?.key ?? null);
   const [previewRow, setPreviewRow] = useState<AttachRow | null>(null);
+  const [previewContent, setPreviewContent] = useState<
+    | { kind: "text"; text: string; truncated: boolean }
+    | { kind: "spreadsheet"; sheetName: string; rows: string[][]; truncated: boolean }
+    | { kind: "message"; message: string }
+    | null
+  >(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,6 +220,84 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     fileInputRef.current?.click();
   };
 
+  const openPreview = async (row: AttachRow) => {
+    setSelectedKey(row.key);
+    setPreviewRow(row);
+    setPreviewLoading(true);
+    try {
+      const blob =
+        row.previewBlob ??
+        row.file ??
+        (row.original && loadAttachmentFile
+          ? await loadAttachmentFile(row.original.fSlNo)
+          : null);
+      if (!blob) throw new Error("Unable to load the attachment preview.");
+
+      let previewUrl = row.previewUrl;
+      if (!previewUrl) {
+        previewUrl = URL.createObjectURL(blob);
+        urlsRef.current.add(previewUrl);
+      }
+
+      if (isTextFile(row)) {
+        const truncated = blob.size > MAX_TEXT_PREVIEW_BYTES;
+        const text = await blob
+          .slice(0, MAX_TEXT_PREVIEW_BYTES)
+          .text();
+        setPreviewContent({ kind: "text", text, truncated });
+      } else if (isExcelFile(row)) {
+        if (blob.size > MAX_SPREADSHEET_PREVIEW_BYTES) {
+          setPreviewContent({
+            kind: "message",
+            message: "This workbook is too large to preview. Download it to view the contents.",
+          });
+        } else {
+          try {
+            const result = await parseExcelPreview(await blob.arrayBuffer());
+            setPreviewContent({
+              kind: "spreadsheet",
+              sheetName: result.sheetName,
+              rows: result.rows,
+              truncated: result.truncated,
+            });
+          } catch (previewError) {
+            setPreviewContent({
+              kind: "message",
+              message:
+                previewError instanceof Error
+                  ? previewError.message
+                  : "Unable to preview this workbook. Download it to view the contents.",
+            });
+          }
+        }
+      } else if (row.fileName.toLowerCase().endsWith(".xls")) {
+        setPreviewContent({
+          kind: "message",
+          message: "Legacy .xls files cannot be previewed here. Download the file to view it.",
+        });
+      } else {
+        setPreviewContent(null);
+      }
+
+      setRows((currentRows) =>
+        currentRows.map((currentRow) =>
+          currentRow.key === row.key
+            ? { ...currentRow, previewUrl, previewBlob: blob }
+            : currentRow,
+        ),
+      );
+      setPreviewRow({ ...row, previewUrl, previewBlob: blob });
+    } catch (previewError) {
+      toast.error(
+        previewError instanceof Error
+          ? previewError.message
+          : "Unable to load the attachment preview.",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const handleFileChosen = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     const key = pickingKeyRef.current;
@@ -187,6 +321,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
           file,
           fileName: file.name,
           previewUrl: url,
+          previewBlob: file,
           storedDox: null,
           rowState: row.original ? "modified" : "added",
         };
@@ -204,12 +339,15 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
           file: null,
           fileName: "",
           previewUrl: null,
+          previewBlob: null,
+          note: "",
           storedDox: null,
           rowState: row.original ? "modified" : "added",
         };
       }),
     );
     setPreviewRow((current) => (current?.key === key ? null : current));
+    setPreviewContent(null);
   };
 
   const updateNote = (key: number, note: string) => {
@@ -288,6 +426,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     setRows(fresh);
     setSelectedKey(fresh[0].key);
     setPreviewRow(null);
+    setPreviewContent(null);
   };
 
   return (
@@ -387,17 +526,18 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
                         </td>
 
                         <td className="border border-[#B7ECD0] text-center">
-                          {row.fileName && row.previewUrl && (
+                          {row.fileName &&
+                            (row.previewUrl || (row.original && loadAttachmentFile)) && (
                             <button
                               type="button"
                               title={`Preview ${row.fileName}`}
                               aria-label={`Preview file on line ${index + 1}`}
+                              disabled={previewLoading}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                setSelectedKey(row.key);
-                                setPreviewRow(row);
+                                void openPreview(row);
                               }}
-                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-blue-500 hover:bg-blue-50"
+                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-blue-500 hover:bg-blue-50 disabled:opacity-50"
                             >
                               <MdVisibility size={17} />
                             </button>
@@ -439,11 +579,14 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
         </main>
       </div>
 
-      {previewRow?.fileName && previewRow.previewUrl && (
+      {previewRow?.fileName && (previewLoading || previewRow.previewUrl) && (
         <div
           className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setPreviewRow(null);
+            if (event.target === event.currentTarget) {
+              setPreviewRow(null);
+              setPreviewContent(null);
+            }
           }}
         >
           <div
@@ -462,7 +605,10 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
               <button
                 type="button"
                 aria-label="Close preview"
-                onClick={() => setPreviewRow(null)}
+                onClick={() => {
+                  setPreviewRow(null);
+                  setPreviewContent(null);
+                }}
                 className="rounded p-1 text-[#24364d] hover:bg-white/40"
               >
                 <MdClose size={19} />
@@ -470,23 +616,71 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
             </div>
 
             <div className={`min-h-75 flex-1 overflow-auto bg-[#fafbfc] p-3 ${niceScrollbar}`}>
-              {isImage(previewRow) ? (
+              {previewLoading ? (
+                <div className="flex h-60 items-center justify-center text-sm text-slate-600" role="status">
+                  Loading preview...
+                </div>
+              ) : isImage(previewRow) ? (
                 <img
-                  src={previewRow.previewUrl}
+                  src={previewRow.previewUrl ?? undefined}
                   alt={previewRow.fileName}
                   className="mx-auto max-h-[70vh] max-w-full object-contain"
                 />
               ) : isPdf(previewRow) ? (
                 <iframe
                   title={previewRow.fileName}
-                  src={previewRow.previewUrl}
+                  src={previewRow.previewUrl ?? undefined}
                   className="h-[70vh] w-full border border-[#B7ECD0] bg-white"
                 />
+              ) : previewContent?.kind === "text" ? (
+                <div>
+                  {previewContent.truncated && (
+                    <p className="mb-2 text-sm text-amber-700">
+                      Showing the first 1 MB of this text file.
+                    </p>
+                  )}
+                  <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words border border-[#B7ECD0] bg-white p-3 text-left text-sm">
+                    {previewContent.text}
+                  </pre>
+                </div>
+              ) : previewContent?.kind === "spreadsheet" ? (
+                <div>
+                  <p className="mb-2 text-sm text-slate-600">
+                    First worksheet: {previewContent.sheetName}
+                  </p>
+                  {previewContent.truncated && (
+                    <p className="mb-2 text-sm text-amber-700">
+                      Preview limited to the first 1,000 rows and 50 columns.
+                    </p>
+                  )}
+                  <div className={`max-h-[70vh] overflow-auto border border-[#B7ECD0] bg-white ${niceScrollbar}`}>
+                    <table className="w-full border-collapse text-left text-sm">
+                      <tbody>
+                        {previewContent.rows.map((cells, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {cells.map((cell, cellIndex) => (
+                              <td
+                                key={cellIndex}
+                                className="border border-slate-200 px-2 py-1"
+                              >
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               ) : (
                 <div className="flex h-60 flex-col items-center justify-center gap-3 text-[13px] text-[#405066]">
-                  <p>Preview is not available for this file type.</p>
+                  <p>
+                    {previewContent?.kind === "message"
+                      ? previewContent.message
+                      : "Preview is not available for this file type."}
+                  </p>
                   <a
-                    href={previewRow.previewUrl}
+                    href={previewRow.previewUrl ?? undefined}
                     download={previewRow.fileName}
                     className="btn-style inline-flex items-center"
                   >

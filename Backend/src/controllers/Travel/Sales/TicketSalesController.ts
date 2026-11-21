@@ -186,7 +186,7 @@ export const getTicketSalesServiceTypes = async (
       `SELECT fservicetypeid, fservicetypename
          FROM dbo.tblservicetype
         WHERE fcoid = $1
-          AND fservicetypegroupid = 'TKT'
+          AND fservicetypegroupid = '1TKT'
         ORDER BY fpositionno, fservicetypeid`,
       [PstrCoID],
     );

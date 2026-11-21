@@ -51,7 +51,7 @@ async function callSp(client: PoolClient, a: SpArgs): Promise<any> {
   return r.rows[0]?.p_result ?? null;
 }
 
-// ---------- GET list: base64 + mime + dataUrl ----------
+// ---------- GET list: metadata and base64 ----------
 export async function getAttachments(
   coId: string,
   accountId: string,
@@ -70,7 +70,6 @@ export async function getAttachments(
         fDoxType: e.fdoxtype ?? null,
         mimeType,
         fDox: b64,
-        dataUrl: b64 ? `data:${mimeType};base64,${b64}` : null,
       };
     });
   } finally {
