@@ -1,22 +1,32 @@
 import React, { useState } from "react";
 import Select from "react-select";
-import { MdClose } from "react-icons/md";
 import { toast } from "react-toastify";
-import { fieldSelectProps } from "../../common/Combo";
+import { IoMdClose } from "react-icons/io";
+
+import selectComponents from "../../../components/common/selectComponents";
+import {
+  Combo,
+  fieldSelectProps,
+  type Option,
+} from "../../../components/common/Combo";
 
 /* ---------------------------------------------------------------------
    DUMMY DATA  (replace with the FillCombos API later)
    --------------------------------------------------------------------- */
-type SelectOption = { value: string; label: string };
+type YearOption = { value: string; label: string };
 
-const DUMMY_BRANCHES: SelectOption[] = [
-  { value: "JD", label: "JEDDAH" },
-  { value: "RY", label: "RIYADH" },
+const DUMMY_YEARS: YearOption[] = ["2021", "2022", "2023", "2024", "2025", "2026"].map(
+  (value) => ({ value, label: value }),
+);
+
+const DUMMY_BRANCHES: Option[] = [
+  { value: "JD", label: "JEDDAH", secondLabel: "JD" },
+  { value: "RY", label: "RIYADH", secondLabel: "RY" },
 ];
 
-const DUMMY_HEAD_TYPES: SelectOption[] = [
-  { value: "E", label: "Expense" },
-  { value: "R", label: "Revenue" },
+const DUMMY_HEAD_TYPES: Option[] = [
+  { value: "E", label: "Expense", secondLabel: "E" },
+  { value: "R", label: "Revenue", secondLabel: "R" },
 ];
 
 const DUMMY_YEAR = "2026";
@@ -34,25 +44,27 @@ type BudgetCopyPageProps = {
   onClose?: () => void;
 };
 
+const labelClass = "w-[130px] shrink-0 text-right text-[14px] text-[#405066] whitespace-nowrap  ";
+
 const BudgetCopyPage: React.FC<BudgetCopyPageProps> = ({
   initialYear = DUMMY_YEAR,
   initialBranch = DUMMY_BRANCH,
   initialHeadType = DUMMY_HEAD_TYPE,
   onClose,
 }) => {
-  const [year, setYear] = useState(initialYear); // txtYear
-  const [branch, setBranch] = useState<string | null>(initialBranch); // lkpBranch
-  const [headType] = useState<string | null>(initialHeadType); // lkpBudgetHeadType (locked)
+  const [lkpYear, setYear] = useState(initialYear);
+  const [lkpBranch, setlkpBranch] = useState<string | null>(initialBranch);
+  const [lkpHeadType, setlkpHeadType] = useState<string | null>(initialHeadType);
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState("");
 
   const handleCopy = async () => {
     if (copying) return;
-    if (year.length !== 4) {
-      setError("Enter a valid 4 digit year.");
+    if (lkpYear.length !== 4) {
+      setError("Select the year.");
       return;
     }
-    if (!branch) {
+    if (!lkpBranch) {
       setError("Select the branch.");
       return;
     }
@@ -62,7 +74,7 @@ const BudgetCopyPage: React.FC<BudgetCopyPageProps> = ({
     try {
       // dummy delay: replace with the real copy API call
       await new Promise((resolve) => setTimeout(resolve, 600));
-      console.log("copy budget", { year, branch, headType });
+      console.log("copy budget", { lkpYear, lkpBranch, lkpHeadType });
       toast.success("Budget copied successfully.");
     } catch {
       setError("Failed to copy budget.");
@@ -71,117 +83,109 @@ const BudgetCopyPage: React.FC<BudgetCopyPageProps> = ({
     }
   };
 
-  const labelClass =
-    "w-[130px] shrink-0 text-right text-[12px] text-[#405066]";
-
   return (
-    <div className="flex min-h-full w-full items-start justify-center bg-white px-4 py-4">
-      <div className="w-[420px] max-w-full overflow-hidden rounded-md border border-[#91a7bb] bg-[#f0eff4] shadow-md">
-        {/* title bar */}
-        <div className="flex h-[34px] items-center justify-between bg-white px-3">
-          <h1 className="m-0 text-[13px] font-normal text-[#24364d]">
-            Budget Copy
-          </h1>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="rounded p-1 text-[#24364d] hover:bg-gray-100"
-          >
-            <MdClose size={18} />
-          </button>
-        </div>
+    <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
+      <div className="min-h-fit w-[460px] max-w-full bg-white p-0">
+        <main className="w-full overflow-hidden border border-gray-400 bg-white">
+          <header className="flex h-7.5 items-center justify-between bg-[#9fdfbc]">
+            <h1 className="m-0 ml-3.5 text-[14px] font-semibold text-[#24364d]">
+              Budget Copy
+            </h1>
 
-        {/* form */}
-        <div className="flex flex-col gap-3 px-4 pb-4 pt-6">
-          <div className="flex items-center gap-3">
-            <label htmlFor="txtYear" className={labelClass}>
-              Year :
-            </label>
-            <input
-              id="txtYear"
-              inputMode="numeric"
-              maxLength={4}
-              value={year}
-              disabled={copying}
-              onChange={(event) => {
-                if (/^\d{0,4}$/.test(event.target.value)) {
-                  setYear(event.target.value);
-                  setError("");
-                }
-              }}
-              className="h-[30px] w-[82px] rounded-sm border border-[#B7C7D7] bg-white px-2 text-[12px] text-[#24364d] outline-none focus:border-[#64c995]"
-            />
-          </div>
+            <button className=" mr-4 hover:bg-red-100 p-1 rounded-full cursor-pointer"><IoMdClose size={17} className=""/></button>
+          </header>
 
-          <div className="flex items-center gap-3">
-            <label htmlFor="lkpBranch" className={labelClass}>
-              Branch :
-            </label>
-            <div className="min-w-0 flex-1">
-              <Select<SelectOption, false>
-                inputId="lkpBranch"
-                instanceId="lkpBranch"
-                aria-label="Branch"
-                options={DUMMY_BRANCHES}
-                value={DUMMY_BRANCHES.find((o) => o.value === branch) ?? null}
-                onChange={(option) => {
-                  setBranch(option?.value ?? null);
-                  setError("");
-                }}
-                isDisabled={copying}
-                // isClearable={false}
-                {...fieldSelectProps}
-              />
+          <section className="flex flex-col gap-3 px-3.5 pb-6 pt-4">
+            {/* Year */}
+            <div className="flex items-center gap-2 ">
+              <label htmlFor="lkpYear" className={labelClass}>
+                Year :
+              </label>
+              <div className="w-[110px] min-w-0">
+                <Select<YearOption, false>
+                  inputId="lkpYear"
+                  instanceId="lkpYear"
+                  aria-label="Year"
+                  options={DUMMY_YEARS}
+                  components={selectComponents}
+                  value={DUMMY_YEARS.find((o) => o.value === lkpYear) ?? null}
+                  isDisabled={copying}
+                  onChange={(option) => {
+                    setYear(option?.value ?? "");
+                    setError("");
+                  }}
+                  {...fieldSelectProps}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <label htmlFor="lkpBudgetHeadType" className={labelClass}>
-              Budget Head Type :
-            </label>
-            <div className="min-w-0 flex-1">
-              <Select<SelectOption, false>
-                inputId="lkpBudgetHeadType"
-                instanceId="lkpBudgetHeadType"
-                aria-label="Budget Head Type"
-                options={DUMMY_HEAD_TYPES}
-                value={DUMMY_HEAD_TYPES.find((o) => o.value === headType) ?? null}
-                isDisabled
-                // isClearable={false}
-                {...fieldSelectProps}
-              />
+            {/* Branch */}
+            <div className="flex min-w-0 items-center gap-2">
+              <label htmlFor="lkpBranch" className={labelClass}>
+                Branch :
+              </label>
+              <div className="w-[240px] min-w-0">
+                <Combo
+                  id="lkpBranch"
+                  secondColumnExtra={56}
+                  firstHeader="Name"
+                  secondHeader="ID"
+                  options={DUMMY_BRANCHES}
+                  value={lkpBranch}
+                  onChange={(value) => {
+                    setlkpBranch(value);
+                    setError("");
+                  }}
+                  className="w-full min-w-0"
+                  isSearchable
+                />
+              </div>
             </div>
-          </div>
 
-          {error && (
-            <p role="alert" className="m-0 text-center text-[12px] text-[#c0392b]">
-              {error}
-            </p>
-          )}
+            {/* Budget Head Type (Expense / Revenue) */}
+            <div className="flex min-w-0 items-center gap-2">
+              <label htmlFor="lkpBudgetHeadType" className={labelClass}>
+                Budget Head Type :
+              </label>
+              <div className="w-[240px] min-w-0">
+                <Combo
+                  id="lkpBudgetHeadType"
+                  secondColumnExtra={56}
+                  firstHeader="Name"
+                  secondHeader="ID"
+                  options={DUMMY_HEAD_TYPES}
+                  value={lkpHeadType}
+                  onChange={(value) => {
+                    setlkpHeadType(value);
+                    setError("");
+                  }}
+                  className="w-full min-w-0"
+                  isSearchable
+         
+                />
+              </div>
+            </div>
 
-          {/* buttons */}
-          <div className="mt-3 flex justify-center gap-3">
-            <button
-              id="btnCopy"
-              type="button"
-              onClick={() => void handleCopy()}
-              disabled={copying}
-              className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {copying ? "Copying..." : "Copy"}
-            </button>
-            <button
-              id="btnClose"
-              type="button"
-              onClick={onClose}
-              disabled={copying}
-              className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+            {error && (
+              <p role="alert" className="m-0 text-[12px] text-[#c0392b]">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-3 flex justify-center gap-3">
+              <button
+                id="btnCopy"
+                type="button"
+                onClick={() => void handleCopy()}
+                disabled={copying}
+                className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {copying ? "Copying..." : <><u>C</u>opy</>}
+              </button>
+            
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );
