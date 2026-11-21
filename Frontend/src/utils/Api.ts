@@ -46,6 +46,7 @@ export const getAirlines = (PstrCoID: string) =>
   request<AirlineRecord[]>(`/airlines/${encode(PstrCoID)}`);
 
 export type BudgetComboResponse = {
+  Year: never[];
   success: boolean;
   message?: string;
   DefaultBrID: string | null;
@@ -97,6 +98,7 @@ export const getBudgetRows = (
 
 export const applyBudgetChanges = (payload: {
   PstrCoID: string;
+  PstrUserID: string;
   IntYear: number;
   StrBrID: string;
   StrBudgetHeadType: string;
@@ -108,6 +110,66 @@ export const applyBudgetChanges = (payload: {
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+type BudgetKeyArgs = {
+  PstrCoID: string;
+  IntYear: number;
+  StrBrID: string;
+  StrType: string;
+  
+};
+
+const keyPath = (k: BudgetKeyArgs) =>
+  [k.PstrCoID, k.IntYear, k.StrBrID, k.StrType]
+    .map(encodeURIComponent)
+    .join("/");
+
+/** mode S – insert one row */
+export const saveBudgetRow = (
+  key: Omit<BudgetKeyArgs, "StrType"> & {
+    StrBudgetHeadType: string;
+  },
+  Row: BudgetMutationRow
+) =>
+  request<{ success: boolean; message?: string }>("/budget/SaveBudget", {
+    method: "POST",
+    body: JSON.stringify({ ...key, Row }),
+  });
+
+/** mode M1 – update one row */
+export const updateBudgetRow = (
+  key: BudgetKeyArgs,
+  originalSlNo: number,
+  row: BudgetMutationRow
+) =>
+  request<{ success: boolean; message?: string }>(
+    `/budget/UpdateBudget/${keyPath(key)}/${originalSlNo}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(row),
+    }
+  );
+
+/** mode D1 – delete one row */
+export const deleteBudgetRow = (
+  key: BudgetKeyArgs,
+  originalSlNo: number
+) =>
+  request<{ success: boolean; message?: string }>(
+    `/budget/DeleteBudget/${keyPath(key)}/${originalSlNo}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+/** mode D – delete all rows */
+export const deleteAllBudget = (key: BudgetKeyArgs) =>
+  request<{ success: boolean; message?: string }>(
+    `/budget/ApplyD/${keyPath(key)}`,
+    {
+      method: "DELETE",
+    }
+  );
 
 export type TktTypeRecord = {
   ftickettypeid: string;
@@ -558,3 +620,6 @@ export const deleteAirline = (PstrCoID : string, StrAirlineNo: string,PstrYear: 
       body: JSON.stringify({ PstrUserID }),
     },
   );
+
+
+  

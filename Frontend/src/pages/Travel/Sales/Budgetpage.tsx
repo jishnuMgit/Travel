@@ -1,19 +1,26 @@
 import React, { useEffect, useState } from "react";
 import Select, { components, type MenuListProps } from "react-select";
 import dayjs from "dayjs";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { IoMdClose } from "react-icons/io";
 import selectComponents from "../../../components/common/selectComponents";
-import { fieldSelectProps, type Option } from "../../../components/common/Combo";
-import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
 import {
-  applyBudgetChanges,
+  Combo,
+  fieldSelectProps,
+  type Option,
+} from "../../../components/common/Combo";
+import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import {
+  deleteAllBudget,
+  deleteBudgetRow,
   getBudgetFillCombos,
   getBudgetRows,
+  saveBudgetRow,
+  updateBudgetRow,
   type BudgetMutationRow,
   type BudgetRecord,
 } from "../../../utils/Api";
+import { toast } from "react-toastify";
 
 /* =====================================================================
    FILE MAP
@@ -23,6 +30,14 @@ import {
               (account lines, months, row totals, column totals),
               BudgetFooter (Copy, Save ... Close, Saved By)
    4. BudgetPage : owns the state and renders the parts
+
+   API usage (no more Apply):
+     Save button   -> DeleteBudget (D1), UpdateBudget (M1), SaveBudget (S)
+     Row X button  -> DeleteBudget (D1)
+     Delete All    -> ApplyD (D)
+
+   Year: options come from the FillCombos "Year" list. The year stored in
+   localStorage "PstrYear" is the active one on load.
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -43,7 +58,7 @@ const MONTHS = [
   "Dec",
 ];
 
-const MIN_ROWS = 14;
+const MIN_ROWS = 16;
 const ACCOUNT_ID_LIST_EXTRA = 44;
 
 type BudgetRow = {
@@ -68,6 +83,8 @@ type PairOption = {
   second: string;
 };
 
+type YearOption = { value: string; label: string };
+
 type PairColumns = { first?: string; second?: string };
 type ListSize = { width: number; firstCol: number; secondCol: number };
 
@@ -78,6 +95,16 @@ const columnStyle = (width?: string) =>
   width === undefined ? undefined : { width };
 const columnClass = (width?: string) =>
   width === undefined ? "min-w-0 flex-1" : "shrink-0";
+
+/** reads the server message from an axios error, falls back to a plain Error message */
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  const serverMessage = (
+    error as { response?: { data?: { message?: unknown } } } | null
+  )?.response?.data?.message;
+  if (typeof serverMessage === "string" && serverMessage) return serverMessage;
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
 
 const makePairMenuList = (
   firstHeader: string,
@@ -155,7 +182,8 @@ const cellSelectProps = {
 
 const pairClassNames = {
   ...cellSelectProps.classNames,
-  menuList: () => "!p-0 !max-h-[260px] !overflow-x-hidden",
+  // 312px = the old 260px + 20%
+  menuList: () => "!p-0 !max-h-[312px] !overflow-x-hidden",
   option: ({
     isFocused,
     isSelected,
@@ -232,6 +260,14 @@ const mapBudgetRecord = (
   };
 };
 
+const toNumber = (value: string) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const rowTotal = (row: BudgetRow) =>
+  row.months.reduce((total, m) => total + toNumber(m), 0);
+
 const toBudgetMutationRow = (
   row: BudgetRow,
   fSlNo: number,
@@ -254,11 +290,6 @@ const toBudgetMutationRow = (
   fNote: row.note,
 });
 
-const toNumber = (value: string) => {
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
 const isValidAmount = (value: string) =>
   value === "" ||
   (/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(value) &&
@@ -270,57 +301,9 @@ const formatAmount = (value: number) =>
     maximumFractionDigits: 2,
   });
 
-const rowTotal = (row: BudgetRow) =>
-  row.months.reduce((total, m) => total + toNumber(m), 0);
-
 /* ---------------------------------------------------------------------
    2. SHARED BUILDING BLOCKS
    --------------------------------------------------------------------- */
-const selectClassNames = {
-  control: ({
-    isFocused,
-    isDisabled,
-  }: {
-    isFocused: boolean;
-    isDisabled: boolean;
-  }) => `
-    !min-h-[25px] !h-[30px] !rounded-[4px] !border !shadow-none !text-[13px]
-    hover:!border-[#aab8c5]
-    ${isDisabled ? "!bg-[#f6f8fa]" : "!bg-white"}
-    ${isFocused ? "!border-[#91a7b9]" : "!border-[#cfd7df]"}
-  `,
-  valueContainer: () => "!h-[23px] !py-0 !px-[5px] !overflow-hidden",
-  singleValue: () => "!m-0 !text-[13px] !text-[#24364d]",
-  placeholder: () => "!m-0 !text-[13px] !text-[#7a8794]",
-  input: () => "!m-0 !p-0 !text-[13px] !text-[#24364d]",
-  indicatorsContainer: () => "!h-[23px]",
-  dropdownIndicator: () => "!p-[3px] !text-[#657486]",
-  indicatorSeparator: () => "!hidden",
-  clearIndicator: () => "!p-[3px]",
-  menu: () =>
-    "!mt-[1px] !rounded-none !border !border-[#cfd7df] !z-[999999] !shadow-md ",
-  menuList: () => "!p-0 !max-h-[180px]",
-  option: ({
-    isFocused,
-    isSelected,
-  }: {
-    isFocused: boolean;
-    isSelected: boolean;
-  }) => `
-    !cursor-pointer !px-[6px] !py-[5px] !text-[13px] !text-[#24364d]
-    ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
-  `,
-};
-
-const selectProps = {
-  isSearchable: false,
-  isClearable: false,
-  placeholder: "",
-  classNames: selectClassNames,
-  menuPosition: "fixed" as const,
-  menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-};
-
 /* slim green scrollbar (Chrome, Edge, Safari) */
 const niceScrollbar = [
   "[&::-webkit-scrollbar]:h-2.5",
@@ -335,36 +318,6 @@ const niceScrollbar = [
   "[&::-webkit-scrollbar-thumb:active]:bg-[#4cc45a]",
   "[&::-webkit-scrollbar-corner]:bg-[#f2f8f4]",
 ].join(" ");
-
-/** label + control on one line */
-const LabeledCombo: React.FC<{
-  id: string;
-  label: string;
-  options: Option[];
-  value: string | null;
-  onChange: (value: string | null) => void;
-  className?: string;
-}> = ({ id, label, options, value, onChange, className = "" }) => (
-  <div className="flex min-w-0 items-center gap-2">
-    <label
-      htmlFor={id}
-      className="shrink-0 whitespace-nowrap text-right text-[12px] text-[#405066]"
-    >
-      {label}
-    </label>
-    <div className={`min-w-0 ${className}`}>
-      <Select
-        inputId={id}
-        instanceId={id}
-        components={selectComponents}
-        options={options}
-        value={options.find((o) => o.value === value) ?? null}
-        onChange={(option) => onChange(option?.value ?? null)}
-        {...selectProps}
-      />
-    </div>
-  </div>
-);
 
 /** amount cell: raw text while editing, 1,234 style when you leave it */
 const NumberCell: React.FC<{
@@ -445,7 +398,7 @@ function ScrollGrid<R>({
 }) {
   const cols = (gutter: boolean) => (
     <colgroup>
-      <col className="w-[20px]" />
+      <col className="w-[44px]" />
       {columns.map((c) => (
         <col key={c.id} className={c.width} />
       ))}
@@ -464,7 +417,7 @@ function ScrollGrid<R>({
           {cols(true)}
           <thead>
             <tr>
-              <th className={thClass} />
+              <th className={`${thClass} text-center`}>Line</th>
               {columns.map((c) => (
                 <th
                   key={c.id}
@@ -494,8 +447,12 @@ function ScrollGrid<R>({
                     onClick={() => onActivate(key)}
                     className="bg-white"
                   >
-                    <td className="h-[26px] border border-[#B7ECD0] bg-[#fafbfc] text-center text-[8px] text-[#405066]">
-                      {active ? "▶" : ""}
+                    <td
+                      className={`h-[26px] border border-[#B7ECD0] bg-[#fafbfc] px-1 text-center text-[12px] text-[#405066] ${
+                        active ? "font-semibold text-[#24364d]" : ""
+                      }`}
+                    >
+                      {index + 1}
                     </td>
                     {columns.map((c) => (
                       <td
@@ -556,6 +513,7 @@ function ScrollGrid<R>({
 /* 3a. Header: year, budget head type, branch */
 const BudgetHeader: React.FC<{
   year: string;
+  yearOptions: YearOption[];
   onYearChange: (value: string) => void;
   headTypeOptions: Option[];
   lkpHeadType: string | null;
@@ -566,6 +524,7 @@ const BudgetHeader: React.FC<{
   loadingCombos: boolean;
 }> = ({
   year,
+  yearOptions,
   onYearChange,
   headTypeOptions,
   lkpHeadType,
@@ -576,85 +535,50 @@ const BudgetHeader: React.FC<{
   loadingCombos,
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2.5">
-    
-<div className="flex items-center gap-2">
-  <label
-    htmlFor="txtYear"
-    className="shrink-0 text-right text-[12px] text-[#405066]"
-  >
-    Year :
-  </label>
+    <div className="flex items-center gap-2">
+      <label
+        htmlFor="lkpYear"
+        className="shrink-0 text-right text-[12px] text-[#405066]"
+      >
+        Year :
+      </label>
+      <div className="w-[110px] min-w-0">
+        <Select<YearOption, false>
+          inputId="lkpYear"
+          instanceId="lkpYear"
+          aria-label="Year"
+          options={yearOptions}
+          components={selectComponents}
+          value={yearOptions.find((option) => option.value === year) ?? null}
+          onChange={(option) => onYearChange(option?.value ?? "")}
+          // isClearable={false}
+          // isSearchable={false}
+          {...fieldSelectProps}
+        />
+      </div>
+    </div>
 
-  <LocalizationProvider dateAdapter={AdapterDayjs}>
-    <DatePicker
-      views={["year"]}
-      openTo="year"
-      format="YYYY"
-      value={year ? dayjs(`${year}-01-01`) : null}
-      onChange={(value) =>
-        onYearChange(value?.isValid() ? value.format("YYYY") : "")
-      }
-      slotProps={{
-        textField: {
-          id: "txtYear",
-          size: "small",
-          sx: {
-            width: "82px",
-
-            "& .MuiPickersInputBase-root": {
-              height: "30px !important",
-              minHeight: "30px !important",
-              fontSize: "12px",
-            },
-
-            "& .MuiPickersOutlinedInput-root": {
-              height: "30px !important",
-              minHeight: "30px !important",
-            },
-
-            "& .MuiPickersInputBase-sectionsContainer": {
-              padding: "0 4px",
-            },
-
-            "& .MuiPickersSectionList-root": {
-              padding: "0 !important",
-              fontSize: "12px",
-            },
-
-            "& .MuiInputBase-input": {
-              padding: "3px 4px !important",
-              fontSize: "12px",
-            },
-
-            "& .MuiInputAdornment-root": {
-              marginLeft: "0px",
-            },
-
-            "& .MuiIconButton-root": {
-              width: "20px",
-              height: "20px",
-              padding: "2px",
-            },
-
-            "& .MuiSvgIcon-root": {
-              fontSize: "15px",
-            },
-          },
-        },
-      }}
-    />
-  </LocalizationProvider>
-</div>
-
-
-    <LabeledCombo
-      id="lkpBudgetHeadType"
-      label="Budget Head Type :"
-      options={headTypeOptions}
-      value={lkpHeadType}
-      onChange={onHeadTypeChange}
-      className="w-[220px]"
-    />
+    <div className="flex min-w-0 items-center gap-2">
+      <label
+        htmlFor="lkpBudgetHeadType"
+        className="shrink-0 whitespace-nowrap text-right text-[12px] text-[#405066]"
+      >
+        Budget Head Type :
+      </label>
+      <div className="w-[220px] min-w-0">
+        <Combo
+          id="lkpBudgetHeadType"
+          secondColumnExtra={56}
+          firstHeader="Name"
+          secondHeader="ID"
+          options={headTypeOptions}
+          value={lkpHeadType}
+          onChange={onHeadTypeChange}
+          className="w-full min-w-0"
+          isSearchable
+        />
+      </div>
+    </div>
 
     {loadingCombos && (
       <p className="m-0 text-[12px] text-[#667085]">
@@ -662,14 +586,27 @@ const BudgetHeader: React.FC<{
       </p>
     )}
 
-    <LabeledCombo
-      id="lkpBranch"
-      label="Branch :"
-      options={branchOptions}
-      value={lkpBranch}
-      onChange={onBranchChange}
-      className="w-[220px]"
-    />
+    <div className="flex min-w-0 items-center gap-2">
+      <label
+        htmlFor="lkpBranch"
+        className="shrink-0 whitespace-nowrap text-right text-[12px] text-[#405066]"
+      >
+        Branch :
+      </label>
+      <div className="w-[220px] min-w-0">
+        <Combo
+          id="lkpBranch"
+          secondColumnExtra={56}
+          firstHeader="Name"
+          secondHeader="ID"
+          options={branchOptions}
+          value={lkpBranch}
+          onChange={onBranchChange}
+          className="w-full min-w-0"
+          isSearchable
+        />
+      </div>
+    </div>
   </div>
 );
 
@@ -683,6 +620,7 @@ const BudgetGrid: React.FC<{
   onActivate: (key: number) => void;
   onAccountChange: (key: number, accountId: string | null) => void;
   onMonthChange: (key: number, month: number, value: string) => void;
+  onDeleteRow: (key: number, rowNumber: number) => void;
 }> = ({
   rows,
   accountIdOptions,
@@ -692,6 +630,7 @@ const BudgetGrid: React.FC<{
   onActivate,
   onAccountChange,
   onMonthChange,
+  onDeleteRow,
 }) => {
   const startListSize: ListSize = {
     width: 350,
@@ -862,7 +801,7 @@ const BudgetGrid: React.FC<{
       (month, index): GridColumn<BudgetRow> => ({
         id: `m${index}`,
         header: month,
-        width: "w-[78px]",
+        width: "w-[68px]",
         align: "right",
         total: true,
         render: (row) => (
@@ -885,6 +824,28 @@ const BudgetGrid: React.FC<{
       cellClass: "bg-[#eef1f4] px-2 text-right",
       render: (row) => (isEmptyRow(row) ? "" : formatAmount(rowTotal(row))),
     },
+    {
+      id: "delete",
+      header: "Delete",
+      width: "w-[46px]",
+      align: "center",
+      cellClass: "p-0 text-center",
+      render: (row, index) => (
+        <button
+          type="button"
+          aria-label={`Delete row ${index + 1}`}
+          title={`Delete row ${index + 1}`}
+          disabled={disabled}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDeleteRow(row.key, index + 1);
+          }}
+          className="inline-flex h-[25px] w-full items-center justify-center hover:text-[#c0392b] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <IoMdClose size={17} />
+        </button>
+      ),
+    },
   ];
 
   const totals: Record<string, number> = {};
@@ -905,7 +866,7 @@ const BudgetGrid: React.FC<{
       onActivate={onActivate}
       totals={totals}
       rowsHeightClass="max-h-[min(440px,calc(100vh-300px))]"
-      minWidthClass="min-w-[1400px]"
+      minWidthClass="min-w-[1460px]"
     />
   );
 };
@@ -931,7 +892,6 @@ const BudgetFooter: React.FC<{
   onDelete,
   onPrint,
   onClear,
-  onClose,
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
     <button id="btnCopy" type="button" onClick={onCopy} className="btn-style">
@@ -974,7 +934,6 @@ const BudgetFooter: React.FC<{
       >
         <u>C</u>lear
       </button>
-    
     </div>
 
     <span className="min-w-50 text-right text-[12px] text-[#7a8794]">
@@ -1001,9 +960,12 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
   onClose,
 }) => {
   const PstrCoID = localStorage.getItem("PstrCoID")?.trim() ?? "";
-  const [year, setYear] = useState(String(new Date().getFullYear())); // txtYear
-  const [lkpHeadType, setlkpHeadType] = useState<string | null>(null); // lkpBudgetlkpHeadType
-  const [lkpBranch, setlkpBranch] = useState<string | null>(null); // lkplkpBranch
+  const storedYear = localStorage.getItem("PstrYear")?.trim() ?? "";
+  const [lkpYear, setYear] = useState(storedYear); // lkpYear
+  const [yearOptions, setYearOptions] = useState<YearOption[]>([]);
+  const [defaultYear, setDefaultYear] = useState(storedYear);
+  const [lkpHeadType, setlkpHeadType] = useState<string | null>(null);
+  const [lkpBranch, setlkpBranch] = useState<string | null>(null);
   const [headTypeOptions, setHeadTypeOptions] = useState<Option[]>([]);
   const [branchOptions, setBranchOptions] = useState<Option[]>([]);
   const [accountIdOptions, setAccountIdOptions] = useState<PairOption[]>([]);
@@ -1019,6 +981,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
   const [activeKey, setActiveKey] = useState<number | null>(null);
   const [savedBy, setSavedBy] = useState("");
   const [error, setError] = useState("");
+  const { confirm, dialog: confirmDialog } = useConfirmModal();
 
   useEffect(() => {
     let cancelled = false;
@@ -1039,10 +1002,12 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
         const nextHeadTypeOptions = data.Types.map((type) => ({
           value: type.fpid,
           label: type.fpname ?? type.fpid,
+          secondLabel: type.fpid,
         }));
         const nextBranchOptions = data.Branches.map((item) => ({
           value: item.fbrid,
           label: item.fbrname ?? item.fbrid,
+          secondLabel: item.fbrid,
         }));
 
         setHeadTypeOptions(nextHeadTypeOptions);
@@ -1061,6 +1026,21 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
             second: account.faccountid,
           })),
         );
+
+        // years come from the API; the year saved in localStorage is the
+        // active one, otherwise the latest year from the API
+        const nextYearOptions: YearOption[] = (data.Year ?? [])
+          .map((item: { fyear: any; }) => String(item.fyear))
+          .sort()
+          .map((value) => ({ value, label: value }));
+        const activeYear =
+          nextYearOptions.find((option) => option.value === storedYear)
+            ?.value ??
+          nextYearOptions[nextYearOptions.length - 1]?.value ??
+          "";
+        setYearOptions(nextYearOptions);
+        setDefaultYear(activeYear);
+        setYear(activeYear);
 
         const defaultBranch =
           nextBranchOptions.find((option) => option.value === data.DefaultBrID)
@@ -1087,11 +1067,11 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [PstrCoID]);
+  }, [PstrCoID, storedYear]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!PstrCoID || year.length !== 4 || !lkpBranch || !lkpHeadType) {
+    if (!PstrCoID || lkpYear.length !== 4 || !lkpBranch || !lkpHeadType) {
       setRows(buildRows());
       setSavedRows([]);
       setLoadingBudget(false);
@@ -1107,7 +1087,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
       try {
         const data = await getBudgetRows(
           PstrCoID,
-          Number(year),
+          Number(lkpYear),
           lkpBranch,
           lkpHeadType,
         );
@@ -1140,7 +1120,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [PstrCoID, year, lkpBranch, lkpHeadType, refreshVersion]);
+  }, [PstrCoID, lkpYear, lkpBranch, lkpHeadType, refreshVersion]);
 
   const reload = () => {
     setSavedBy("");
@@ -1158,10 +1138,11 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
       padRows(prev.map((row) => (row.key === key ? patch(row) : row))),
     );
 
+  /* Save button: D1 (deletes) -> M1 (updates) -> S (inserts), one request per row */
   const handleSave = async () => {
     if (saving || loadingBudget || loadingCombos) return;
-    if (year.length !== 4 || !lkpHeadType || !lkpBranch) {
-      setError("Enter the year and select the budget head type and lkpBranch.");
+    if (lkpYear.length !== 4 || !lkpHeadType || !lkpBranch) {
+      setError("Select the year, budget head type and branch.");
       return;
     }
     const lines = rows.filter((row) => !isEmptyRow(row));
@@ -1185,7 +1166,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
       0,
     );
     const Inserted: BudgetMutationRow[] = [];
-    const Updated: (BudgetMutationRow & { OriginalSlNo: number })[] = [];
+    const Updated: { OriginalSlNo: number; row: BudgetMutationRow }[] = [];
 
     for (const row of lines) {
       if (row.originalSlNo === null) {
@@ -1202,21 +1183,24 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
       currentSavedSlNos.add(original.originalSlNo);
       const changed =
         row.accountId !== original.accountId ||
+        row.note !== original.note ||
         row.months.some(
           (amount, index) =>
             toNumber(amount) !== toNumber(original.months[index]),
         );
       if (changed) {
         Updated.push({
-          ...toBudgetMutationRow(row, original.originalSlNo),
           OriginalSlNo: original.originalSlNo,
+          row: toBudgetMutationRow(row, original.originalSlNo),
         });
       }
     }
 
+    // highest serial number first, in case the procedure renumbers after a delete
     const Deleted = savedRows
       .filter((row) => !currentSavedSlNos.has(row.originalSlNo))
-      .map((row) => ({ OriginalSlNo: row.originalSlNo }));
+      .map((row) => row.originalSlNo)
+      .sort((a, b) => b - a);
 
     if (Inserted.length === 0 && Updated.length === 0 && Deleted.length === 0) {
       setError("There are no budget changes to save.");
@@ -1225,54 +1209,140 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
     setSaving(true);
     setError("");
+    const IntYear = Number(lkpYear);
+    const key = {
+      PstrCoID,
+      IntYear,
+      StrBrID: lkpBranch,
+      StrType: lkpHeadType,
+    };
+
     try {
-      const response = await applyBudgetChanges({
-        PstrCoID,
-        IntYear: Number(year),
-        StrBrID: lkpBranch,
-        StrBudgetHeadType: lkpHeadType,
-        Inserted,
-        Updated,
-        Deleted,
-      });
-      if (!response.success) {
-        throw new Error(response.message || "Failed to save budget.");
+      for (const slNo of Deleted) {
+        const r = await deleteBudgetRow(key, slNo);
+        if (!r.success) throw new Error(r.message || "Failed to delete row.");
       }
+      for (const u of Updated) {
+        const r = await updateBudgetRow(key, u.OriginalSlNo, u.row);
+        if (!r.success) throw new Error(r.message || "Failed to update row.");
+      }
+      for (const row of Inserted) {
+        const r = await saveBudgetRow(
+          {
+            PstrCoID,
+            IntYear,
+            StrBrID: lkpBranch,
+            StrBudgetHeadType: lkpHeadType,
+          },
+          row,
+        );
+        if (!r.success) throw new Error(r.message || "Failed to save row.");
+      }
+
+      toast.success("Budget saved successfully.");
       setSavedBy(`${currentUser} ${dayjs().format("DD/MM/YYYY HH:mm:ss")}`);
       setRefreshVersion((version) => version + 1);
     } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Failed to save budget.",
-      );
+      setError(getErrorMessage(saveError, "Failed to save budget."));
+      // the calls are not one transaction: resync with what actually got saved
+      setRefreshVersion((version) => version + 1);
     } finally {
       setSaving(false);
     }
   };
 
-  // Delete removes the highlighted account line
-  const handleDelete = () => {
-    if (activeKey === null || saving || loadingBudget) return;
-    setRows((prev) => padRows(prev.filter((row) => row.key !== activeKey)));
-    setActiveKey(null);
+  /* Row X button: DeleteBudget (D1) for one saved row */
+  const handleDeleteRow = async (rowKey: number, rowNumber: number) => {
+    if (saving || loadingBudget || loadingCombos) return;
+    const row = rows.find((r) => r.key === rowKey);
+    if (!row) return;
+
+    // never saved -> nothing on the server to delete
+    if (row.originalSlNo === null) {
+      setRows((prev) => padRows(prev.filter((r) => r.key !== rowKey)));
+      if (activeKey === rowKey) setActiveKey(null);
+      return;
+    }
+    if (lkpYear.length !== 4 || !lkpHeadType || !lkpBranch) return;
+
+    if (
+      !(await confirm({
+        message: `Do you want to delete row ${rowNumber}?`,
+      }))
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const r = await deleteBudgetRow(
+        {
+          PstrCoID,
+          IntYear: Number(lkpYear),
+          StrBrID: lkpBranch,
+          StrType: lkpHeadType,
+        },
+        row.originalSlNo,
+      );
+      if (!r.success) throw new Error(r.message || "Failed to delete row.");
+      toast.success("Row deleted successfully.");
+      if (activeKey === rowKey) setActiveKey(null);
+      setRefreshVersion((version) => version + 1);
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, "Failed to delete row."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* Delete button: ApplyD (D) removes every row for year / branch / type */
+  const handleDeleteAll = async () => {
+    if (saving || loadingBudget || loadingCombos) return;
+    if (lkpYear.length !== 4 || !lkpHeadType || !lkpBranch) return;
+    if (
+      !(await confirm({
+        message: "Do you want to delete Budget Entries?",
+      }))
+    ) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const r = await deleteAllBudget({
+        PstrCoID,
+        IntYear: Number(lkpYear),
+        StrBrID: lkpBranch,
+        StrType: lkpHeadType,
+      });
+      if (!r.success) throw new Error(r.message || "Failed to delete budget.");
+      toast.success("Budget deleted successfully.");
+      setActiveKey(null);
+      setRefreshVersion((version) => version + 1);
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, "Failed to delete budget."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePrint = () => {
-    console.log("print budget", { year, lkpHeadType, lkpBranch });
+    console.log("print budget", { lkpYear, lkpHeadType, lkpBranch });
     onPrint?.();
   };
 
   const handleCopy = () => {
-    console.log("copy budget", { year, lkpHeadType, lkpBranch });
+    console.log("copy budget", { lkpYear, lkpHeadType, lkpBranch });
     onCopy?.();
   };
 
-  // Cancel throws away the changes and reloads the saved budget
+  // Clear throws away the changes and reloads the saved budget
   const handleClear = () => reload();
 
   const handleClose = () => {
-    setYear(String(new Date().getFullYear()));
+    setYear(defaultYear);
     setlkpHeadType(headTypeOptions[0]?.value ?? null);
     setlkpBranch(defaultBranch);
     reload();
@@ -1281,7 +1351,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-full max-w-362.5 bg-white p-0">
+      <div className="min-h-fit w-full max-w-374 bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
           <header className="flex h-7.5 items-center justify-start bg-[#9fdfbc]">
             <h1 className="m-0 ml-3.5 text-[17px] font-semibold text-[#24364d]">
@@ -1291,7 +1361,8 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
           <section className="flex flex-col gap-3 px-3.5 pb-6 pt-3">
             <BudgetHeader
-              year={year}
+              year={lkpYear}
+              yearOptions={yearOptions}
               onYearChange={(value) => {
                 setYear(value);
                 setError("");
@@ -1333,6 +1404,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
                   months: row.months.map((m, i) => (i === month ? value : m)),
                 }));
               }}
+              onDeleteRow={handleDeleteRow}
             />
 
             {error && (
@@ -1346,8 +1418,8 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
               busy={saving || loadingBudget || loadingCombos}
               saving={saving}
               onCopy={handleCopy}
-              onSave={handleSave}
-              onDelete={handleDelete}
+              onSave={() => void handleSave()}
+              onDelete={handleDeleteAll}
               onPrint={handlePrint}
               onClear={handleClear}
               onClose={handleClose}
@@ -1355,6 +1427,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
           </section>
         </main>
       </div>
+      {confirmDialog}
     </div>
   );
 };

@@ -98,7 +98,7 @@ export const FillCombos = async (
       return;
     }
 
-    const [branches, types, accountsByID, accountsByName] =
+    const [branches, types, accountsByID, accountsByName,year] =
       await Promise.all([
         pool.query(
           `SELECT *
@@ -116,13 +116,18 @@ export const FillCombos = async (
 
         pool.query(
           `SELECT *
-           FROM dbo.filllookupaccountid($1)`,
+           FROM dbo.filllookupbudgetaccountid($1)`,
           [PstrCoID],
         ),
 
         pool.query(
           `SELECT *
-           FROM dbo.filllookupaccountname($1)`,
+           FROM dbo.filllookupbudgetaccountname($1)`,
+          [PstrCoID],
+        ),
+        pool.query(
+          `SELECT *
+           FROM dbo.fillyear($1)`,
           [PstrCoID],
         ),
       ]);
@@ -134,6 +139,7 @@ export const FillCombos = async (
       Types: types.rows,
       AccountsByID: accountsByID.rows,
       AccountsByName: accountsByName.rows,
+      Year:year.rows
     });
 
   } catch (error) {
@@ -261,7 +267,11 @@ export const Apply = async (
   }
 
   const key: BudgetKey = { PstrCoID, IntYear, StrBrID, StrBudgetHeadType };
-  const userId = req.user?.userId ?? null;
+  const PstrUserID = req.user?.userId ?? null;
+
+
+  console.log("++++++++++++++++++++++++")
+  console.log(PstrUserID)
 
   const client = await pool.connect();
   try {
@@ -272,13 +282,13 @@ export const Apply = async (
     };
 
     for (const r of Deleted) {
-      ensure(await callBudgetProcedure(client, "D1", key, userId, undefined, r.OriginalSlNo));
+      ensure(await callBudgetProcedure(client, "D1", key, PstrUserID, undefined, r.OriginalSlNo));
     }
     for (const r of Updated) {
-      ensure(await callBudgetProcedure(client, "M1", key, userId, r, r.OriginalSlNo));
+      ensure(await callBudgetProcedure(client, "M1", key, PstrUserID, r, r.OriginalSlNo));
     }
     for (const r of Inserted) {
-      ensure(await callBudgetProcedure(client, "S", key, userId, r));
+      ensure(await callBudgetProcedure(client, "S", key, PstrUserID, r));
     }
 
     await client.query("COMMIT");
@@ -327,7 +337,9 @@ export const ApplyD = async (
     if (!result?.affected_count) {
       res.status(404).json({ success: false, message: "Budget not found." });
       return;
-    }
+    } 
+       const fbudgetheadtype=StrType ==='E'? 'Expense': 'Revenue'
+
 
     const user = String(req.user?.userId ?? "");
     await UserAudit(
@@ -339,7 +351,7 @@ export const ApplyD = async (
       "Budget",
       "D",
       user,
-      `Deleted Budget (Branch ${StrBrID}, Type ${StrType}, Year ${IntYear}) by ${user}`,
+      `Deleted Budget (Branch ${StrBrID}, Type ${fbudgetheadtype}, Year ${IntYear}) by ${user}`,
     );
 
     res.status(200).json({
@@ -418,6 +430,9 @@ export const UpdateBudget = async (
     });
     return;
   }
+  const userId=req.user?.userId
+  console.log("++++++++++++++++++++++++")
+  console.log(userId)
 
   const client = await pool.connect();
   try {
@@ -425,7 +440,7 @@ export const UpdateBudget = async (
       client,
       "M1",
       { PstrCoID, IntYear, StrBrID, StrBudgetHeadType: StrType },
-      req.user?.userId ?? null,
+      String(userId),
       Row,
       OriginalSlNo,
     );
@@ -481,7 +496,9 @@ export const DeleteBudget = async (
       return;
     }
 
-    const user = String(req.user?.userId ?? "");
+    const fbudgetheadtype=StrType ==='E'? 'Expense': 'Revenue'
+
+    const PstrUserID = String(req.user?.userId ?? "");
     await UserAudit(
       PstrCoID,
       String(IntYear),
@@ -490,8 +507,8 @@ export const DeleteBudget = async (
       null,
       "Budget",
       "D",
-      user,
-      `Deleted Budget Serial No ${OriginalSlNo} (Branch ${StrBrID}, Type ${StrType}) by ${user}`,
+      PstrUserID,
+      `Deleted Budget Serial No ${OriginalSlNo} (Branch ${StrBrID}, Type ${fbudgetheadtype}) by ${PstrUserID}`,
     );
 
     res.status(200).json({
