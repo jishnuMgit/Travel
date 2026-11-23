@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { toast } from "react-toastify";
+import { useMessageModal } from "../../../hooks/useMessageModal";
+import { deleteConfirm } from "../../../hooks/deleteMessage";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import { CARRIER_MAX_LENGTH, cnjCarrierIssue, formatCarrierCodes, formatRoute, ROUTE_MAX_LENGTH, routeSectors } from "./ticketSalesValidation";
@@ -66,6 +67,7 @@ const MIN_ROWS = 6; // the grid is as tall as the old one even when it has few r
 const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange, onClose, onRemoveRow }) => {
   const firstCellRef = useRef<HTMLInputElement>(null);
   const { confirm, dialog } = useConfirmModal();
+  const { notify, dialog: messageDialog } = useMessageModal("Ticket Sales"); // a message window, not a toast
   const [carrierLeft, setCarrierLeft] = useState<number[]>([]); // the rows whose Carrier Code box was left: a wrong one shows in red
   const confirmingRef = useRef(false); // the confirm window is open: Esc is for it, not for this popup
 
@@ -112,13 +114,13 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
   // the x at the end of a line: asks "Do you want to delete Line n?", then the line is taken out (the lines below move up)
   const removeRow = async (index: number) => {
     confirmingRef.current = true;
-    const yes = await confirm({ message: `Do you want to delete Line ${index + 1}?` });
+    const yes = await confirm(deleteConfirm(`Do you want to Delete Line ${index + 1}?`, "Ticket Sales-Conjunction"));
     setTimeout(() => { confirmingRef.current = false; }, 0);
     if (!yes) return;
     try {
       await onRemoveRow?.(rows[index]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to delete the line.");
+      notify.error(err instanceof Error ? err.message : "Unable to delete the line.");
       return;
     }
     onChange(rows.filter((_, i) => i !== index));
@@ -200,7 +202,7 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
                             if (column.key !== "txtCnjCarrier" || index >= rows.length) return;
                             const issue = cnjCarrierIssue(row.txtCnjRoute, row.txtCnjCarrier);
                             setCarrierLeft((previous) => (previous.includes(index) ? previous : [...previous, index]));
-                            if (issue) toast.error(issue);
+                            if (issue) notify.error(issue);
                           }}
                           onChange={(event) =>
                             update(
@@ -251,7 +253,10 @@ const CnjModal: React.FC<CnjModalProps> = ({ open, rows, mainTicketNo, onChange,
           </div>
         </div>
       </div>
-      <div className="pointer-events-auto">{dialog}</div>
+      <div className="pointer-events-auto">
+        {dialog}
+        {messageDialog}
+      </div>
     </div>
   );
 };

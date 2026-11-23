@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../../../components/common/Header";
 import { MdAttachFile, MdClose, MdVisibility } from "react-icons/md";
 import { toast } from "react-toastify";
+import { useMessageModal } from "../../../hooks/useMessageModal";
+import { deleteConfirm } from "../../../hooks/deleteMessage";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import {
   base64ByteSize,
@@ -47,6 +49,8 @@ type HotelSalesAttachPageProps = {
   autoAddRow?: boolean;
   /** removing a file asks "Do you want to delete line n?" first (default: it is removed at once) */
   confirmRemove?: boolean;
+  /** the messages are a message window with an OK button, not a toast (default: toast) */
+  messageModal?: boolean;
   /** confirmRemove: called when Yes is clicked, with the saved line (null = a line that is not saved); it deletes it from the database; an error keeps the line */
   onRemoveLine?: (line: ServiceChargePolicyAttachment | null) => void | Promise<void>;
   /** as the Sales Conjunction popup: closing the popup (x / Esc) also keeps what was changed (given to onSave) */
@@ -175,10 +179,16 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
   fileNameEditable = false,
   autoAddRow = false,
   confirmRemove = false,
+  messageModal = false,
   onRemoveLine,
   saveOnClose = false,
 }) => {
   const { confirm, dialog } = useConfirmModal();
+  // messageModal: the messages are a message window with an OK button (as Ticket Sales); else a toast, as before
+  const { notify: modalNotify, dialog: messageDialog } = useMessageModal("Ticket Sales");
+  const notify = messageModal
+    ? modalNotify
+    : { success: toast.success, error: toast.error, warning: toast.warn, info: toast.info };
   const confirmingRef = useRef(false);
   const [rows, setRows] = useState<AttachRow[]>(() => initialRows(attachments));
   const [selectedKey, setSelectedKey] = useState<number | null>(rows[0]?.key ?? null);
@@ -299,7 +309,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
       );
       setPreviewRow({ ...row, previewUrl, previewBlob: blob });
     } catch (previewError) {
-      toast.error(
+      notify.error(
         previewError instanceof Error
           ? previewError.message
           : "Unable to load the attachment preview.",
@@ -317,7 +327,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     if (!file || key === null) return;
     const fileProblem = checkUploadFile(file, maxFileBytes);
     if (fileProblem) {
-      toast.error(fileProblem);
+      notify.error(fileProblem);
       return;
     }
 
@@ -398,7 +408,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
       try {
         await onRemoveLine(row.original);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Unable to delete the line.");
+        notify.error(err instanceof Error ? err.message : "Unable to delete the line.");
         return;
       }
     } else if (row.original) {
@@ -464,12 +474,12 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     const changed = changedLines();
 
     if (changed.length === 0 && deletedLines.length === 0) {
-      toast.error("Attach a file or add a note before saving.");
+      notify.error("Attach a file or add a note before saving.");
       return;
     }
     const totalProblem = totalSizeProblem(changed);
     if (totalProblem) {
-      toast.error(totalProblem);
+      notify.error(totalProblem);
       return;
     }
 
@@ -477,10 +487,10 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     let saved = false;
     try {
       await onSave?.(await toPayload(changed));
-      toast.success(saveMessage);
+      notify.success(saveMessage);
       saved = true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to save documents.");
+      notify.error(err instanceof Error ? err.message : "Unable to save documents.");
     } finally {
       setSaving(false);
       if (saved) onClose?.();
@@ -497,13 +507,13 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     if (changed.length > 0 || deletedLines.length > 0) {
       const totalProblem = totalSizeProblem(changed);
       if (totalProblem) {
-        toast.error(totalProblem);
+        notify.error(totalProblem);
         return;
       }
       try {
         await onSave?.(await toPayload(changed));
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Unable to keep the documents.");
+        notify.error(err instanceof Error ? err.message : "Unable to keep the documents.");
         return;
       }
     }
@@ -541,7 +551,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
         event.stopPropagation();
         if (confirmRemove) {
           confirmingRef.current = true;
-          const yes = await confirm({ message: `Do you want to delete Line ${index + 1}?` });
+          const yes = await confirm(deleteConfirm(`Do you want to Delete Line ${index + 1}?`, "Ticket Sales - Customer Attach"));
           setTimeout(() => { confirmingRef.current = false; }, 0);
           if (!yes) return;
           await removeLine(row.key);
@@ -826,6 +836,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
         </div>
       )}
       {dialog}
+      {messageDialog}
     </div>
   );
 };
