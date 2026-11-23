@@ -2,6 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../../../components/common/Header";
 import { MdAttachFile, MdClose, MdVisibility } from "react-icons/md";
 import { toast } from "react-toastify";
+import { useMessageModal } from "../../../hooks/useMessageModal";
+import { deleteConfirm } from "../../../hooks/deleteMessage";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
+import {
+  base64ByteSize,
+  checkUploadFile,
+  checkUploadTotal,
+  fileExtension,
+  fileToBase64,
+  mimeTypeOf,
+} from "../../../utils/fileUpload";
 import type {
   ServiceChargePolicyAttachment,
   ServiceChargePolicyAttachmentSave,
@@ -12,6 +23,7 @@ type AttachRow = {
   file: File | null;
   fileName: string;
   previewUrl: string | null;
+  previewBlob: Blob | null;
   note: string;
   storedDox: string | null;
   original: ServiceChargePolicyAttachment | null;
@@ -24,11 +36,31 @@ type HotelSalesAttachPageProps = {
   headerName?: string;
   onClose?: () => void;
   attachments?: ServiceChargePolicyAttachment[];
+  loadAttachmentFile?: (slNo: number) => Promise<Blob>;
   onSave?: (rows: AttachSavePayload) => void | Promise<void>;
+  /** the size limits (bytes): one file, and all the files of one save; the default is 250 MB for both */
+  maxFileBytes?: number;
+  maxTotalBytes?: number;
+  /** the message after Save (default "Saved successfully") */
+  saveMessage?: string;
+  /** the File Name can be typed / changed (default: it is only filled when a file is chosen) */
+  fileNameEditable?: boolean;
+  /** a new empty line is added whenever every line has a file or a note (default: the 6 lines stay as they are) */
+  autoAddRow?: boolean;
+  /** removing a file asks "Do you want to delete line n?" first (default: it is removed at once) */
+  confirmRemove?: boolean;
+  /** the messages are a message window with an OK button, not a toast (default: toast) */
+  messageModal?: boolean;
+  /** confirmRemove: called when Yes is clicked, with the saved line (null = a line that is not saved); it deletes it from the database; an error keeps the line */
+  onRemoveLine?: (line: ServiceChargePolicyAttachment | null) => void | Promise<void>;
+  /** as the Sales Conjunction popup: closing the popup (x / Esc) also keeps what was changed (given to onSave) */
+  saveOnClose?: boolean;
 };
 
 const MIN_ROWS = 6;
 const MAX_SAVE_BYTES = 250 * 1024 * 1024;
+const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024;
+const MAX_SPREADSHEET_PREVIEW_BYTES = 50 * 1024 * 1024;
 let keyCounter = 0;
 const nextKey = () => ++keyCounter;
 
@@ -37,6 +69,7 @@ const emptyRow = (): AttachRow => ({
   file: null,
   fileName: "",
   previewUrl: null,
+  previewBlob: null,
   note: "",
   storedDox: null,
   original: null,
@@ -53,7 +86,8 @@ const initialRows = (
     key: nextKey(),
     file: null,
     fileName: attachment.fDoxName ?? "",
-    previewUrl: attachment.dataUrl,
+    previewUrl: null,
+    previewBlob: null,
     note: attachment.fNote ?? "",
     storedDox: attachment.fDox,
     original: attachment,
@@ -84,55 +118,91 @@ const thClass =
 
 const isImage = (row: AttachRow) =>
   row.file?.type.startsWith("image/") ||
-  row.original?.mimeType.startsWith("image/");
+  row.original?.mimeType.startsWith("image/") ||
+  mimeTypeOf(row.fileName).startsWith("image/");
 const isPdf = (row: AttachRow) =>
   row.file?.type === "application/pdf" ||
   row.original?.mimeType === "application/pdf" ||
   row.fileName.toLowerCase().endsWith(".pdf");
+const isTextFile = (row: AttachRow) =>
+  row.file?.type.startsWith("text/") ||
+  ["txt", "csv", "tsv", "log", "json", "xml"].includes(
+    fileExtension(row.fileName),
+  );
+const isExcelFile = (row: AttachRow) =>
+  [".xlsx", ".xlsm"].some((extension) =>
+    row.fileName.toLowerCase().endsWith(extension),
+  );
 
-const fileToBase64 = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error(`Unable to read ${file.name}.`));
-        return;
+const parseExcelPreview = (
+  data: ArrayBuffer,
+): Promise<{ sheetName: string; rows: string[][]; truncated: boolean }> =>
+  new Promise((resolve, reject) => {
+    const worker = new Worker(
+      new URL("./ExcelPreviewWorker.ts", import.meta.url),
+      { type: "module" },
+    );
+    const timeoutId = window.setTimeout(() => {
+      worker.terminate();
+      reject(new Error("Excel preview timed out. Download the workbook to view it."));
+    }, 60_000);
+
+    worker.onmessage = (event: MessageEvent<
+      | { success: true; sheetName: string; rows: string[][]; truncated: boolean }
+      | { success: false; message: string }
+    >) => {
+      window.clearTimeout(timeoutId);
+      worker.terminate();
+      if (event.data.success) {
+        resolve(event.data);
+      } else {
+        reject(new Error(event.data.message));
       }
-      const separator = reader.result.indexOf(",");
-      if (separator < 0) {
-        reject(new Error(`Unable to encode ${file.name}.`));
-        return;
-      }
-      resolve(reader.result.slice(separator + 1));
     };
-    reader.onerror = () =>
-      reject(reader.error ?? new Error(`Unable to read ${file.name}.`));
-    reader.readAsDataURL(file);
+    worker.onerror = (event) => {
+      window.clearTimeout(timeoutId);
+      worker.terminate();
+      reject(new Error(event.message || "Unable to preview this workbook."));
+    };
+    worker.postMessage(data, [data]);
   });
-
-const fileExtension = (fileName: string) => {
-  const extensionStart = fileName.lastIndexOf(".");
-  return extensionStart < 0 ? "" : fileName.slice(extensionStart + 1).toLowerCase();
-};
-
-const base64ByteSize = (value: string | null) => {
-  if (!value) return 0;
-  const prefixLength = value.indexOf("base64,");
-  const encodedLength = value.length - (prefixLength >= 0 ? prefixLength + 7 : 0);
-  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
-  return Math.floor((encodedLength * 3) / 4) - padding;
-};
 
 const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
   headerName = "Attach",
   onClose,
   attachments = [],
+  loadAttachmentFile,
   onSave,
+  maxFileBytes = MAX_SAVE_BYTES,
+  maxTotalBytes = MAX_SAVE_BYTES,
+  saveMessage = "Saved successfully",
+  fileNameEditable = false,
+  autoAddRow = false,
+  confirmRemove = false,
+  messageModal = false,
+  onRemoveLine,
+  saveOnClose = false,
 }) => {
+  const { confirm, dialog } = useConfirmModal();
+  // messageModal: the messages are a message window with an OK button (as Ticket Sales); else a toast, as before
+  const { notify: modalNotify, dialog: messageDialog } = useMessageModal("Ticket Sales");
+  const notify = messageModal
+    ? modalNotify
+    : { success: toast.success, error: toast.error, warning: toast.warn, info: toast.info };
+  const confirmingRef = useRef(false);
   const [rows, setRows] = useState<AttachRow[]>(() => initialRows(attachments));
   const [selectedKey, setSelectedKey] = useState<number | null>(rows[0]?.key ?? null);
   const [previewRow, setPreviewRow] = useState<AttachRow | null>(null);
+  const [previewContent, setPreviewContent] = useState<
+    | { kind: "text"; text: string; truncated: boolean }
+    | { kind: "spreadsheet"; sheetName: string; rows: string[][]; truncated: boolean }
+    | { kind: "message"; message: string }
+    | null
+  >(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // saved lines that were deleted in this popup (the line is gone from the list; it is deleted when the ticket is saved)
+  const [deletedLines, setDeletedLines] = useState<ServiceChargePolicyAttachment[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pickingKeyRef = useRef<number | null>(null);
@@ -146,6 +216,13 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
       urls.clear();
     };
   }, []);
+
+  // every line is used: a new empty one is added
+  useEffect(() => {
+    if (autoAddRow && !rows.some((row) => isEmptyRow(row))) {
+      setRows((previous) => [...previous, emptyRow()]);
+    }
+  }, [autoAddRow, rows]);
 
   const firstEmptyKey = useMemo(
     () => rows.find((row) => isEmptyRow(row))?.key ?? null,
@@ -164,14 +241,93 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     fileInputRef.current?.click();
   };
 
+  const openPreview = async (row: AttachRow) => {
+    setSelectedKey(row.key);
+    setPreviewRow(row);
+    setPreviewLoading(true);
+    try {
+      const blob =
+        row.previewBlob ??
+        row.file ??
+        (row.original && loadAttachmentFile
+          ? await loadAttachmentFile(row.original.fSlNo)
+          : null);
+      if (!blob) throw new Error("Unable to load the attachment preview.");
+
+      let previewUrl = row.previewUrl;
+      if (!previewUrl) {
+        previewUrl = URL.createObjectURL(blob);
+        urlsRef.current.add(previewUrl);
+      }
+
+      if (isTextFile(row)) {
+        const truncated = blob.size > MAX_TEXT_PREVIEW_BYTES;
+        const text = await blob
+          .slice(0, MAX_TEXT_PREVIEW_BYTES)
+          .text();
+        setPreviewContent({ kind: "text", text, truncated });
+      } else if (isExcelFile(row)) {
+        if (blob.size > MAX_SPREADSHEET_PREVIEW_BYTES) {
+          setPreviewContent({
+            kind: "message",
+            message: "This workbook is too large to preview. Download it to view the contents.",
+          });
+        } else {
+          try {
+            const result = await parseExcelPreview(await blob.arrayBuffer());
+            setPreviewContent({
+              kind: "spreadsheet",
+              sheetName: result.sheetName,
+              rows: result.rows,
+              truncated: result.truncated,
+            });
+          } catch (previewError) {
+            setPreviewContent({
+              kind: "message",
+              message:
+                previewError instanceof Error
+                  ? previewError.message
+                  : "Unable to preview this workbook. Download it to view the contents.",
+            });
+          }
+        }
+      } else if (row.fileName.toLowerCase().endsWith(".xls")) {
+        setPreviewContent({
+          kind: "message",
+          message: "Legacy .xls files cannot be previewed here. Download the file to view it.",
+        });
+      } else {
+        setPreviewContent(null);
+      }
+
+      setRows((currentRows) =>
+        currentRows.map((currentRow) =>
+          currentRow.key === row.key
+            ? { ...currentRow, previewUrl, previewBlob: blob }
+            : currentRow,
+        ),
+      );
+      setPreviewRow({ ...row, previewUrl, previewBlob: blob });
+    } catch (previewError) {
+      notify.error(
+        previewError instanceof Error
+          ? previewError.message
+          : "Unable to load the attachment preview.",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const handleFileChosen = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     const key = pickingKeyRef.current;
     event.target.value = "";
     pickingKeyRef.current = null;
     if (!file || key === null) return;
-    if (file.size > MAX_SAVE_BYTES) {
-      toast.error("Attachment files cannot exceed 250 MB.");
+    const fileProblem = checkUploadFile(file, maxFileBytes);
+    if (fileProblem) {
+      notify.error(fileProblem);
       return;
     }
 
@@ -187,6 +343,7 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
           file,
           fileName: file.name,
           previewUrl: url,
+          previewBlob: file,
           storedDox: null,
           rowState: row.original ? "modified" : "added",
         };
@@ -204,12 +361,15 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
           file: null,
           fileName: "",
           previewUrl: null,
+          previewBlob: null,
+          note: "",
           storedDox: null,
           rowState: row.original ? "modified" : "added",
         };
       }),
     );
     setPreviewRow((current) => (current?.key === key ? null : current));
+    setPreviewContent(null);
   };
 
   const updateNote = (key: number, note: string) => {
@@ -228,73 +388,188 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
     );
   };
 
-  const handleSave = async () => {
+  const updateFileName = (key: number, fileName: string) => {
+    setRows((previous) =>
+      previous.map((row) =>
+        row.key === key
+          ? { ...row, fileName, rowState: row.original ? "modified" : "added" }
+          : row,
+      ),
+    );
+  };
+
+  // confirmRemove: the line is taken out of the list (the lines below move up); a saved line is remembered as deleted
+  const removeLine = async (key: number) => {
+    const row = rows.find((r) => r.key === key);
+    if (!row) return;
+
+    // the saved line is deleted from the database at once (when the screen does it); else it is deleted with the ticket save
+    if (onRemoveLine) {
+      try {
+        await onRemoveLine(row.original);
+      } catch (err) {
+        notify.error(err instanceof Error ? err.message : "Unable to delete the line.");
+        return;
+      }
+    } else if (row.original) {
+      setDeletedLines((previous) => [...previous, row.original as ServiceChargePolicyAttachment]);
+    }
+
+    releaseUrl(row.previewUrl);
+    setRows((previous) => {
+      const next = previous.filter((r) => r.key !== key);
+      while (next.length < MIN_ROWS) next.push(emptyRow());
+      return next;
+    });
+    setPreviewRow((current) => (current?.key === key ? null : current));
+    setPreviewContent(null);
+  };
+
+  // the lines that were added / changed / removed, as the rows the screen gets
+  const changedLines = () =>
+    rows.filter(
+      (row) =>
+        row.rowState !== "unchanged" &&
+        (row.original || row.fileName || row.note.trim()),
+    );
+
+  const toPayload = async (changed: AttachRow[]): Promise<AttachSavePayload> => {
     let nextSlNo =
       Math.max(0, ...rows.map((row) => row.original?.fSlNo ?? 0)) + 1;
-    const changedRows = rows
-      .map((row) => ({ row }))
-      .filter(
-        ({ row }) =>
-          row.rowState !== "unchanged" &&
-          (row.original || row.fileName || row.note.trim()),
-      );
+    const deleted = deletedLines.map((line) => ({
+      fSlNo: line.fSlNo,
+      fNote: null,
+      fDoxName: null,
+      fDoxType: null,
+      fDox: null,
+      originalSlNo: line.fSlNo,
+      rowState: "deleted" as const,
+    }));
+    const kept = await Promise.all(
+      changed.map(async (row) => ({
+        fSlNo: row.original?.fSlNo ?? nextSlNo++,
+        fNote: row.note.trim() || null,
+        fDoxName: row.fileName || null,
+        fDoxType: row.file
+          ? fileExtension(row.file.name)
+          : row.fileName
+            ? row.original?.fDoxType ?? fileExtension(row.fileName)
+            : null,
+        fDox: row.file ? await fileToBase64(row.file) : row.storedDox,
+        ...(row.original ? { originalSlNo: row.original.fSlNo } : {}),
+        rowState: row.original ? row.rowState : ("added" as const),
+      })),
+    );
+    return [...deleted, ...kept];
+  };
 
-    if (changedRows.length === 0) {
-      toast.error("Attach a file or add a note before saving.");
+  // the message when the files of the lines are too big together, "" when they are fine
+  const totalSizeProblem = (changed: AttachRow[]) =>
+    checkUploadTotal(
+      changed.reduce((total, row) => total + (row.file?.size ?? base64ByteSize(row.storedDox)), 0),
+      maxTotalBytes,
+    );
+
+  const handleSave = async () => {
+    const changed = changedLines();
+
+    if (changed.length === 0 && deletedLines.length === 0) {
+      notify.error("Attach a file or add a note before saving.");
       return;
     }
-    const totalFileSize = changedRows.reduce(
-      (total, { row }) =>
-        total + (row.file?.size ?? base64ByteSize(row.storedDox)),
-      0,
-    );
-    if (totalFileSize > MAX_SAVE_BYTES) {
-      toast.error("Combined attachment files cannot exceed 250 MB per save.");
+    const totalProblem = totalSizeProblem(changed);
+    if (totalProblem) {
+      notify.error(totalProblem);
       return;
     }
 
     setSaving(true);
     let saved = false;
     try {
-      const payload = await Promise.all(
-        changedRows.map(async ({ row }) => ({
-          fSlNo: row.original?.fSlNo ?? nextSlNo++,
-          fNote: row.note.trim() || null,
-          fDoxName: row.fileName || null,
-          fDoxType: row.file
-            ? fileExtension(row.file.name)
-            : row.fileName
-              ? row.original?.fDoxType ?? fileExtension(row.fileName)
-              : null,
-          fDox: row.file ? await fileToBase64(row.file) : row.storedDox,
-          ...(row.original ? { originalSlNo: row.original.fSlNo } : {}),
-          rowState: row.original ? row.rowState : "added",
-        })),
-      );
-      await onSave?.(payload);
-      toast.success("Saved successfully");
+      await onSave?.(await toPayload(changed));
+      notify.success(saveMessage);
       saved = true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to save documents.");
+      notify.error(err instanceof Error ? err.message : "Unable to save documents.");
     } finally {
       setSaving(false);
       if (saved) onClose?.();
     }
   };
 
+  // saveOnClose (as the Sales Conjunction popup): closing keeps what was changed
+  const handleClose = async () => {
+    if (!saveOnClose) {
+      onClose?.();
+      return;
+    }
+    const changed = changedLines();
+    if (changed.length > 0 || deletedLines.length > 0) {
+      const totalProblem = totalSizeProblem(changed);
+      if (totalProblem) {
+        notify.error(totalProblem);
+        return;
+      }
+      try {
+        await onSave?.(await toPayload(changed));
+      } catch (err) {
+        notify.error(err instanceof Error ? err.message : "Unable to keep the documents.");
+        return;
+      }
+    }
+    onClose?.();
+  };
+
+  // Esc closes it (saveOnClose), unless the confirm window or a preview is open
+  useEffect(() => {
+    if (!saveOnClose) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || confirmingRef.current || previewRow) return;
+      void handleClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
   const handleCancel = () => {
+    setDeletedLines([]);
     rows.forEach((row) => releaseUrl(row.previewUrl));
     const fresh = initialRows(attachments);
     setRows(fresh);
     setSelectedKey(fresh[0].key);
     setPreviewRow(null);
+    setPreviewContent(null);
   };
+
+  // the x that removes a line (the file and its note): at the end of the File Name, or (confirmRemove) at the end of the Note
+  const removeLineButton = (row: AttachRow, index: number) => (
+    <button
+      type="button"
+      title={`Remove line ${index + 1}`}
+      aria-label={`Remove file from line ${index + 1}`}
+      onClick={async (event) => {
+        event.stopPropagation();
+        if (confirmRemove) {
+          confirmingRef.current = true;
+          const yes = await confirm(deleteConfirm(`Do you want to Delete Line ${index + 1}?`, "Ticket Sales - Customer Attach"));
+          setTimeout(() => { confirmingRef.current = false; }, 0);
+          if (!yes) return;
+          await removeLine(row.key);
+          return;
+        }
+        clearFile(row.key);
+      }}
+      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-600 hover:bg-red-50 hover:text-red-600"
+    >
+      <MdClose size={14} />
+    </button>
+  );
 
   return (
     <div className="flex min-h-full w-full items-start justify-center   ">
       <div className="min-h-fit w-262 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <Header Name={headerName} onClose={onClose} />
+          <Header Name={headerName} onClose={saveOnClose ? () => void handleClose() : onClose} />
 
           <section className="px-3.5 pb-3 pt-3">
             <input
@@ -348,26 +623,26 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
 
                         <td className="border border-[#B7ECD0] px-2 py-1">
                           <div className="flex items-center gap-1">
-                            <span
-                              className="min-w-0 flex-1 truncate"
-                              title={row.fileName}
-                            >
-                              {row.fileName}
-                            </span>
-                            {row.fileName && (
-                              <button
-                                type="button"
-                                title={`Remove ${row.fileName}`}
-                                aria-label={`Remove file from line ${index + 1}`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  clearFile(row.key);
-                                }}
-                                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-gray-600 hover:bg-red-50 hover:text-red-600"
+                            {fileNameEditable ? (
+                              // the name is filled when a file is chosen (the paperclip) and can also be typed / changed
+                              <input
+                                aria-label={`File name for line ${index + 1}`}
+                                value={row.fileName}
+                                maxLength={100}
+                                title={row.fileName}
+                                onFocus={() => setSelectedKey(row.key)}
+                                onChange={(event) => updateFileName(row.key, event.target.value)}
+                                className="h-6 min-w-0 flex-1 truncate bg-transparent px-1 text-[13px] outline-none focus:bg-[#E6F6F8]"
+                              />
+                            ) : (
+                              <span
+                                className="min-w-0 flex-1 truncate"
+                                title={row.fileName}
                               >
-                                <MdClose size={14} />
-                              </button>
+                                {row.fileName}
+                              </span>
                             )}
+                            {!confirmRemove && row.fileName && removeLineButton(row, index)}
                           </div>
                         </td>
 
@@ -387,17 +662,18 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
                         </td>
 
                         <td className="border border-[#B7ECD0] text-center">
-                          {row.fileName && row.previewUrl && (
+                          {row.fileName &&
+                            (row.previewUrl || (row.original && loadAttachmentFile)) && (
                             <button
                               type="button"
                               title={`Preview ${row.fileName}`}
                               aria-label={`Preview file on line ${index + 1}`}
+                              disabled={previewLoading}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                setSelectedKey(row.key);
-                                setPreviewRow(row);
+                                void openPreview(row);
                               }}
-                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-blue-500 hover:bg-blue-50"
+                              className="inline-flex h-6.5 w-7.5 items-center justify-center rounded text-blue-500 hover:bg-blue-50 disabled:opacity-50"
                             >
                               <MdVisibility size={17} />
                             </button>
@@ -405,14 +681,17 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
                         </td>
 
                         <td className="border border-[#B7ECD0] p-0">
-                          <input
-                            aria-label={`Note for line ${index + 1}`}
-                            value={row.note}
-                            maxLength={200}
-                            onFocus={() => setSelectedKey(row.key)}
-                            onChange={(event) => updateNote(row.key, event.target.value)}
-                            className="h-7.5 w-full bg-transparent px-2 text-[13px] outline-none focus:bg-[#E6F6F8]"
-                          />
+                          <div className="flex items-center">
+                            <input
+                              aria-label={`Note for line ${index + 1}`}
+                              value={row.note}
+                              maxLength={200}
+                              onFocus={() => setSelectedKey(row.key)}
+                              onChange={(event) => updateNote(row.key, event.target.value)}
+                              className="h-7.5 min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none focus:bg-[#E6F6F8]"
+                            />
+                            {confirmRemove && (row.fileName || row.note) && <span className="pr-2">{removeLineButton(row, index)}</span>}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -439,11 +718,14 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
         </main>
       </div>
 
-      {previewRow?.fileName && previewRow.previewUrl && (
+      {previewRow?.fileName && (previewLoading || previewRow.previewUrl) && (
         <div
           className="fixed inset-0 z-10000 flex items-center justify-center bg-black/40 p-4"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setPreviewRow(null);
+            if (event.target === event.currentTarget) {
+              setPreviewRow(null);
+              setPreviewContent(null);
+            }
           }}
         >
           <div
@@ -462,7 +744,10 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
               <button
                 type="button"
                 aria-label="Close preview"
-                onClick={() => setPreviewRow(null)}
+                onClick={() => {
+                  setPreviewRow(null);
+                  setPreviewContent(null);
+                }}
                 className="rounded p-1 text-[#24364d] hover:bg-white/40"
               >
                 <MdClose size={19} />
@@ -470,23 +755,71 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
             </div>
 
             <div className={`min-h-75 flex-1 overflow-auto bg-[#fafbfc] p-3 ${niceScrollbar}`}>
-              {isImage(previewRow) ? (
+              {previewLoading ? (
+                <div className="flex h-60 items-center justify-center text-sm text-slate-600" role="status">
+                  Loading preview...
+                </div>
+              ) : isImage(previewRow) ? (
                 <img
-                  src={previewRow.previewUrl}
+                  src={previewRow.previewUrl ?? undefined}
                   alt={previewRow.fileName}
                   className="mx-auto max-h-[70vh] max-w-full object-contain"
                 />
               ) : isPdf(previewRow) ? (
                 <iframe
                   title={previewRow.fileName}
-                  src={previewRow.previewUrl}
+                  src={previewRow.previewUrl ?? undefined}
                   className="h-[70vh] w-full border border-[#B7ECD0] bg-white"
                 />
+              ) : previewContent?.kind === "text" ? (
+                <div>
+                  {previewContent.truncated && (
+                    <p className="mb-2 text-sm text-amber-700">
+                      Showing the first 1 MB of this text file.
+                    </p>
+                  )}
+                  <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words border border-[#B7ECD0] bg-white p-3 text-left text-sm">
+                    {previewContent.text}
+                  </pre>
+                </div>
+              ) : previewContent?.kind === "spreadsheet" ? (
+                <div>
+                  <p className="mb-2 text-sm text-slate-600">
+                    First worksheet: {previewContent.sheetName}
+                  </p>
+                  {previewContent.truncated && (
+                    <p className="mb-2 text-sm text-amber-700">
+                      Preview limited to the first 1,000 rows and 50 columns.
+                    </p>
+                  )}
+                  <div className={`max-h-[70vh] overflow-auto border border-[#B7ECD0] bg-white ${niceScrollbar}`}>
+                    <table className="w-full border-collapse text-left text-sm">
+                      <tbody>
+                        {previewContent.rows.map((cells, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {cells.map((cell, cellIndex) => (
+                              <td
+                                key={cellIndex}
+                                className="border border-slate-200 px-2 py-1"
+                              >
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               ) : (
                 <div className="flex h-60 flex-col items-center justify-center gap-3 text-[13px] text-[#405066]">
-                  <p>Preview is not available for this file type.</p>
+                  <p>
+                    {previewContent?.kind === "message"
+                      ? previewContent.message
+                      : "Preview is not available for this file type."}
+                  </p>
                   <a
-                    href={previewRow.previewUrl}
+                    href={previewRow.previewUrl ?? undefined}
                     download={previewRow.fileName}
                     className="btn-style inline-flex items-center"
                   >
@@ -502,6 +835,8 @@ const HotelSalesAttachPage: React.FC<HotelSalesAttachPageProps> = ({
           </div>
         </div>
       )}
+      {dialog}
+      {messageDialog}
     </div>
   );
 };

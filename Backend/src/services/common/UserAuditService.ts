@@ -9,7 +9,7 @@ import pool from "../../DB/db";
 
 type Db = Pick<PoolClient, "query">;
 
-export type UserAuditAction = "S" | "M" | "D"; // save, modify, delete
+export type UserAuditAction = "S" | "M" | "D" | "D1"; // save, modify, delete, delete one line (a popup line)
 
 export type UserAuditEntry = {
   PstrCoID: string;

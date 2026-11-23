@@ -12,7 +12,7 @@
 // none, or a wrong one, the backend uses its own.
 // ============================================================
 
-const api = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api").replace(/\/$/, "");
+const api = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/$/, "");
 
 // "YYYY-MM-DD HH:mm:ss" - the time of the database server
 export async function getServerDate(): Promise<string> {

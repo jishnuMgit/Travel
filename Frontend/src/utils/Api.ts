@@ -19,7 +19,7 @@ export type AirlinePayload = {
   dtpUserDate?: string | null;
 };
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace(/\/$/, "");
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -232,12 +232,34 @@ export type TicketDetailPayload = {
   txtNote: string;
 };
 
+/* A file of the Customer Attach popup of a ticket (saved with the ticket). The keys are the element ids of the popup. */
+export type TicketAttachRowPayload = {
+  txtAttachSlNo: number; // the line
+  txtOriginalSlNo?: number; // the line it was (modified / deleted lines)
+  txtNote: string | null;
+  txtDoxName: string | null; // File Name
+  txtDoxType: string | null; // the extension of the file
+  imgDox: string | null; // the file as base64; null = the file stays as it is saved
+  txtRowState: "added" | "modified" | "deleted";
+};
+
+/* A file of the ticket as the load gives it (no content: View reads it). */
+export type TicketAttachment = {
+  txtAttachSlNo: number;
+  txtNote: string | null;
+  txtDoxName: string | null;
+  txtDoxType: string | null;
+  txtMimeType: string;
+};
+
 export type SaveTicketPayload = TicketDetailPayload & {
   PstrCoID: string;
   PstrYear: string;
   PstrUserID: string; // the logged-in user, stored by the login
   dtpServerDate?: string; // the server date the page got from /datetime/server-date: the time written on the rows (checked by the backend)
   lines: TicketLinePayload[];
+  /** the files of the Customer Attach popup that were added / changed / removed (left out when the popup was not used) */
+  attachRows?: TicketAttachRowPayload[];
   [elementId: string]: unknown;
 };
 
@@ -366,6 +388,8 @@ export type LoadedTicket = {
   lines: LoadedTicketLine[];
   // the Sales Conjunction popup (CNJ. = Yes): the conjunction ticket of the ticket, one row at most
   cnjRows: { txtCnjTktSlNo: string; txtCnjRoute: string; txtCnjCarrier: string; txtCnjClass: string }[];
+  // the files of the Customer Attach popup
+  attachments: TicketAttachment[];
 };
 
 export const getTicketSales = (p: {
@@ -644,6 +668,57 @@ export const deleteAirline = (PstrCoID : string, StrAirlineNo: string,PstrYear: 
     { method: "DELETE", 
       body: JSON.stringify({ PstrUserID }),
     },
+  );
+
+
+/* One file of the Customer Attach popup of a saved ticket (to view it). */
+export const getTicketAttachFile = async (p: {
+  PstrCoID: string;
+  lkpBranch: string;
+  lkpTktType: string;
+  txtTktSLNo: string;
+  txtAttachSlNo: number;
+}): Promise<Blob> => {
+  const response = await fetch(
+    `${API_BASE_URL}/ticket-sales/attach-file/${encode(p.PstrCoID)}/${encode(p.lkpBranch)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}/${p.txtAttachSlNo}`,
+    { credentials: "include", cache: "no-store" },
+  );
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Request failed (${response.status})`);
+  }
+  return response.blob();
+};
+
+/* Delete ONE line of the Customer Attach popup of a saved ticket at once (the x of the popup). */
+export const deleteTicketAttachLine = (p: {
+  PstrCoID: string;
+  PstrYear: string;
+  lkpBranch: string;
+  lkpTktType: string;
+  txtTktSLNo: string;
+  txtAttachSlNo: number;
+  dtpServerDate?: string | null; // the server date the page got (the time of the user audit)
+}) =>
+  request<{ success: boolean; message: string }>(
+    `/ticket-sales/attach/${encode(p.PstrCoID)}/${encode(p.lkpBranch)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}/${p.txtAttachSlNo}?PstrYear=${encode(p.PstrYear)}${p.dtpServerDate ? `&dtpServerDate=${encode(p.dtpServerDate)}` : ""}`,
+    { method: "DELETE" },
+  );
+
+/* Delete ONE line of the Sales Conjunction popup of a saved ticket at once (the x of the popup). */
+export const deleteTicketCnjRow = (p: {
+  PstrCoID: string;
+  PstrYear: string;
+  lkpTktType: string;
+  txtTktSLNo: string;
+  lkpBranch?: string | null;
+  txtSlNo?: string | number | null;
+  txtCnjTktSlNo: string;
+  dtpServerDate?: string | null; // the server date the page got (the time of the user audit)
+}) =>
+  request<{ success: boolean; message: string; deleted: boolean }>(
+    `/ticket-sales/cnj/${encode(p.PstrCoID)}/${encode(p.PstrYear)}/${encode(p.lkpTktType)}/${encode(p.txtTktSLNo)}/${encode(p.txtCnjTktSlNo)}${ticketQuery(p)}`,
+    { method: "DELETE" },
   );
 
 

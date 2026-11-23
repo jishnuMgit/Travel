@@ -3,7 +3,7 @@ import Select, {
   components,
   type MenuListProps,
 } from "react-select";
-import { toast } from "react-toastify";
+import { useMessageModal } from "../../hooks/useMessageModal";
 import { useAltShortcuts } from "../../hooks/useAltShortcuts";
 import { useConfirmModal } from "../../hooks/useConfirmModal";
 import { GRID_CELL_FOCUS_CLASS } from "../../hooks/useGridCellFocus";
@@ -11,6 +11,9 @@ import selectComponents from "./selectComponents";
 import { validateTicketLines } from "../sales/TicketSales/ticketSalesValidation";
 import TicketLinesFields from "./TicketLinesFields";
 import { fieldSelectProps } from "./Combo";
+import HotelSalesAttachPage, { type AttachSavePayload } from "../../pages/Travel/Setup/HotelSalesAttachPage";
+import type { ServiceChargePolicyAttachment } from "../../utils/ServiceChargePolicyApi";
+import { UPLOAD_MAX_FILE_BYTES, UPLOAD_MAX_TOTAL_BYTES } from "../../utils/fileUpload";
 import {
   calcLineAmounts,
   calcPolicyCharge,
@@ -779,6 +782,7 @@ type ActionButtonProps = {
   disabled?: boolean;
   compact?: boolean;
   hotKey?: boolean; // underline the first letter: the Alt+letter shortcut
+  shortcut?: string; // the shortcut keys, shown when the mouse is on the button (Ctrl+S)
 };
 
 const ActionButton: React.FC<ActionButtonProps> = ({
@@ -788,10 +792,12 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   disabled = false,
   compact = false,
   hotKey = false,
+  shortcut,
 }) => (
   <button
     id={id}
     type="button"
+    title={shortcut ? `${label} (${shortcut})` : undefined}
     onClick={onClick}
     disabled={disabled}
     className={`btn-style min-w-20 disabled:cursor-not-allowed disabled:opacity-50 ${
@@ -914,12 +920,13 @@ const TicketLinesActions: React.FC<{
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <ActionButton id="btnSave" label={saveLabel} hotKey onClick={() => onAction("save")} />
-        <ActionButton id="btnSearch" label="Search" onClick={() => onAction("search")} />
+        <ActionButton id="btnSave" label={saveLabel} hotKey shortcut={saveLabel === "Modify" ? "Alt+M, Ctrl+S" : "Alt+S, Ctrl+S"} onClick={() => onAction("save")} />
+        <ActionButton id="btnSearch" label="Search" shortcut="Ctrl+F" onClick={() => onAction("search")} />
         <ActionButton
           id="btnDelete"
           label="Delete"
           hotKey
+          shortcut="Alt+D, Ctrl+D"
           onClick={() => onAction("delete")}
         />
         <ActionButton
@@ -931,6 +938,7 @@ const TicketLinesActions: React.FC<{
         <ActionButton
           id="btnPrint"
           label="Print"
+          shortcut="Ctrl+P"
           onClick={() => onAction("print")}
         />
         {/* <ActionButton
@@ -942,6 +950,7 @@ const TicketLinesActions: React.FC<{
         <ActionButton
           id="btnClear"
           label="Clear"
+          shortcut="Ctrl+K"
           onClick={() => onAction("cancel")}
         />
       </div>
@@ -995,6 +1004,12 @@ type TicketLinesPageProps = {
   saveLabel?: string;
   /** a saved ticket to show: its customer line, Ref. 1-4, KB. Amt., KB. Account, INV. Note and Note (a new version loads it again) */
   loaded?: { version: number; ticket: LoadedTicket };
+  /** Customer Attach popup (the Ticket Sales screen keeps the files and sends them with the ticket) */
+  attachments?: ServiceChargePolicyAttachment[];
+  canOpenAttach?: () => boolean; // false = the popup does not open (the Ticket Type / Ticket No. are needed)
+  onAttachSave?: (rows: AttachSavePayload) => void;
+  loadAttachFile?: (slNo: number) => Promise<Blob>;
+  onAttachRemove?: (line: ServiceChargePolicyAttachment | null) => void | Promise<void>; // Yes of the delete line: deletes a saved file at once
   onClose?: () => void;
 };
 
@@ -1010,12 +1025,18 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
   clearVersion,
   context,
   loaded,
+  attachments = [],
+  canOpenAttach,
+  onAttachSave,
+  loadAttachFile,
+  onAttachRemove,
   onClose,
 }) => {
   const [rows, setRows] = useState<LineRow[]>(() => padLines([]));
 
   // the confirm dialog of STOCK (Yes / No, Esc, Y / N keys) instead of the browser's own
   const { confirm, dialog } = useConfirmModal();
+  const { notify, dialog: messageDialog } = useMessageModal("Ticket Sales"); // a message window, not a toast
 
   /* Customers (fcs = C) and, per customer, its divisions. The company is
      the one chosen at login. */
@@ -1429,8 +1450,19 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
       );
   };
 
+  /* Cust. Attach: the same attachment popup as Service Charge Policy (the look only: nothing is loaded or saved yet). */
+  const [attachOpen, setAttachOpen] = useState(false);
+
   const handleAction = async (name: ActionName) => {
     switch (name) {
+      case "customerAttach":
+        if (context) {
+          if (!canOpenAttach || canOpenAttach()) setAttachOpen(true);
+          break;
+        }
+        onAction?.(name);
+        break;
+
       case "save": {
         const lines: TicketLinePayload[] = rows
           .filter((row) => !isEmptyLine(row))
@@ -1485,7 +1517,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
             },
           );
           if (result.error) {
-            toast.error(result.error.message);
+            notify.error(result.error.message);
             break;
           }
           if (result.confirm && !(await confirm({ message: result.confirm }))) break;
@@ -1586,6 +1618,7 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
         saveLabel={saveLabel}
       />
       {dialog}
+      {messageDialog}
     </div>
   );
 
@@ -1600,6 +1633,32 @@ const TicketLinesPage: React.FC<TicketLinesPageProps> = ({
           <section className="px-3.5 pb-3 pt-3">{body}</section>
         </main>
       </div>
+      {attachOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ticket Sales - Customer Attach"
+            className="max-h-[95vh] w-full max-w-[1050px] overflow-auto bg-white shadow-xl"
+          >
+            <HotelSalesAttachPage
+              headerName="Ticket Sales - Customer Attach"
+              autoAddRow
+              confirmRemove
+              messageModal
+              onRemoveLine={onAttachRemove}
+              saveOnClose
+              saveMessage="Ticket Sales - Customer Attach files added"
+              attachments={attachments}
+              loadAttachmentFile={loadAttachFile}
+              maxFileBytes={UPLOAD_MAX_FILE_BYTES}
+              maxTotalBytes={UPLOAD_MAX_TOTAL_BYTES}
+              onClose={() => setAttachOpen(false)}
+              onSave={onAttachSave}
+            />
+          </section>
+        </div>
+      )}
     </div>
   );
 };
