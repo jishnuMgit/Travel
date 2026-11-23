@@ -4,6 +4,7 @@ import { Router } from "express";
 import {
   Apply,
   ApplyD,
+  CopyBudget,
   DeleteBudget,
 //   FillAccountCombos,
   FillCombos,
@@ -30,5 +31,8 @@ router.delete("/DeleteBudget/:PstrCoID/:IntYear/:StrBrID/:StrType/:OriginalSlNo"
 
 // Delete all rows for year / branch / type
 router.delete("/ApplyD/:PstrCoID/:IntYear/:StrBrID/:StrType",requireAuthentication, ApplyD);
+
+// Copy budget data; the first request can return requiresOverwrite before any rows are changed.
+router.post("/Copy", requireAuthentication, CopyBudget);
 
 export default router;

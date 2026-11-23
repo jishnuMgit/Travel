@@ -96,6 +96,28 @@ export const getBudgetRows = (
     `/budget/GetDataTL/${encode(PstrCoID)}/${encode(String(IntYear))}/${encode(StrBrID)}/${encode(StrType)}`,
   );
 
+export type BudgetCopyPayload = {
+  p_pstrcoid: string;
+  p_pstryear: string;
+  p_strbrid: string;
+  p_strbudgetheadtype: string;
+  p_strcopytoyear: string;
+  p_strcopytobrid: string;
+  p_strcopytotype: string;
+  p_pstruserid?: string | null;
+  overwrite?: boolean;
+};
+
+export const copyBudget = (payload: BudgetCopyPayload) =>
+  request<{
+    success: boolean;
+    requiresOverwrite?: boolean;
+    message?: string;
+  }>("/budget/Copy", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
 export const applyBudgetChanges = (payload: {
   PstrCoID: string;
   PstrUserID: string;

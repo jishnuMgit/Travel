@@ -21,6 +21,7 @@ import {
   type BudgetRecord,
 } from "../../../utils/Api";
 import { toast } from "react-toastify";
+import BudgetCopyPage from "../../../components/sales/Budget/BudgetCopyPage";
 
 /* =====================================================================
    FILE MAP
@@ -826,7 +827,7 @@ const BudgetGrid: React.FC<{
     },
     {
       id: "delete",
-      header: "Delete",
+      header: " ",
       width: "w-[46px]",
       align: "center",
       cellClass: "p-0 text-center",
@@ -894,7 +895,13 @@ const BudgetFooter: React.FC<{
   onClear,
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-    <button id="btnCopy" type="button" onClick={onCopy} className="btn-style">
+    <button
+      id="btnCopy"
+      type="button"
+      onClick={onCopy}
+      disabled={busy}
+      className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+    >
       Copy
     </button>
 
@@ -975,6 +982,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
 
   const [rows, setRows] = useState<BudgetRow[]>(() => buildRows());
   const [savedRows, setSavedRows] = useState<SavedBudgetRow[]>([]);
@@ -1267,7 +1275,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
     if (
       !(await confirm({
-        message: `Do you want to delete row ${rowNumber}?`,
+        message: `Do you want to delete Line ${rowNumber} ?`,
       }))
     ) {
       return;
@@ -1335,6 +1343,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
   const handleCopy = () => {
     console.log("copy budget", { lkpYear, lkpHeadType, lkpBranch });
+    setCopyDialogOpen(true);
     onCopy?.();
   };
 
@@ -1428,6 +1437,19 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
         </main>
       </div>
       {confirmDialog}
+      {copyDialogOpen && (
+        <BudgetCopyPage
+          sourceCompanyId={PstrCoID}
+          sourceYear={lkpYear}
+          sourceBranch={lkpBranch}
+          sourceHeadType={lkpHeadType}
+          userId={localStorage.getItem("PstrUserID")}
+          yearOptions={yearOptions}
+          branchOptions={branchOptions}
+          headTypeOptions={headTypeOptions}
+          onClose={() => setCopyDialogOpen(false)}
+        />
+      )}
     </div>
   );
 };
