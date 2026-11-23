@@ -10,7 +10,7 @@
 import type { AttachSavePayload } from "../../../pages/Travel/Setup/HotelSalesAttachPage";
 import type { ServiceChargePolicyAttachment } from "../../../utils/ServiceChargePolicyApi";
 import { mimeTypeOf } from "../../../utils/fileUpload";
-import type { TicketAttachRowPayload, TicketAttachment } from "../../../utils/airlineApi";
+import type { TicketAttachRowPayload, TicketAttachment } from "../../../utils/Api";
 
 // the keys are the element ids of the popup (the same names as the payload and the response of the server)
 export type AttachEntry = {

@@ -3,7 +3,8 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
-import { toast } from "react-toastify";
+import { useMessageModal } from "../../../hooks/useMessageModal";
+import { deleteConfirm, deleteSuccessMessage } from "../../../hooks/deleteMessage";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { Combo, PairCombo, type Option } from "../../common/Combo";
 import TicketLinesPage from "../../common/TicketLinesPage";
@@ -1444,6 +1445,8 @@ type TicketDetailsProps = {
 };
 
 const TicketDetails: React.FC<TicketDetailsProps> = ({ onClose }) => {
+  // the messages of the screen: a message window with an OK button (as the Payment screen of STOCK), not a toast
+  const { notify, dialog: messageDialog } = useMessageModal("Ticket Sales");
   // Same names as LoginPage.tsx; the login stores them in localStorage.
   const PstrCoID = localStorage.getItem("PstrCoID") ?? "";
   const PstrYear = localStorage.getItem("PstrYear") ?? "";
@@ -1997,7 +2000,7 @@ console.log(onClose);
     if (form.lkpCNJ === "Yes") {
       const filled = cnjRows.filter((row) => !isEmptyCnjRow(row));
       const cnjIssue = (message: string) => {
-        toast.error(message);
+        notify.error(message);
         setCnjOpen(true);
         return false;
       };
@@ -2074,12 +2077,12 @@ console.log(onClose);
     });
 
     if (result.error) {
-      toast.error(result.error.message);
+      notify.error(result.error.message);
       if (result.error.focusId) document.getElementById(result.error.focusId)?.focus();
       return false;
     }
 
-    result.warnings.forEach((message) => toast.warn(message));
+    result.warnings.forEach((message) => notify.warning(message));
     return true;
   };
 
@@ -2094,12 +2097,12 @@ console.log(onClose);
   // the old ValidateMe("A"): the Ticket Type and the Ticket No. are needed before the popup opens
   const canOpenAttach = () => {
     if (!form.lkpTktType) {
-      toast.error("Please select a 'Ticket Type'");
+      notify.error("Please select a 'Ticket Type'");
       document.getElementById("lkpTktType")?.focus();
       return false;
     }
     if (form.txtTktSLNo.trim() === "") {
-      toast.error("Please input 'Ticket No.'");
+      notify.error("Please input 'Ticket No.'");
       document.getElementById("txtTktSLNo")?.focus();
       return false;
     }
@@ -2126,6 +2129,7 @@ console.log(onClose);
         txtAttachSlNo: line.fSlNo,
         dtpServerDate: (await tryGetServerDate()) || null,
       });
+      notify.success(deleteSuccessMessage("Ticket Sales - Customer Attach")); // the common message of a delete, as the Stock Transfer line
     }
     setAttachEntries((prev) => prev.filter((e) => e.txtAttachSlNo !== line.fSlNo));
   };
@@ -2221,7 +2225,7 @@ console.log(onClose);
         ...(attachTouched ? { attachRows: attachPayload(attachEntries) } : {}),
         ...detail,
       });
-      toast.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
+      notify.success(result.message || (isModify ? "Modified successfully" : "Saved successfully"));
       // a modify clears the screen but keeps the Ticket Type and the Ticket No.: type a Sl. No. to load a ticket again;
       // a new ticket stays on the screen and the button is Modify from here
       if (isModify) clearAfterModify();
@@ -2231,7 +2235,7 @@ console.log(onClose);
         setAttachTouched(false);
       }
     } catch (err) {
-      toast.error(
+      notify.error(
         err instanceof Error
           ? err.message
           : isModify
@@ -2249,11 +2253,11 @@ console.log(onClose);
   const loadTicket = async (type: string | null, no: string, slNo: string, silent: boolean) => {
     const ticketNo = no.trim();
     if (!type) {
-      if (!silent) toast.error("Please select 'Ticket Type'");
+      if (!silent) notify.error("Please select 'Ticket Type'");
       return;
     }
     if (ticketNo === "") {
-      if (!silent) toast.error("Please enter 'Ticket No.'");
+      if (!silent) notify.error("Please enter 'Ticket No.'");
       return;
     }
 
@@ -2285,7 +2289,7 @@ console.log(onClose);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load the ticket.";
       if (silent && /not found$/i.test(message)) return;
-      toast.error(message);
+      notify.error(message);
     }
   };
 
@@ -2296,7 +2300,7 @@ console.log(onClose);
 
   const openCnj = () => {
     if (!form.lkpAirlineNo) {
-      toast.error("Please select a 'AirlineNo'");
+      notify.error("Please select a 'AirlineNo'");
       document.getElementById("lkpAirlineNo")?.focus();
       return false;
     }
@@ -2319,7 +2323,7 @@ console.log(onClose);
      less the S. Fare is the Tax, and the VAT part of it is the K7. The grid line follows the new Tax. */
   const handleFix = () => {
     if (form.lkpDI !== "D") {
-      toast.info("Fix is for Domestic (D) tickets only");
+      notify.info("Fix is for Domestic (D) tickets only");
       return;
     }
 
@@ -2343,6 +2347,7 @@ console.log(onClose);
       txtCnjTktSlNo: row.txtCnjTktSlNo.trim(),
       dtpServerDate: (await tryGetServerDate()) || null,
     });
+    notify.success(deleteSuccessMessage("Ticket Sales-Conjunction"));
   };
 
   const closeCnj = () => {
@@ -2402,16 +2407,16 @@ console.log(onClose);
 
   const handleDelete = async () => {
     if (!form.lkpTktType) {
-      toast.error("Please select a 'Ticket Type'");
+      notify.error("Please select a 'Ticket Type'");
       document.getElementById("lkpTktType")?.focus();
       return;
     }
     if (form.txtTktSLNo.trim() === "") {
-      toast.error("Please input 'Ticket No.'");
+      notify.error("Please input 'Ticket No.'");
       document.getElementById("txtTktSLNo")?.focus();
       return;
     }
-    if (!(await confirm({ message: "Do you want to delete?" }))) return;
+    if (!(await confirm(deleteConfirm("Do you want to Delete?")))) return;
 
     try {
       const result = await deleteTicketSales({
@@ -2423,10 +2428,10 @@ console.log(onClose);
         txtSlNo: form.txtSlNo.trim() || null, // only this Sl. No.: the other Sl. Nos of the Ticket No. stay
         dtpServerDate: (await tryGetServerDate()) || null, // the time of the user audit (the server's, not the browser's)
       });
-      toast.success(result.message || "Deleted successfully");
+      notify.success(deleteSuccessMessage("Ticket Sales"));
       clearScreen();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Not deleted, try again");
+      notify.error(err instanceof Error ? err.message : "Not deleted, try again");
     }
   };
 
@@ -2469,7 +2474,7 @@ console.log(onClose);
       set("txtSlNo", String(next));
       lastAutoKey.current = `${form.lkpTktType}|${form.txtTktSLNo.trim()}|${next}`; // a free number: nothing to load
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to get the next Sl. No.");
+      notify.error(err instanceof Error ? err.message : "Failed to get the next Sl. No.");
     }
   };
 
@@ -2577,6 +2582,7 @@ console.log(onClose);
           />
         </main>
         {dialog}
+        {messageDialog}
         <CnjModal open={cnjOpen} rows={cnjRows} mainTicketNo={form.txtTktSLNo} onChange={setCnjRows} onClose={closeCnj} onRemoveRow={removeCnjRow} />
       </div>
     </div>
