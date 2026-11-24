@@ -273,15 +273,15 @@ const StaffGrid: React.FC<{
         <table className={tableClass}>
           <colgroup>
             <col className="w-11" />
-            <col className="w-[90px]" />
-            <col className="w-[220px]" />
-            <col className="w-[150px]" />
-            <col className="w-[130px]" />
-            <col className="w-[130px]" />
-            <col className="w-[110px]" />
-            <col className="w-[110px]" />
-            <col className="w-[110px]" />
-            <col className="w-[10px]" />
+            <col className="w-22.5" />
+            <col className="w-55" />
+            <col className="w-37.5" />
+            <col className="w-32.5" />
+            <col className="w-32.5" />
+            <col className="w-27.5" />
+            <col className="w-27.5" />
+            <col className="w-27.5" />
+            <col className="w-2.5" />
           </colgroup>
           <thead>
             <tr>

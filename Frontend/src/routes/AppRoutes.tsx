@@ -25,6 +25,7 @@ import HotelSalesAttachPage from "../pages/Travel/Setup/HotelSalesAttachPage";
 import SupplierInvoiceAttachPage from "../pages/Travel/Setup/SupplierInvoiceAttachPage";
 import BudgetCopyPage from "../components/sales/Budget/BudgetCopyPage";
 import StaffPage from "../pages/Travel/Setup/StaffPage";
+import IataPage from "../pages/Travel/Setup/IataPage";
 
 const AppRoutes = () => (
   <Routes>
@@ -77,6 +78,7 @@ const AppRoutes = () => (
     <Route path="/dev/SupplierInvoiceAttachPage" element={<SupplierInvoiceAttachPage/>}/>
     <Route path="/dev/BudgetCopy" element={<BudgetCopyPage/>}/>
     <Route path="/dev/StaffPage" element={<StaffPage/>}/>
+    <Route path="/dev/IataPage" element={<IataPage/>}/>
   </Routes>
 );
 

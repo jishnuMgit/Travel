@@ -14,7 +14,7 @@ const frontendOrigin = process.env.FRONTEND_URL || "http://localhost:3173";
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:3173", "http://187.127.190.192:3173"],
+    origin:frontendOrigin,
     credentials: true,
   }),
 );
