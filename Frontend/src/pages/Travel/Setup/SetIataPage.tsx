@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import selectComponents from "../../../components/common/selectComponents";
 import { fieldSelectProps } from "../../../components/common/Combo";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
+import Header from "../../../components/common/Header";
 
 /* =====================================================================
    FILE MAP
@@ -129,11 +130,11 @@ const SetIataGrid: React.FC<{
 }> = ({ lines, onChange }) => {
   const cols = (gutter: boolean) => (
     <colgroup>
-      <col className="w-[130px]" />
+      <col className="w-32.5" />
       <col />
-      <col className="w-[180px]" />
-      <col className="w-[90px]" />
-      {gutter && <col className="w-[10px]" />}
+      <col className="w-45" />
+      <col className="w-15" />
+      {gutter && <col className="w-2.5" />}
     </colgroup>
   );
 
@@ -279,12 +280,7 @@ const SetIataPage: React.FC = () => {
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
       <div className="min-h-fit w-full max-w-200 bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <header className="flex h-7.5 items-center justify-between bg-[#9fdfbc] pr-3.5">
-            <h1 className="m-0 ml-3.5 text-[17px] font-semibold text-[#24364d]">
-              Set IATA
-            </h1>
-            <span className="text-[11px] text-[#405066]">tblIATA</span>
-          </header>
+          <Header Name="Set IATA"/>
 
           <section className="flex flex-col gap-3 px-3.5 pb-6 pt-3">
             <SetIataGrid lines={lines} onChange={updateLine} />

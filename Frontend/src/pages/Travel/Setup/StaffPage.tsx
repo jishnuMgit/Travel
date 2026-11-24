@@ -268,7 +268,7 @@ const StaffGrid: React.FC<{
     <div
       className={`overflow-x-auto border border-[#B7ECD0] bg-white ${niceScrollbar}`}
     >
-      <div className="min-w-[1180px]">
+      <div className="min-w-295">
         {/* header (fixed) */}
         <table className={tableClass}>
           <colgroup>
@@ -505,7 +505,7 @@ const GdsLoginsDialog: React.FC<{
       role="dialog"
       aria-modal="true"
       aria-label="GDS Logins"
-      className="w-full max-w-[760px] overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg"
+      className="w-full max-w-190 overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg"
     >
       <header className="flex h-7.5 items-center justify-between bg-[#9fdfbc] pl-3.5 pr-1">
         <h2 className="m-0 text-[15px] font-semibold text-[#24364d]">
@@ -547,13 +547,13 @@ const GdsLoginsDialog: React.FC<{
         </div>
 
         <div
-          className={`max-h-[260px] overflow-y-auto border border-[#B7ECD0] ${niceScrollbar}`}
+          className={`max-h-65 overflow-y-auto border border-[#B7ECD0] ${niceScrollbar}`}
         >
           <table className={tableClass}>
             <colgroup>
-              <col className="w-[150px]" />
-              <col className="w-[170px]" />
-              <col className="w-[150px]" />
+              <col className="w-37.5" />
+              <col className="w-42.5" />
+              <col className="w-37.5" />
               <col />
             </colgroup>
             <thead className="sticky top-0 z-10">

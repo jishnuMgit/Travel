@@ -26,6 +26,8 @@ import SupplierInvoiceAttachPage from "../pages/Travel/Setup/SupplierInvoiceAtta
 import BudgetCopyPage from "../components/sales/Budget/BudgetCopyPage";
 import StaffPage from "../pages/Travel/Setup/StaffPage";
 import IataPage from "../pages/Travel/Setup/IataPage";
+import SetIataPage from "../pages/Travel/Setup/SetIataPage";
+import SetIataOfficeIdPage from "../pages/Travel/Setup/SetIataOfficeIdPage";
 
 const AppRoutes = () => (
   <Routes>
@@ -79,6 +81,8 @@ const AppRoutes = () => (
     <Route path="/dev/BudgetCopy" element={<BudgetCopyPage/>}/>
     <Route path="/dev/StaffPage" element={<StaffPage/>}/>
     <Route path="/dev/IataPage" element={<IataPage/>}/>
+    <Route path="/dev/SetIataPage" element={<SetIataPage/>}/>
+    <Route path="/dev/SetIataOfficeIdPage" element={<SetIataOfficeIdPage/>}/>
   </Routes>
 );
 
