@@ -76,6 +76,39 @@ const callBudgetProcedure = async (
   return result.rows[0]?.p_result ?? null;
 };
 
+type BudgetCopyInput = {
+  PstrCoID: string;
+  SourceYear: number;
+  SourceBranch: string;
+  SourceType: string;
+  CopyToYear: number;
+  CopyToBranch: string;
+  CopyToType: string;
+};
+
+const callBudgetProcedureCopy = async (
+  client: PoolClient,
+  input: BudgetCopyInput,
+  userId: string | null,
+) => {
+  await client.query(
+    `CALL dbo.sp_pagebudgetcopy(
+      $1::varchar, $2::varchar, $3::varchar, $4::varchar,
+      $5::varchar, $6::varchar, $7::varchar, $8::varchar
+    )`,
+    [
+      input.PstrCoID,
+      input.SourceYear,
+      input.SourceBranch,
+      input.SourceType,
+      input.CopyToYear,
+      input.CopyToBranch,
+      input.CopyToType,
+      userId,
+    ],
+  );
+};
+
 const isValidRow = (row: BudgetRow | undefined): row is BudgetRow =>
   Boolean(row && Number.isFinite(Number(row.fSlNo)) && row.fGAccountID?.trim());
 
@@ -518,6 +551,123 @@ export const DeleteBudget = async (
   } catch (error) {
     console.error("Budget delete error:", error);
     res.status(500).json({ success: false, message: "Failed to delete budget." });
+  } finally {
+    client.release();
+  }
+};
+
+export const CopyBudget = async (
+  req: AuthenticatedRequest,
+  res: Response,
+): Promise<void> => {
+  const body = req.body ?? {};
+  const input: BudgetCopyInput = {
+    PstrCoID: String(body.p_pstrcoid ?? "").trim(),
+    SourceYear: Number(body.p_pstryear||null),
+    SourceBranch: String(body.p_strbrid ?? "").trim(),
+    SourceType: String(body.p_strbudgetheadtype ?? "").trim(),
+    CopyToYear: Number(body.p_strcopytoyear || null),
+    CopyToBranch: String(body.p_strcopytobrid ?? "").trim(),
+    CopyToType: String(body.p_strcopytotype ?? "").trim(),
+  };
+  const overwrite = body.overwrite === true;
+
+  if (
+    !input.PstrCoID ||
+    !input.SourceYear ||
+    !input.SourceBranch ||
+    !input.SourceType ||
+    !input.CopyToYear ||
+    !input.CopyToBranch ||
+    !input.CopyToType
+  ) {
+    res.status(400).json({
+      success: false,
+      message: "Company, source and destination year, branch, and budget type are required.",
+    });
+    return;
+  }
+
+  if (
+    input.SourceYear === input.CopyToYear &&
+    input.SourceBranch === input.CopyToBranch &&
+    input.SourceType === input.CopyToType
+  ) {
+    res.status(400).json({
+      success: false,
+      message: "The source and destination budgets must be different.",
+    });
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const existence = await client.query<{
+      source_exists: boolean;
+      destination_exists: boolean;
+    }>(
+      `SELECT
+         EXISTS (
+           SELECT 1
+           FROM dbo.tblbudgetm
+           WHERE fcoid = $1 AND fyear = $2 AND fbrid = $3 AND fbudgetheadtype = $4
+         ) AS source_exists,
+         EXISTS (
+           SELECT 1
+           FROM dbo.tblbudgetm
+           WHERE fcoid = $1 AND fyear = $5 AND fbrid = $6 AND fbudgetheadtype = $7
+         ) AS destination_exists`,
+      [
+        input.PstrCoID,
+        Number(input.SourceYear),
+        input.SourceBranch,
+        input.SourceType,
+        Number(input.CopyToYear),
+        input.CopyToBranch,
+        input.CopyToType,
+      ],
+    );
+    const { source_exists, destination_exists } = existence.rows[0];
+
+    if (!source_exists) {
+      await client.query("ROLLBACK");
+      res.status(404).json({
+        success: false,
+        message: "The source budget has no rows to copy.",
+      });
+      return;
+    }
+
+    if (destination_exists && !overwrite) {
+      await client.query("ROLLBACK");
+      res.status(200).json({
+        success: true,
+        requiresOverwrite: true,
+        message: "A budget already exists for the selected destination.",
+      });
+      return;
+    }
+
+    await callBudgetProcedureCopy(client, input, req.user?.userId ?? null);
+    await client.query("COMMIT");
+    res.status(200).json({
+      success: true,
+      message: destination_exists
+        ? "Budget overwritten successfully."
+        : "Budget copied successfully.",
+    });
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Budget copy rollback error:", rollbackError);
+    }
+    console.error("Budget copy error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to copy budget.",
+    });
   } finally {
     client.release();
   }

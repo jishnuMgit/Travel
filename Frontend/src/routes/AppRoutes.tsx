@@ -23,6 +23,11 @@ import CustomerDivisionPage from "../pages/Travel/Setup/Customerdivisionpage";
 import BudgetPage from "../pages/Travel/Sales/Budgetpage";
 import HotelSalesAttachPage from "../pages/Travel/Setup/HotelSalesAttachPage";
 import SupplierInvoiceAttachPage from "../pages/Travel/Setup/SupplierInvoiceAttachPage";
+import BudgetCopyPage from "../components/sales/Budget/BudgetCopyPage";
+import StaffPage from "../pages/Travel/Setup/StaffPage";
+import IataPage from "../pages/Travel/Setup/IataPage";
+import SetIataPage from "../pages/Travel/Setup/SetIataPage";
+import SetIataOfficeIdPage from "../pages/Travel/Setup/SetIataOfficeIdPage";
 
 const AppRoutes = () => (
   <Routes>
@@ -73,6 +78,11 @@ const AppRoutes = () => (
     <Route path="/dev/BudgetPage" element={<BudgetPage />} />
     <Route path="/dev/HotelSalesAttach" element={<HotelSalesAttachPage/>}/>
     <Route path="/dev/SupplierInvoiceAttachPage" element={<SupplierInvoiceAttachPage/>}/>
+    <Route path="/dev/BudgetCopy" element={<BudgetCopyPage/>}/>
+    <Route path="/dev/StaffPage" element={<StaffPage/>}/>
+    <Route path="/dev/IataPage" element={<IataPage/>}/>
+    <Route path="/dev/SetIataPage" element={<SetIataPage/>}/>
+    <Route path="/dev/SetIataOfficeIdPage" element={<SetIataOfficeIdPage/>}/>
   </Routes>
 );
 

@@ -21,6 +21,7 @@ import {
   type BudgetRecord,
 } from "../../../utils/Api";
 import { toast } from "react-toastify";
+import BudgetCopyPage from "../../../components/sales/Budget/BudgetCopyPage";
 
 /* =====================================================================
    FILE MAP
@@ -116,13 +117,13 @@ const makePairMenuList = (
       <div className="sticky top-0 z-10 flex w-full items-stretch border-b border-[#b8c4d0] bg-[#f3f5f7] font-semibold text-[#344054]">
         <span
           style={columnStyle(columns.first)}
-          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-[6px] py-[4px] text-[12px]`}
+          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-1.5 py-1 text-[12px]`}
         >
           {firstHeader}
         </span>
         <span
           style={columnStyle(columns.second)}
-          className={`${columnClass(columns.second)} truncate px-[8px] py-[4px] text-[12px]`}
+          className={`${columnClass(columns.second)} truncate px-2 py-1 text-[12px]`}
         >
           {secondHeader}
         </span>
@@ -151,13 +152,13 @@ const pairOptionLabel =
       <div className="flex w-full items-stretch">
         <span
           style={columnStyle(columns.first)}
-          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-[6px] py-[4px]`}
+          className={`${columnClass(columns.first)} truncate border-r border-[#b8c4d0] px-1.5 py-1`}
         >
           {option.label}
         </span>
         <span
           style={columnStyle(columns.second)}
-          className={`${columnClass(columns.second)} truncate px-[8px] py-[4px]`}
+          className={`${columnClass(columns.second)} truncate px-2 py-1`}
         >
           {option.second}
         </span>
@@ -346,7 +347,7 @@ const NumberCell: React.FC<{
       onChange={(event) => {
         if (/^\d*\.?\d{0,2}$/.test(event.target.value)) onChange(event.target.value);
       }}
-      className="h-[26px] w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
+      className="h-6.5 w-full bg-transparent px-2 text-right text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]"
     />
   );
 };
@@ -398,7 +399,7 @@ function ScrollGrid<R>({
 }) {
   const cols = (gutter: boolean) => (
     <colgroup>
-      <col className="w-[44px]" />
+      <col className="w-11" />
       {columns.map((c) => (
         <col key={c.id} className={c.width} />
       ))}
@@ -448,7 +449,7 @@ function ScrollGrid<R>({
                     className="bg-white"
                   >
                     <td
-                      className={`h-[26px] border border-[#B7ECD0] bg-[#fafbfc] px-1 text-center text-[12px] text-[#405066] ${
+                      className={`h-6.5 border border-[#B7ECD0] bg-[#fafbfc] px-1 text-center text-[12px] text-[#405066] ${
                         active ? "font-semibold text-[#24364d]" : ""
                       }`}
                     >
@@ -457,7 +458,7 @@ function ScrollGrid<R>({
                     {columns.map((c) => (
                       <td
                         key={c.id}
-                        className={`h-[26px] border border-[#B7ECD0] ${c.cellClass ?? "p-0"}`}
+                        className={`h-6.5 border border-[#B7ECD0] ${c.cellClass ?? "p-0"}`}
                       >
                         {c.render(row, index)}
                       </td>
@@ -479,7 +480,7 @@ function ScrollGrid<R>({
                 c.total ? (
                   <td
                     key={c.id}
-                    className="border border-[#B7ECD0] bg-[#eef1f4] p-[3px]"
+                    className="border border-[#B7ECD0] bg-[#eef1f4] p-0.75"
                   >
                     <input
                       id={`txtTotal-${c.id}`}
@@ -487,7 +488,7 @@ function ScrollGrid<R>({
                       tabIndex={-1}
                       aria-label={`Total ${c.header}`}
                       value={formatAmount(totals[c.id] ?? 0)}
-                      className="h-[30px] w-[105%] -ml-0.5 rounded-[3px] border border-[#cfd7df] bg-white px-2 text-right text-[12px] text-[#24364d] outline-none"
+                      className="h-7.5 w-[105%] -ml-0.5 rounded-[3px] border border-[#cfd7df] bg-white px-2 text-right text-[12px] text-[#24364d] outline-none"
                     />
                   </td>
                 ) : (
@@ -542,7 +543,7 @@ const BudgetHeader: React.FC<{
       >
         Year :
       </label>
-      <div className="w-[110px] min-w-0">
+      <div className="w-27.5 min-w-0">
         <Select<YearOption, false>
           inputId="lkpYear"
           instanceId="lkpYear"
@@ -565,7 +566,7 @@ const BudgetHeader: React.FC<{
       >
         Budget Head Type :
       </label>
-      <div className="w-[220px] min-w-0">
+      <div className="w-55 min-w-0">
         <Combo
           id="lkpBudgetHeadType"
           secondColumnExtra={56}
@@ -593,7 +594,7 @@ const BudgetHeader: React.FC<{
       >
         Branch :
       </label>
-      <div className="w-[220px] min-w-0">
+      <div className="w-55 min-w-0">
         <Combo
           id="lkpBranch"
           secondColumnExtra={56}
@@ -826,7 +827,7 @@ const BudgetGrid: React.FC<{
     },
     {
       id: "delete",
-      header: "Delete",
+      header: " ",
       width: "w-[46px]",
       align: "center",
       cellClass: "p-0 text-center",
@@ -840,7 +841,7 @@ const BudgetGrid: React.FC<{
             event.stopPropagation();
             onDeleteRow(row.key, index + 1);
           }}
-          className="inline-flex h-[25px] w-full items-center justify-center hover:text-[#c0392b] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-6.25 w-full items-center justify-center hover:text-[#c0392b] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <IoMdClose size={17} />
         </button>
@@ -894,7 +895,13 @@ const BudgetFooter: React.FC<{
   onClear,
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-    <button id="btnCopy" type="button" onClick={onCopy} className="btn-style">
+    <button
+      id="btnCopy"
+      type="button"
+      onClick={onCopy}
+      disabled={busy}
+      className="btn-style disabled:cursor-not-allowed disabled:opacity-50"
+    >
       Copy
     </button>
 
@@ -975,6 +982,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
 
   const [rows, setRows] = useState<BudgetRow[]>(() => buildRows());
   const [savedRows, setSavedRows] = useState<SavedBudgetRow[]>([]);
@@ -1267,7 +1275,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
     if (
       !(await confirm({
-        message: `Do you want to delete row ${rowNumber}?`,
+        message: `Do you want to delete Line ${rowNumber} ?`,
       }))
     ) {
       return;
@@ -1335,6 +1343,7 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
 
   const handleCopy = () => {
     console.log("copy budget", { lkpYear, lkpHeadType, lkpBranch });
+    setCopyDialogOpen(true);
     onCopy?.();
   };
 
@@ -1428,6 +1437,19 @@ const BudgetPage: React.FC<BudgetPageProps> = ({
         </main>
       </div>
       {confirmDialog}
+      {copyDialogOpen && (
+        <BudgetCopyPage
+          sourceCompanyId={PstrCoID}
+          sourceYear={lkpYear}
+          sourceBranch={lkpBranch}
+          sourceHeadType={lkpHeadType}
+          userId={localStorage.getItem("PstrUserID")}
+          yearOptions={yearOptions}
+          branchOptions={branchOptions}
+          headTypeOptions={headTypeOptions}
+          onClose={() => setCopyDialogOpen(false)}
+        />
+      )}
     </div>
   );
 };
