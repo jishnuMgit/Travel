@@ -121,7 +121,7 @@ const niceScrollbar = [
 ].join(" ");
 
 const thClass =
-  "h-[28px] border border-[#B7ECD0] bg-[#fafbfc] px-2 text-left font-normal text-[#405066]";
+  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-2 text-left font-normal text-[#405066]";
 const tdClass = "h-6.5 border border-[#B7ECD0] p-0";
 const tableClass =
   "w-full table-fixed border-collapse text-[12px] text-[#24364d]";

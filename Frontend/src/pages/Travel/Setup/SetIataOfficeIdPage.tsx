@@ -120,7 +120,7 @@ const niceScrollbar = [
 
 const labelClass = "text-[12px] text-[#405066]";
 const thClass =
-  "h-[28px] border border-[#B7ECD0] bg-[#fafbfc] px-2 text-left font-normal text-[#405066]";
+  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-2 text-left font-normal text-[#405066]";
 const tdClass = "h-6.5 border border-[#B7ECD0] p-0";
 const tableClass =
   "w-full table-fixed border-collapse text-[12px] text-[#24364d]";
@@ -287,7 +287,7 @@ const SetIataOfficeIdPage: React.FC = () => {
             <h1 className="m-0 ml-3.5 text-[17px] font-semibold text-[#24364d]">
               Set IATA - Office ID
             </h1>
-            <span className="text-[11px] text-[#405066]">tblIATAOfficeID</span>
+           
           </header>
 
           <section className="flex flex-col gap-4 px-3.5 pb-6 pt-3">

@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import selectComponents from "../../../components/common/selectComponents";
 import { fieldSelectProps } from "../../../components/common/Combo";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
+import Header from "../../../components/common/Header";
 
 /* =====================================================================
    FILE MAP
@@ -21,7 +22,7 @@ import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-const MIN_ROWS = 16;
+const MIN_ROWS = 20;
 const MIN_GDS_ROWS = 4;
 
 type StaffRow = {
@@ -229,7 +230,7 @@ const niceScrollbar = [
 ].join(" ");
 
 const thClass =
-  "h-[28px] border border-[#B7ECD0] bg-[#fafbfc] px-2 font-normal text-[#405066]";
+  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-2 font-normal text-[#405066]";
 const tdClass = "h-6.5 border border-[#B7ECD0] p-0";
 const tableClass =
   "w-full table-fixed border-collapse text-[12px] text-[#24364d]";
@@ -268,23 +269,23 @@ const StaffGrid: React.FC<{
     <div
       className={`overflow-x-auto border border-[#B7ECD0] bg-white ${niceScrollbar}`}
     >
-      <div className="min-w-295">
+      <div className="min-w-295 ">
         {/* header (fixed) */}
         <table className={tableClass}>
           <colgroup>
             <col className="w-11" />
-            <col className="w-22.5" />
-            <col className="w-55" />
-            <col className="w-37.5" />
-            <col className="w-32.5" />
-            <col className="w-32.5" />
-            <col className="w-27.5" />
-            <col className="w-27.5" />
-            <col className="w-27.5" />
-            <col className="w-2.5" />
+            <col className="w-30" />
+            <col className="" />
+           <col className="w-37.5" />
+              <col className="w-32.5" />
+              <col className="w-40" />
+              <col className="w-15" />
+              <col className="w-15" />
+              <col className="w-25" />
+            <col className="w-[10px]" />
           </colgroup>
           <thead>
-            <tr>
+            <tr className="bg-[#EEFBF4]">
               <th className={`${thClass} text-center`}>Line</th>
               <th className={`${thClass} text-left`}>ID</th>
               <th className={`${thClass} text-left`}>Staff</th>
@@ -311,19 +312,20 @@ const StaffGrid: React.FC<{
 
         {/* rows (vertical scrollbar sits beside them) */}
         <div
-          className={`max-h-[min(440px,calc(100vh-260px))] overflow-x-hidden overflow-y-scroll bg-white ${niceScrollbar}`}
+          className={`max-h-[min(640px,calc(100vh-260px))] overflow-x-hidden overflow-y-scroll bg-white ${niceScrollbar}`}
         >
           <table className={tableClass}>
             <colgroup>
               <col className="w-11" />
-              <col className="w-22.5" />
-              <col className="w-55" />
-              <col className="w-37.5" />
-              <col className="w-32.5" />
-              <col className="w-32.5" />
-              <col className="w-27.5" />
-              <col className="w-27.5" />
-              <col className="w-27.5" />
+              <col className="w-30" />
+              <col className="w-" />
+                <col className="w-37.5" />
+                <col className="w-32.5" />
+                <col className="w-40" />
+                <col className="w-15" />
+                <col className="w-15" />
+                <col className="w-25" />
+              {/* <col className="w-[3px]" /> */}
             </colgroup>
             <tbody>
               {rows.map((row, index) => {
@@ -521,11 +523,11 @@ const GdsLoginsDialog: React.FC<{
         </button>
       </header>
 
-      <div className="flex flex-col gap-3 px-3.5 pb-4 pt-3">
+      <div className="flex flex-col gap-3 px-3.5 pb-3 pt-3">
         <div className="flex items-center gap-2">
           <label
             htmlFor="lkpGdsStaff"
-            className="shrink-0 text-right text-[12px] text-[#405066]"
+            className="shrink-0 text-right text-[14px] "
           >
             Staff :
           </label>
@@ -558,7 +560,7 @@ const GdsLoginsDialog: React.FC<{
             </colgroup>
             <thead className="sticky top-0 z-10">
               <tr>
-                <th className={`${thClass} text-left`}>GDS</th>
+                <th className={`${thClass} text-left `}>GDS</th>
                 <th className={`${thClass} text-left`}>GDS Login</th>
                 <th className={`${thClass} text-left`}>Office ID</th>
                 <th className={`${thClass} text-left`}>IATA Code</th>
@@ -621,11 +623,11 @@ const GdsLoginsDialog: React.FC<{
 
         <div className="flex justify-center gap-2">
           <button type="button" onClick={onDone} className="btn-style">
-            OK
+           <u> S</u>ave
           </button>
-          <button type="button" onClick={onCancel} className="btn-style">
+          {/* <button type="button" onClick={onCancel} className="btn-style">
             Cancel
-          </button>
+          </button> */}
         </div>
       </div>
     </div>
@@ -738,15 +740,11 @@ const StaffPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-full max-w-374 bg-white p-0">
+      <div className="min-h-fit w-full max-w-340 bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <header className="flex h-7.5 items-center justify-start bg-[#9fdfbc]">
-            <h1 className="m-0 ml-3.5 text-[17px] font-semibold text-[#24364d]">
-              Staff
-            </h1>
-          </header>
+         <Header Name="Staff"/>
 
-          <section className="flex flex-col gap-3 px-3.5 pb-6 pt-3">
+          <section className="flex flex-col gap-3 px-3.5 pb-3 pt-3">
             <StaffGrid
               rows={rows}
               gdsCount={(key) => savedGdsLines(key).length}
