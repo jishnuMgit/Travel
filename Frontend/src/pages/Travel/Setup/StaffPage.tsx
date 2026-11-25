@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 import selectComponents from "../../../components/common/selectComponents";
 import { fieldSelectProps } from "../../../components/common/Combo";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
+import { deleteConfirm } from "../../../hooks/deleteMessage";
+import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import Header from "../../../components/common/Header";
 
 /* =====================================================================
@@ -15,7 +17,7 @@ import Header from "../../../components/common/Header";
    4. StaffPage : owns the state and renders the parts
 
    Grid columns : ID | Staff | Sales Account ID (select) | Mobile | Branch |
-                  Travel (checkbox) | Tourism (checkbox) | GDS Logins (+)
+                  Travel (checkbox) | Tourism (checkbox) | GDS Logins (+) | Delete
    Click the + icon -> small GDS Logins popup for that staff.
    ===================================================================== */
 
@@ -23,7 +25,7 @@ import Header from "../../../components/common/Header";
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
 const MIN_ROWS = 20;
-const MIN_GDS_ROWS = 4;
+const MIN_GDS_ROWS = 6;
 
 type StaffRow = {
   key: number;
@@ -179,7 +181,7 @@ const cellSelectProps = {
       !bg-transparent
       ${isFocused ? "!bg-white !ring-1 !ring-inset !ring-[#B7ECD0]" : ""}
     `,
-    valueContainer: () => "!h-[26px] !py-0 !px-[8px] !overflow-hidden",
+    valueContainer: () => "!h-[26px] !py-0 !px-[2px] !overflow-hidden",
     indicatorsContainer: () => "!h-[26px]",
   },
 };
@@ -230,12 +232,12 @@ const niceScrollbar = [
 ].join(" ");
 
 const thClass =
-  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-2 font-normal text-[#405066]";
+  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-[2px] font-semibold ";
 const tdClass = "h-6.5 border border-[#B7ECD0] p-0";
 const tableClass =
   "w-full table-fixed border-collapse text-[12px] text-[#24364d]";
 const textInputClass =
-  "h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]";
+  "h-6.5 w-full bg-transparent px-[2px] text-[14px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]";
 const checkboxClass =
   "h-3.5 w-3.5 cursor-pointer accent-[#4cc45a] disabled:cursor-not-allowed";
 
@@ -252,6 +254,7 @@ const StaffGrid: React.FC<{
   onChange: (key: number, patch: Partial<StaffRow>) => void;
   onToggleAll: (field: "travel" | "tourism", value: boolean) => void;
   onOpenGds: (key: number) => void;
+  onDelete: (key: number) => void;
 }> = ({
   rows,
   gdsCount,
@@ -260,6 +263,7 @@ const StaffGrid: React.FC<{
   onChange,
   onToggleAll,
   onOpenGds,
+  onDelete,
 }) => {
   const filled = rows.filter((row) => !isEmptyStaff(row));
   const allTravel = filled.length > 0 && filled.every((row) => row.travel);
@@ -279,9 +283,10 @@ const StaffGrid: React.FC<{
            <col className="w-37.5" />
               <col className="w-32.5" />
               <col className="w-40" />
-              <col className="w-15" />
-              <col className="w-15" />
-              <col className="w-25" />
+              <col className="w-19" />
+              <col className="w-19" />
+              <col className="w-19" />
+              <col className="w-10" />
             <col className="w-[10px]" />
           </colgroup>
           <thead>
@@ -305,6 +310,7 @@ const StaffGrid: React.FC<{
                 </label>
               </th>
               <th className={`${thClass} text-center`}>GDS Logins</th>
+              <th className={`${thClass} text-center`}></th>
               <th className={`${thClass} p-0`} />
             </tr>
           </thead>
@@ -318,14 +324,14 @@ const StaffGrid: React.FC<{
             <colgroup>
               <col className="w-11" />
               <col className="w-30" />
-              <col className="w-" />
-                <col className="w-37.5" />
-                <col className="w-32.5" />
-                <col className="w-40" />
-                <col className="w-15" />
-                <col className="w-15" />
-                <col className="w-25" />
-              {/* <col className="w-[3px]" /> */}
+              <col />
+              <col className="w-37.5" />
+              <col className="w-32.5" />
+              <col className="w-40" />
+              <col className="w-19" />
+              <col className="w-19" />
+              <col className="w-19" />
+              <col className="w-10" />
             </colgroup>
             <tbody>
               {rows.map((row, index) => {
@@ -458,14 +464,29 @@ const StaffGrid: React.FC<{
                           event.stopPropagation();
                           onOpenGds(row.key);
                         }}
-                        className="inline-flex h-6.25 w-full items-center justify-center gap-1 hover:bg-[#f2faf5] hover:text-[#2f9e5a] disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex h-6.25 w-full items-center justify-center gap-1 text-[#4cc45a] hover:bg-[#f2faf5] hover:text-[#2f9e5a] disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        <IoMdAdd size={17} />
+                        <IoMdAdd size={17} fontWeight={800} />
                         {/* {count > 0 && (
                           <span className="rounded-full bg-[#e7f7ed] px-1.5 text-[11px] text-[#24364d]">
                             {count}
                           </span>
                         )} */}
+                      </button>
+                    </td>
+                    <td className={`${tdClass} text-center`}>
+                      <button
+                        type="button"
+                        aria-label={`Delete staff line ${index + 1}`}
+                        title="Delete staff line"
+                        disabled={isEmptyStaff(row)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDelete(row.key);
+                        }}
+                        className="inline-flex h-6.25 w-full items-center justify-center text-red-600 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <IoMdClose size={17} />
                       </button>
                     </td>
                   </tr>
@@ -484,31 +505,45 @@ const GdsLoginsDialog: React.FC<{
   staffOptions: SimpleOption[];
   staffKey: number;
   lines: GdsLine[];
-  onStaffChange: (key: number) => void;
   onLineChange: (line: GdsLine) => void;
+  onLineDelete: (key: number) => void;
   onDone: () => void;
   onCancel: () => void;
 }> = ({
   staffOptions,
   staffKey,
   lines,
-  onStaffChange,
   onLineChange,
+  onLineDelete,
   onDone,
   onCancel,
-}) => (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4"
-    onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onCancel();
-    }}
-  >
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="GDS Logins"
-      className="w-full max-w-190 overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg"
-    >
+}) => {
+  const { confirm, dialog } = useConfirmModal();
+
+  const handleDeleteLine = async (line: GdsLine, index: number) => {
+    const confirmed = await confirm(
+      deleteConfirm(
+        `Do you want to Delete Line ${index + 1}?`,
+        "Staff - GDS Logins",
+      ),
+    );
+    if (confirmed) onLineDelete(line.key);
+  };
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) onCancel();
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="GDS Logins"
+          className="w-full max-w-200 overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg"
+        >
       <header className="flex h-7.5 items-center justify-between bg-[#9fdfbc] pl-3.5 pr-1">
         <h2 className="m-0 text-[15px] font-semibold text-[#24364d]">
           GDS Logins
@@ -531,19 +566,16 @@ const GdsLoginsDialog: React.FC<{
           >
             Staff :
           </label>
-          <div className="w-72 min-w-0">
-            <Select<SimpleOption, false>
-              inputId="lkpGdsStaff"
-              instanceId="lkpGdsStaff"
+          <div className="w-80 min-w-0">
+            <input
+              id="lkpGdsStaff"
               aria-label="Staff"
-              options={staffOptions}
-              components={selectComponents}
-              value={staffOptions.find((o) => o.value === String(staffKey)) ?? null}
-              onChange={(option) => {
-                if (option) onStaffChange(Number(option.value));
-              }}
-              styles={portalStyles}
-              {...fieldSelectProps}
+              readOnly
+              value={
+                staffOptions.find((option) => option.value === String(staffKey))
+                  ?.label ?? ""
+              }
+              className="w-full input-style "
             />
           </div>
         </div>
@@ -554,16 +586,18 @@ const GdsLoginsDialog: React.FC<{
           <table className={tableClass}>
             <colgroup>
               <col className="w-37.5" />
-              <col className="w-42.5" />
+              <col className="w-37.5"  />
               <col className="w-37.5" />
-              <col />
+              <col className="w-37.5" />
+              <col className="w-8" />
             </colgroup>
             <thead className="sticky top-0 z-10">
               <tr>
-                <th className={`${thClass} text-left `}>GDS</th>
-                <th className={`${thClass} text-left`}>GDS Login</th>
-                <th className={`${thClass} text-left`}>Office ID</th>
-                <th className={`${thClass} text-left`}>IATA Code</th>
+                <th className={`${thClass} px-0.5 text-left`}>GDS</th>
+                <th className={`${thClass} px-0.5 text-left`}>GDS Login</th>
+                <th className={`${thClass} px-0.5 text-left`}>Office ID</th>
+                <th className={`${thClass} px-0.5 text-left`}>IATA Code</th>
+                <th className={`${thClass} text-center`}></th>
               </tr>
             </thead>
             <tbody>
@@ -582,7 +616,10 @@ const GdsLoginsDialog: React.FC<{
                       }
                       styles={portalStyles}
                       {...cellSelectProps}
-                      classNames={simpleClassNames}
+                      classNames={{
+                        ...simpleClassNames,
+                        valueContainer: () => "!h-[26px] !py-0 !px-[2px] !overflow-hidden",
+                      }}
                     />
                   </td>
                   <td className={tdClass}>
@@ -592,7 +629,7 @@ const GdsLoginsDialog: React.FC<{
                       onChange={(e) =>
                         onLineChange({ ...line, login: e.target.value })
                       }
-                      className={textInputClass}
+                      className={`${textInputClass} !px-[2px]`}
                     />
                   </td>
                   <td className={tdClass}>
@@ -602,7 +639,7 @@ const GdsLoginsDialog: React.FC<{
                       onChange={(e) =>
                         onLineChange({ ...line, officeId: e.target.value })
                       }
-                      className={textInputClass}
+                      className={`${textInputClass} !px-[2px]`}
                     />
                   </td>
                   <td className={tdClass}>
@@ -612,8 +649,20 @@ const GdsLoginsDialog: React.FC<{
                       onChange={(e) =>
                         onLineChange({ ...line, iataCode: e.target.value })
                       }
-                      className={textInputClass}
+                      className={`${textInputClass} !px-[2px]`}
                     />
+                  </td>
+                  <td className={`${tdClass} text-center`}>
+                    <button
+                      type="button"
+                      aria-label={`Delete GDS login line ${index + 1}`}
+                      title="Delete GDS login line"
+                      disabled={isEmptyGds(line)}
+                      onClick={() => void handleDeleteLine(line, index)}
+                      className="inline-flex h-6.25 w-full items-center justify-center text-red-600 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <IoMdClose size={17} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -630,14 +679,16 @@ const GdsLoginsDialog: React.FC<{
           </button> */}
         </div>
       </div>
-    </div>
-  </div>
-);
+      </div>
+      </div>
+      {dialog}
+    </>
+  );
+};
 
-/* ---------------------------------------------------------------------
-   4. MAIN PAGE : owns the state and renders the parts
-   --------------------------------------------------------------------- */
+
 const StaffPage: React.FC = () => {
+  const { confirm, dialog: deleteDialog } = useConfirmModal();
   const [rows, setRows] = useState<StaffRow[]>(() => padStaff([]));
   const [activeKey, setActiveKey] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -655,6 +706,29 @@ const StaffPage: React.FC = () => {
     );
   };
 
+  const deleteRow = async (key: number) => {
+    const rowIndex = rows.findIndex((row) => row.key === key);
+    if (rowIndex < 0) return;
+
+    const confirmed = await confirm(
+      deleteConfirm(`Do you want to Delete Line ${rowIndex + 1}?`, "Staff"),
+    );
+    if (!confirmed) return;
+
+    setRows((prev) => padStaff(prev.filter((row) => row.key !== key)));
+    setGdsByStaff((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setActiveKey((prev) => (prev === key ? null : prev));
+    setError("");
+    if (gdsStaffKey === key) {
+      setGdsStaffKey(null);
+      setGdsSnapshot({});
+    }
+  };
+
   const toggleAll = (field: "travel" | "tourism", value: boolean) =>
     setRows((prev) =>
       prev.map((row) => (isEmptyStaff(row) ? row : { ...row, [field]: value })),
@@ -670,11 +744,6 @@ const StaffPage: React.FC = () => {
     setGdsStaffKey(key);
   };
 
-  const changeGdsStaff = (key: number) => {
-    setGdsByStaff((prev) => ({ ...prev, [key]: padGds(prev[key] ?? []) }));
-    setGdsStaffKey(key);
-  };
-
   const changeGdsLine = (line: GdsLine) => {
     if (gdsStaffKey === null) return;
     const staffKey = gdsStaffKey;
@@ -682,6 +751,17 @@ const StaffPage: React.FC = () => {
       ...prev,
       [staffKey]: padGds(
         (prev[staffKey] ?? []).map((l) => (l.key === line.key ? line : l)),
+      ),
+    }));
+  };
+
+  const deleteGdsLine = (key: number) => {
+    if (gdsStaffKey === null) return;
+    const staffKey = gdsStaffKey;
+    setGdsByStaff((prev) => ({
+      ...prev,
+      [staffKey]: padGds(
+        (prev[staffKey] ?? []).filter((line) => line.key !== key),
       ),
     }));
   };
@@ -753,6 +833,7 @@ const StaffPage: React.FC = () => {
               onChange={updateRow}
               onToggleAll={toggleAll}
               onOpenGds={openGds}
+              onDelete={deleteRow}
             />
 
             {error && (
@@ -783,13 +864,14 @@ const StaffPage: React.FC = () => {
         </main>
       </div>
 
+      {deleteDialog}
       {gdsStaffKey !== null && (
         <GdsLoginsDialog
           staffOptions={staffOptions}
           staffKey={gdsStaffKey}
           lines={gdsByStaff[gdsStaffKey] ?? padGds([])}
-          onStaffChange={changeGdsStaff}
           onLineChange={changeGdsLine}
+          onLineDelete={deleteGdsLine}
           onDone={() => closeGds(true)}
           onCancel={() => closeGds(false)}
         />

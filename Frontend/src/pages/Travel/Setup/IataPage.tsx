@@ -6,6 +6,7 @@ import selectComponents from "../../../components/common/selectComponents";
 import { fieldSelectProps } from "../../../components/common/Combo";
 import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
 import { FaPlus } from "react-icons/fa";
+import Header from "../../../components/common/Header";
 
 /* =====================================================================
    FILE MAP
@@ -75,16 +76,23 @@ const padLines = (lines: IataLine[]): IataLine[] => {
 /* ---------------------------------------------------------------------
    2. STYLES (same look as the Budget page)
    --------------------------------------------------------------------- */
+const selectTextClassNames = {
+  singleValue: () => "!m-0 !text-[14px] !text-[#24364d]",
+  placeholder: () => "!m-0 !text-[14px] !text-[#7a8794]",
+  input: () => "!m-0 !p-0 !text-[14px] !text-[#24364d]",
+};
+
 const cellSelectProps = {
   ...fieldSelectProps,
   classNames: {
     ...fieldSelectProps.classNames,
+    ...selectTextClassNames,
     control: ({ isFocused }: { isFocused: boolean }) => `
-      !min-h-[26px] !h-[26px] !rounded-none !border-0 !shadow-none !text-[12px]
+      !min-h-[26px] !h-[26px] !rounded-none !border-0 !shadow-none !text-[14px]
       !bg-transparent
       ${isFocused ? "!bg-white !ring-1 !ring-inset !ring-[#B7ECD0]" : ""}
     `,
-    valueContainer: () => "!h-[26px] !py-0 !px-[8px] !overflow-hidden",
+    valueContainer: () => "!h-[26px] !py-0 !px-[2px] !overflow-hidden",
     indicatorsContainer: () => "!h-[26px]",
     menuList: () => "!p-0 !max-h-[312px]",
     option: ({
@@ -94,7 +102,7 @@ const cellSelectProps = {
       isFocused: boolean;
       isSelected: boolean;
     }) => `
-      !cursor-pointer !px-2 !py-1 !text-[12px] !text-[#24364d]
+      !cursor-pointer !px-[2px] !py-1 !text-[14px] !text-[#24364d]
       ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
     `,
   },
@@ -121,14 +129,16 @@ const niceScrollbar = [
 ].join(" ");
 
 const thClass =
-  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-2 text-left font-normal text-[#405066]";
+  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-[2px] text-left font-semibold text-[#405066]";
+  const thClassLine =
+  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4]  font-semibold text-[#405066]";
 const tdClass = "h-6.5 border border-[#B7ECD0] p-0";
 const tableClass =
   "w-full table-fixed border-collapse text-[12px] text-[#24364d]";
 const textInputClass =
-  "h-6.5 w-full bg-transparent px-2 text-[12px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]";
+  "h-6.5 w-full bg-transparent px-[2px] text-[14px] text-[#24364d] outline-none focus:bg-white focus:ring-1 focus:ring-inset focus:ring-[#91a7b9]";
 const dialogInputClass =
-  "h-7 w-full rounded-[3px] border border-[#cfd7df] bg-white px-2 text-[12px] text-[#24364d] outline-none focus:border-[#91a7b9] focus:ring-1 focus:ring-[#B7ECD0]";
+  "h-7 w-full rounded-[3px] border border-[#cfd7df] bg-white px-[2px] text-[14px] text-[#24364d] outline-none focus:border-[#91a7b9] focus:ring-1 focus:ring-[#B7ECD0]";
 
 /* ---------------------------------------------------------------------
    3. PARTS
@@ -180,7 +190,7 @@ const AddIataDialog: React.FC<{
         aria-modal="true"
         aria-label="Add IATA"
         onSubmit={submit}
-        className="w-full max-w-[380px] overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg"
+        className="w-full max-w-95 overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg"
       >
         <header className="flex h-7.5 items-center justify-between bg-[#9fdfbc] pl-3.5 pr-1">
           <h2 className="m-0 text-[15px] font-semibold text-[#24364d]">
@@ -200,7 +210,7 @@ const AddIataDialog: React.FC<{
           <div className="flex items-center gap-2">
             <label
               htmlFor="txtIataCode"
-              className="w-[80px] shrink-0 text-right text-[12px] text-[#405066]"
+              className="w-20 shrink-0 text-right text-[14px] text-[#405066]"
             >
               IATA Code :
             </label>
@@ -219,7 +229,7 @@ const AddIataDialog: React.FC<{
           <div className="flex items-center gap-2">
             <label
               htmlFor="txtIataName"
-              className="w-[80px] shrink-0 text-right text-[12px] text-[#405066]"
+              className="w-20 shrink-0 text-right text-[14px] text-[#405066]"
             >
               Name :
             </label>
@@ -260,10 +270,10 @@ const IataGrid: React.FC<{
   const cols = (gutter: boolean) => (
     <colgroup>
       <col className="w-11" />
-      <col className="w-[180px]" />
-      <col className="w-[180px]" />
+      <col className="w-45" />
+      <col className="w-45" />
       <col />
-      {gutter && <col className="w-[10px]" />}
+      {gutter && <col className="w-2.5" />}
     </colgroup>
   );
 
@@ -274,7 +284,7 @@ const IataGrid: React.FC<{
         {cols(true)}
         <thead>
           <tr>
-            <th className={`${thClass} text-center`}>Line</th>
+            <th className={`${thClassLine} text-center`}>Line</th>
             <th className={thClass}>GDS</th>
             <th className={thClass}>PCC</th>
             <th className={thClass}>Note</th>
@@ -419,17 +429,13 @@ const IataPage: React.FC = () => {
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
       <div className="min-h-fit w-full max-w-200 bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <header className="flex h-7.5 items-center justify-start bg-[#9fdfbc]">
-            <h1 className="m-0 ml-3.5 text-[17px] font-semibold text-[#24364d]">
-              IATA
-            </h1>
-          </header>
+         <Header Name=" IATA"/>
 
           <section className="flex flex-col gap-3 px-3.5 pb-6 pt-3">
             <div className="flex items-center gap-2">
               <label
                 htmlFor="lkpIata"
-                className="shrink-0 text-right text-[12px] text-[#405066]"
+                className="shrink-0 text-right text-[14px] text-[#405066]"
               >
                 IATA :
               </label>
@@ -447,6 +453,14 @@ const IataPage: React.FC = () => {
                   }}
                   styles={portalStyles}
                   {...fieldSelectProps}
+                  classNames={{
+                    ...fieldSelectProps.classNames,
+                    ...selectTextClassNames,
+                    control: (state) =>
+                      `${fieldSelectProps.classNames.control(state)} !text-[14px]`,
+                    valueContainer: () =>
+                      "!h-[26px] !py-0 !px-[2px] !overflow-hidden",
+                  }}
                 />
               </div>
              
