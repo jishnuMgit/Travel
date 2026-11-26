@@ -21,7 +21,7 @@ import Header from "../../../components/common/Header";
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-const MIN_ROWS = 8;
+const MIN_ROWS = 10;
 
 type SimpleOption = { value: string; label: string };
 

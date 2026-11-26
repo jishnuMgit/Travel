@@ -31,7 +31,7 @@ import { FaPlus } from "react-icons/fa";
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-const MIN_ROWS = 8;
+const MIN_ROWS = 10;
 
 type SimpleOption = { value: string; label: string };
 
@@ -155,11 +155,11 @@ const OfficeIdGrid: React.FC<{
         {cols(true)}
         <thead>
           <tr>
-            <th className={thClass}>GDS Name</th>
+            <th className={thClass}>GDS </th>
             <th className={thClass}>Office ID</th>
             <th className={thClass}>Note</th>
-            <th className={`${thClass} text-center`}>Modify</th>
-            <th className={`${thClass} text-center`}>Delete</th>
+            <th className={`${thClass} text-center`}></th>
+            <th className={`${thClass} text-center`}></th>
             <th className={`${thClass} p-0`} />
           </tr>
         </thead>

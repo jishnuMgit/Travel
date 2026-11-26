@@ -546,7 +546,7 @@ const GdsLoginsDialog: React.FC<{
         >
       <header className="flex h-7.5 items-center justify-between bg-[#9fdfbc] pl-3.5 pr-1">
         <h2 className="m-0 text-[15px] font-semibold text-[#24364d]">
-          GDS Logins
+         Staff - GDS Logins
         </h2>
         <button
           type="button"
