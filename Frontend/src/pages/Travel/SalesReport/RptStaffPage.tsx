@@ -78,7 +78,7 @@ const CustomRadio: React.FC<RadioProps> = ({
   disabled = false,
 }) => (
   <label
-    className={`flex items-center gap-1.25 whitespace-nowrap select-none ${
+    className={`flex items-center gap-1.25 whitespace-nowrap select-none mt-1 ${
       disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"  }`} >
     <input
       type="radio"
@@ -263,9 +263,9 @@ const StaffSalesPage: React.FC = () => {
               Staff Sales
             </h1>
           </header>
-          <section className="px-4.25 pb-4.75 pt-4.75">
-          <div className="grid grid-cols-[125px_minmax(0,1fr)_228px] items-center gap-x-3 gap-y-3">         
-              <RadioPanel className="min-h-17.5">
+          <section className="px-3 pb-3 -mt-10">
+          <div className="grid grid-cols-[125px_minmax(0,1fr)_228px] items-center gap-x-3 gap-y-2">         
+              <RadioPanel className="min-h-17.5 mt-8">
                 <CustomRadio
                   name="branch"
                   value="One Branch"
@@ -281,7 +281,7 @@ const StaffSalesPage: React.FC = () => {
                      </RadioPanel>
               <div>
                 {branchMode === "One Branch" && (
-                  <div className="w-62.5 max-w-full -mt-5">
+                  <div className="w-62.5 max-w-full ">
                     <CommonTableSelect
                       inputId="branch"
                       options={branchOptions}
@@ -295,8 +295,8 @@ const StaffSalesPage: React.FC = () => {
                   </div>
                 )}                
               </div>
-              <div className="flex items-center gap-2">
-                <RadioPanel className="w-27.5 min-h-21.25">
+              <div className="flex items-center gap-2 mt-10">
+                <RadioPanel className="w-27.5 min-h-21.25 -mt-3">
                   <CustomRadio
                       name="payment"
                       value="Cash"
@@ -316,7 +316,7 @@ const StaffSalesPage: React.FC = () => {
                     checked={paymentType === "All"}
                     onChange={() => setPaymentType("All")}    />
                      </RadioPanel>
-                <RadioPanel className="w-31.25 min-h-21.25">
+                <RadioPanel className="w-31.25 min-h-21.25 mt-3 ">
                   <CustomRadio
                     name="rdgSR"
                     value="Sales"
@@ -345,7 +345,7 @@ const StaffSalesPage: React.FC = () => {
                     onChange={() => setResultType("Net")}  />
                   </RadioPanel>
               </div>
-              <RadioPanel className="min-h-17.5">
+              <RadioPanel className="min-h-17.5 -mt-7">
                 <CustomRadio
                   name="rdgStaff"
                   value="One Staff"
@@ -361,7 +361,8 @@ const StaffSalesPage: React.FC = () => {
               </RadioPanel>
               <div>
                 {staffMode === "One Staff" && (
-                  <CustomLinkedPairSelect
+                 <div className="-mt-10">
+                   <CustomLinkedPairSelect
                     firstInputId="lkpStaffId"
                     secondInputId="lkpStaffName"
                     options={staffPairOptions}
@@ -386,6 +387,7 @@ const StaffSalesPage: React.FC = () => {
                       );
                     }}
                   />
+                 </div>
                 )}
               </div>
               <div />
@@ -403,7 +405,7 @@ const StaffSalesPage: React.FC = () => {
                     checked={customerMode === "All Customer"}
                     onChange={() => setCustomerMode("All Customer")}  />
               </RadioPanel>
-  <div className="flex min-w-0 items-start gap-1">
+  <div className="flex min-w-0 items-start gap-1 -mt-4">
               {customerMode === "One Customer" && (
                 <CustomLinkedPairSelect
                   firstInputId="lkpCustomerId"
@@ -433,7 +435,7 @@ const StaffSalesPage: React.FC = () => {
               )}
  </div>
               <div className="flex justify-end">
-                <RadioPanel className="w-27.5 min-h-21.25">
+                <RadioPanel className="w-27.5 min-h-21.25 -mt-12">
                   <CustomRadio
                     name="rdgSubModule"
                     value="Travel"

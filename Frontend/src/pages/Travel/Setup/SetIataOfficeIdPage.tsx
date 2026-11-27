@@ -180,7 +180,7 @@ const OfficeIdGrid: React.FC<{
       <col className="w-45" />
       <col className="w-45" />
       <col />
-      <col className="w-16" />
+      <col className="w-10" />
       {gutter && <col className="w-2.5" />}
     </colgroup>
   );
@@ -194,7 +194,7 @@ const OfficeIdGrid: React.FC<{
 
         <thead>
           <tr>
-            <th className={thClass}>GDS Name</th>
+            <th className={thClass}>GDS</th>
             <th className={thClass}>Office ID</th>
             <th className={thClass}>Note</th>
             <th className={`${thClass} text-center`}></th>

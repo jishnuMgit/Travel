@@ -269,7 +269,7 @@ const RptAirlinePage: React.FC = () => {
       <div className="min-h-screen w-full bg-white p-1.5 ">
         <main className="mx-auto h-fit w-full max-w-220 relative overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
           <Header Name="Airline Sales" />
-          <section className="px-4.25 pb-3.5 pt-2.5">
+          <section className="px-3 pb-3 pt-3">
             <div className="grid grid-cols-[minmax(0,1fr)_125px] items-start gap-x-3.5">
               <div className="flex min-w-0 flex-col gap-2.5">
                 <div className="grid min-h-17.5 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
@@ -282,7 +282,7 @@ const RptAirlinePage: React.FC = () => {
                       { value: "One Branch", label: "One Branch" },
                       { value: "All Branch", label: "All Branch" },
                     ]} />
-                  <div className="w-62.5 max-w-full">
+                  <div className="w-62.5 max-w-full -mt-5">
                     {rdgbranch === "One Branch" && (
                       <CommonTableSelect
                         inputId="lpkBranch"
@@ -307,7 +307,7 @@ const RptAirlinePage: React.FC = () => {
                       { value: "One Airline", label: "One Airline" },
                       { value: "All Airline", label: "All Airline" },
                     ]} />
-                  <div className="min-w-0">
+                  <div className="min-w-0 -mt-5">
                     {rdgairline === "One Airline" && (
                       <CustomLinkedPairSelect
                         firstInputId="lkpairlineId"

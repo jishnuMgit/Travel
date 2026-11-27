@@ -283,9 +283,9 @@ const StaffGrid: React.FC<{
            <col className="w-37.5" />
               <col className="w-32.5" />
               <col className="w-40" />
-              <col className="w-19" />
-              <col className="w-19" />
-              <col className="w-19" />
+              <col className="w-20" />
+              <col className="w-20" />
+              <col className="w-20" />
               <col className="w-10" />
             <col className="w-[10px]" />
           </colgroup>
@@ -328,9 +328,9 @@ const StaffGrid: React.FC<{
               <col className="w-37.5" />
               <col className="w-32.5" />
               <col className="w-40" />
-              <col className="w-19" />
-              <col className="w-19" />
-              <col className="w-19" />
+              <col className="w-20" />
+              <col className="w-20" />
+              <col className="w-20" />
               <col className="w-10" />
             </colgroup>
             <tbody>
