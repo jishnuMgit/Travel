@@ -1,39 +1,29 @@
+
 import React, { useState } from "react";
-import Select from "react-select";
-import { IoMdAdd, IoMdClose, IoMdCreate } from "react-icons/io";
+import Select, { components, type MenuListProps } from "react-select";
+import { IoMdClose } from "react-icons/io";
 import { toast } from "react-toastify";
 import selectComponents from "../../../components/common/selectComponents";
 import { fieldSelectProps } from "../../../components/common/Combo";
-import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
 import { deleteConfirm } from "../../../hooks/deleteMessage";
 import { useConfirmModal } from "../../../hooks/useConfirmModal";
 import Header from "../../../components/common/Header";
-import { FiEdit } from "react-icons/fi";
-import { FaPlus } from "react-icons/fa";
+import { GRID_CELL_FOCUS_CLASS } from "../../../hooks/useGridCellFocus";
 
 /* =====================================================================
-   FILE MAP
-   1. Types, constants, sample options (replace with your API data)
-   2. Styles shared with the Budget / Staff / IATA pages
-   3. Parts : OfficeIdGrid (read only), OfficeIdDialog (one-row form)
-   4. SetIataOfficeIdPage : owns the state and renders the parts
-
-   Layout:
-     IATA
-     [ dropdown ] [+]            <- + opens the form popup (add one line)
-     grid (read only) : GDS Name | Office ID | Note | Modify | Delete
-     [Clear]
-
-   Modify (pencil) -> same form popup, filled with that line.
-   Save lives inside the popup only.
-   ===================================================================== */
+   SET IATA - OFFICE ID
+===================================================================== */
 
 /* ---------------------------------------------------------------------
-   1. TYPES, CONSTANTS AND SAMPLE OPTIONS
-   --------------------------------------------------------------------- */
+   1. TYPES AND CONSTANTS
+--------------------------------------------------------------------- */
+
 const MIN_ROWS = 10;
 
-type SimpleOption = { value: string; label: string };
+type SimpleOption = {
+  value: string;
+  label: string;
+};
 
 type OfficeLine = {
   key: number;
@@ -42,20 +32,11 @@ type OfficeLine = {
   note: string;
 };
 
-type DialogState = {
-  mode: "add" | "edit";
-  /* key of the saved line being modified (edit mode only) */
-  editKey: number | null;
-  line: OfficeLine;
-};
-
-/* TODO: replace with the API list of IATA codes */
 const IATA_OPTIONS: SimpleOption[] = [
   { value: "12345678", label: "12345678 - Head Office" },
   { value: "87654321", label: "87654321 - City Branch" },
 ];
 
-/* TODO: replace with the API list of GDS */
 const GDS_OPTIONS: SimpleOption[] = [
   { value: "Amadeus", label: "Amadeus" },
   { value: "Sabre", label: "Sabre" },
@@ -63,7 +44,17 @@ const GDS_OPTIONS: SimpleOption[] = [
   { value: "Travelport", label: "Travelport" },
 ];
 
+const GdsMenuList = (props: MenuListProps<SimpleOption, false>) => (
+  <components.MenuList {...props}>
+    <div className="sticky top-0 z-10 w-full border-b border-[#b8c4d0] bg-[#f3f5f7] px-[6px] py-[4px] text-[12px] font-semibold text-[#344054]">
+      GDS Name
+    </div>
+    {props.children}
+  </components.MenuList>
+);
+
 let keyCounter = 0;
+
 const nextKey = () => ++keyCounter;
 
 const emptyLine = (): OfficeLine => ({
@@ -73,19 +64,31 @@ const emptyLine = (): OfficeLine => ({
   note: "",
 });
 
-const gdsLabel = (value: string | null) =>
-  GDS_OPTIONS.find((o) => o.value === value)?.label ?? value ?? "";
+const isEmptyLine = (line: OfficeLine) =>
+  !line.gds && !line.officeId.trim() && !line.note.trim();
+
+/* Maintain minimum 10 editable rows */
+const ensureMinimumRows = (
+  rows: OfficeLine[],
+): OfficeLine[] => {
+  const missing = Math.max(MIN_ROWS - rows.length, 0);
+
+  return [
+    ...rows,
+    ...Array.from({ length: missing }, () => emptyLine()),
+  ];
+};
 
 /* ---------------------------------------------------------------------
-   2. STYLES (same look as the other pages)
-   --------------------------------------------------------------------- */
+   2. STYLES
+--------------------------------------------------------------------- */
+
 const selectTextClassNames = {
   singleValue: () => "!m-0 !text-[14px] !text-[#24364d]",
   placeholder: () => "!m-0 !text-[14px] !text-[#7a8794]",
   input: () => "!m-0 !p-0 !text-[14px] !text-[#24364d]",
 };
 
-/* select used in the page and in the form (normal field look) */
 const fieldClassNames = {
   ...fieldSelectProps.classNames,
   ...selectTextClassNames,
@@ -94,12 +97,44 @@ const fieldClassNames = {
   valueContainer: () => "!h-[26px] !py-0 !px-[2px] !overflow-hidden",
 };
 
-/* the menu is drawn on <body> so popup scrolling never clips it */
-const portalStyles = {
-  menuPortal: (base: object) => ({ ...base, zIndex: 9999 }),
+const cellSelectProps = {
+  ...fieldSelectProps,
+  minMenuHeight: 40,
+  menuPlacement: "bottom" as const,
+  classNames: {
+    ...fieldSelectProps.classNames,
+    control: ({ isFocused }: { isFocused: boolean }) => `
+      !min-h-[26px] !h-[26px] !rounded-none !border-0 !shadow-none !text-[12px]
+      !bg-transparent
+      ${isFocused ? "!bg-white !ring-1 !ring-inset !ring-[#B7ECD0]" : ""}
+    `,
+    valueContainer: () => "!h-[26px] !py-0 !px-[8px] !overflow-hidden",
+    indicatorsContainer: () => "!h-[26px]",
+  },
 };
 
-/* slim green scrollbar (Chrome, Edge, Safari) */
+const gdsClassNames = {
+  ...cellSelectProps.classNames,
+  menuList: () => "!p-0 !max-h-[260px] !overflow-x-hidden",
+  option: ({
+    isFocused,
+    isSelected,
+  }: {
+    isFocused: boolean;
+    isSelected: boolean;
+  }) => `
+    !cursor-pointer !px-[6px] !py-[4px] !text-[12px] !text-[#24364d]
+    ${isSelected ? "!bg-[#e7f7ed]" : isFocused ? "!bg-[#f2faf5]" : "!bg-white"}
+  `,
+};
+
+const portalStyles = {
+  menuPortal: (base: object) => ({
+    ...base,
+    zIndex: 9999,
+  }),
+};
+
 const niceScrollbar = [
   "[&::-webkit-scrollbar]:h-2.5",
   "[&::-webkit-scrollbar]:w-2.5",
@@ -115,106 +150,156 @@ const niceScrollbar = [
 ].join(" ");
 
 const labelClass = "text-[14px] text-[#405066]";
-const formLabelClass = `${labelClass} w-24 shrink-0 text-right`;
+
 const thClass =
   "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-[2px] text-left font-semibold text-[#405066]";
+
 const tdClass = "h-6.5 border border-[#B7ECD0] p-0";
-const readCellClass = `${tdClass} truncate px-[2px] text-[14px] text-[#24364d]`;
+
 const tableClass =
   "w-full table-fixed border-collapse text-[12px] text-[#24364d]";
+
 const iconButtonClass =
   "inline-flex h-6.25 w-full items-center justify-center disabled:cursor-not-allowed disabled:opacity-40";
 
-/* ---------------------------------------------------------------------
-   3. PARTS
-   --------------------------------------------------------------------- */
+const inlineInputClass =
+  "h-6 w-full min-w-0 border-0 bg-transparent px-[3px] text-[14px] text-[#24364d] outline-none focus:bg-[#f2faf5]";
 
-/* 3a. Grid (read only): GDS Name, Office ID, Note, Modify, Delete */
+/* ---------------------------------------------------------------------
+   3. OFFICE ID GRID
+--------------------------------------------------------------------- */
+
 const OfficeIdGrid: React.FC<{
   lines: OfficeLine[];
-  onModify: (line: OfficeLine) => void;
+  errors: Record<number, string>;
+  onChange: (line: OfficeLine, patch: Partial<OfficeLine>) => void;
   onDelete: (line: OfficeLine, index: number) => void;
-}> = ({ lines, onModify, onDelete }) => {
+}> = ({ lines, errors, onChange, onDelete }) => {
   const cols = (gutter: boolean) => (
     <colgroup>
       <col className="w-45" />
       <col className="w-45" />
       <col />
       <col className="w-16" />
-      <col className="w-16" />
       {gutter && <col className="w-2.5" />}
     </colgroup>
   );
 
-  const fillerCount = Math.max(MIN_ROWS - lines.length, 0);
-
   return (
     <div className="overflow-hidden border border-[#B7ECD0] bg-white">
-      {/* header (fixed) */}
+
+      {/* Table Header */}
       <table className={tableClass}>
         {cols(true)}
+
         <thead>
           <tr>
-            <th className={thClass}>GDS </th>
+            <th className={thClass}>GDS Name</th>
             <th className={thClass}>Office ID</th>
             <th className={thClass}>Note</th>
-            <th className={`${thClass} text-center`}></th>
             <th className={`${thClass} text-center`}></th>
             <th className={`${thClass} p-0`} />
           </tr>
         </thead>
       </table>
 
-      {/* rows (vertical scrollbar sits beside them) */}
+      {/* Editable Table Rows */}
       <div
         className={`max-h-[min(400px,calc(100vh-300px))] overflow-x-hidden overflow-y-scroll ${niceScrollbar}`}
       >
         <table className={tableClass}>
           {cols(false)}
+
           <tbody>
             {lines.map((line, index) => (
-              <tr key={line.key} className="bg-white">
-                <td className={readCellClass} title={gdsLabel(line.gds)}>
-                  {gdsLabel(line.gds)}
-                </td>
-                <td className={readCellClass} title={line.officeId}>
-                  {line.officeId}
-                </td>
-                <td className={readCellClass} title={line.note}>
-                  {line.note}
-                </td>
-                <td className={`${tdClass} text-center`}>
-                  <button
-                    type="button"
-                    aria-label={`Modify line ${index + 1}`}
-                    title="Modify line"
-                    onClick={() => onModify(line)}
-                    className={`${iconButtonClass} text-[#4cc45a] hover:bg-[#f2faf5] hover:text-[#2f9e5a]`}
-                  >
-                    <FiEdit  size={17} />
-                  </button>
-                </td>
-                <td className={`${tdClass} text-center`}>
-                  <button
-                    type="button"
-                    aria-label={`Delete line ${index + 1}`}
-                    title="Delete line"
-                    onClick={() => onDelete(line, index)}
-                    className={`${iconButtonClass} text-red-600 hover:bg-red-50 hover:text-red-700`}
-                  >
-                    <IoMdClose size={17} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {Array.from({ length: fillerCount }, (_, i) => (
-              <tr key={`filler-${i}`} className="bg-white">
-                <td className={tdClass} />
-                <td className={tdClass} />
-                <td className={tdClass} />
-                <td className={tdClass} />
-                <td className={tdClass} />
-              </tr>
+              <React.Fragment key={line.key}>
+
+                <tr className="bg-white">
+
+                  {/* GDS Name */}
+                  <td className={`${tdClass} ${GRID_CELL_FOCUS_CLASS}`}>
+                    <Select<SimpleOption, false>
+                      inputId={`lkpGds-${line.key}`}
+                      instanceId={`lkpGds-${line.key}`}
+                      aria-label={`GDS Name for line ${index + 1}`}
+                      options={GDS_OPTIONS}
+                      components={{
+                        ...selectComponents,
+                        MenuList: GdsMenuList,
+                      }}
+                      value={
+                        GDS_OPTIONS.find(
+                          (option) => option.value === line.gds
+                        ) ?? null
+                      }
+                      onChange={(option) =>
+                        onChange(line, {
+                          gds: option?.value ?? null,
+                        })
+                      }
+                      {...cellSelectProps}
+                      classNames={gdsClassNames}
+                    />
+                  </td>
+
+                  {/* Office ID */}
+                  <td className={tdClass}>
+                    <input
+                      aria-label={`Office ID for line ${index + 1}`}
+                      value={line.officeId}
+                      onChange={(event) =>
+                        onChange(line, {
+                          officeId: event.target.value.toUpperCase(),
+                        })
+                      }
+                      className={inlineInputClass}
+                    />
+                  </td>
+
+                  {/* Note */}
+                  <td className={tdClass}>
+                    <input
+                      aria-label={`Note for line ${index + 1}`}
+                      value={line.note}
+                      onChange={(event) =>
+                        onChange(line, {
+                          note: event.target.value,
+                        })
+                      }
+                      className={inlineInputClass}
+                    />
+                  </td>
+
+                  {/* Delete */}
+                  <td className={`${tdClass} text-center`}>
+                    <button
+                      type="button"
+                      aria-label={`Delete line ${index + 1}`}
+                      title="Delete line"
+                      onClick={() => onDelete(line, index)}
+                      disabled={isEmptyLine(line)}
+                      className={`${iconButtonClass} text-red-600 hover:bg-red-50 hover:text-red-700`}
+                    >
+                      <IoMdClose size={17} />
+                    </button>
+                  </td>
+
+                </tr>
+
+                {/* Validation Error */}
+                {errors[line.key] && (
+                  <tr className="bg-white">
+                    <td
+                      className="border-x border-b border-[#B7ECD0] px-1 pb-1 text-[12px] text-[#c0392b]"
+                      colSpan={4}
+                      role="alert"
+                    >
+                      {errors[line.key]}
+                    </td>
+                  </tr>
+                )}
+
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -223,322 +308,292 @@ const OfficeIdGrid: React.FC<{
   );
 };
 
-/* 3b. Popup: one-row form used for both Add and Modify */
-const OfficeIdDialog: React.FC<{
-  mode: "add" | "edit";
-  iataLabel: string;
-  line: OfficeLine;
-  error: string;
-  onChange: (patch: Partial<OfficeLine>) => void;
-  onSave: () => void;
-  onCancel: () => void;
-}> = ({ mode, iataLabel, line, error, onChange, onSave, onCancel }) => {
-  const title = mode === "add" ? "Add Office ID" : "Modify Office ID";
-  const BtnLable=mode=== "add" ? "Save" : "Modify";
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="w-full max-w-125 overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg"
-      >
-        <header className="flex h-7.5 items-center justify-between bg-[#9fdfbc] pl-3.5 pr-1">
-          <h2 className="m-0 text-[15px] font-semibold text-[#24364d]">
-            {title}
-          </h2>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onCancel}
-            className="inline-flex h-6 w-6 items-center justify-center text-[#24364d] hover:bg-white/50"
-          >
-            <IoMdClose size={17} />
-          </button>
-        </header>
-
-        <div className="flex flex-col gap-3 px-3.5 pb-3 pt-3">
-          <div className="flex items-center gap-2">
-            <label htmlFor="txtDialogIata" className={formLabelClass}>
-              IATA :
-            </label>
-            <div className="min-w-0 flex-1">
-              <input
-                id="txtDialogIata"
-                aria-label="IATA"
-                readOnly
-                value={iataLabel}
-                className="w-full input-style"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label htmlFor="lkpDialogGds" className={formLabelClass}>
-              GDS Name :
-            </label>
-            <div className={`min-w-0 flex-1 ${GRID_CELL_FOCUS_CLASS}`}>
-              <Select<SimpleOption, false>
-                inputId="lkpDialogGds"
-                instanceId="lkpDialogGds"
-                aria-label="GDS Name"
-                options={GDS_OPTIONS}
-                components={selectComponents}
-                value={GDS_OPTIONS.find((o) => o.value === line.gds) ?? null}
-                onChange={(option) => onChange({ gds: option?.value ?? null })}
-                styles={portalStyles}
-                {...fieldSelectProps}
-                classNames={fieldClassNames}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label htmlFor="txtDialogOfficeId" className={formLabelClass}>
-              Office ID :
-            </label>
-            <div className="min-w-0 flex-1">
-              <input
-                id="txtDialogOfficeId"
-                aria-label="Office ID"
-                value={line.officeId}
-                onChange={(e) =>
-                  onChange({ officeId: e.target.value.toUpperCase() })
-                }
-                className="w-full input-style"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label htmlFor="txtDialogNote" className={formLabelClass}>
-              Note :
-            </label>
-            <div className="min-w-0 flex-1">
-              <input
-                id="txtDialogNote"
-                aria-label="Note"
-                value={line.note}
-                onChange={(e) => onChange({ note: e.target.value })}
-                className="w-full input-style"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p role="alert" className="m-0 text-[12px] text-[#c0392b]">
-              {error}
-            </p>
-          )}
-
-          <div className="flex justify-center gap-2">
-            <button
-              id="btnDialogSave"
-              type="button"
-              onClick={onSave}
-              className="btn-style"
-            >
-             <u> {BtnLable.slice(0,1)}</u>{BtnLable.slice(1)}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 /* ---------------------------------------------------------------------
-   4. MAIN PAGE : owns the state and renders the parts
-   --------------------------------------------------------------------- */
+   4. MAIN PAGE
+--------------------------------------------------------------------- */
+
 const SetIataOfficeIdPage: React.FC = () => {
   const { confirm, dialog: confirmDialog } = useConfirmModal();
-  const [iata, setIata] = useState<string | null>(null);
-  /* saved GDS / Office ID / Note lines per IATA, kept in memory */
-  const [linesByIata, setLinesByIata] = useState<Record<string, OfficeLine[]>>(
-    {},
+
+  // First IATA automatically selected on initial page load
+  const [iata, setIata] = useState<string | null>(
+    IATA_OPTIONS[0]?.value ?? null
   );
-  const [dialog, setDialog] = useState<DialogState | null>(null);
-  const [dialogError, setDialogError] = useState("");
 
-  const lines = iata ? (linesByIata[iata] ?? []) : [];
-  const iataLabel = IATA_OPTIONS.find((o) => o.value === iata)?.label ?? "";
+  // Initialize 10 editable rows for the first IATA
+  const [linesByIata, setLinesByIata] = useState<
+    Record<string, OfficeLine[]>
+  >(() => {
+    if (!IATA_OPTIONS[0]) return {};
 
-  /* ----- popup ----- */
-  const openAdd = () => {
+    return {
+      [IATA_OPTIONS[0].value]: ensureMinimumRows([]),
+    };
+  });
+
+  const [rowErrors, setRowErrors] = useState<
+    Record<number, string>
+  >({});
+
+  const lines = iata
+    ? linesByIata[iata] ?? []
+    : [];
+
+  /* ------------------------------------------------------------------
+     CHANGE ROW
+  ------------------------------------------------------------------ */
+
+  const changeLine = (
+    line: OfficeLine,
+    patch: Partial<OfficeLine>,
+  ) => {
     if (!iata) return;
-    setDialogError("");
-    setDialog({ mode: "add", editKey: null, line: emptyLine() });
-  };
 
-  const openModify = (line: OfficeLine) => {
-    setDialogError("");
-    setDialog({ mode: "edit", editKey: line.key, line: { ...line } });
-  };
+    setLinesByIata((prev) => ({
+      ...prev,
+      [iata]: (prev[iata] ?? []).map((current) =>
+        current.key === line.key
+          ? { ...current, ...patch }
+          : current
+      ),
+    }));
 
-  const closeDialog = () => {
-    setDialog(null);
-    setDialogError("");
-  };
+    setRowErrors((prev) => {
+      if (!(line.key in prev)) return prev;
 
-  const changeDialogLine = (patch: Partial<OfficeLine>) => {
-    setDialogError("");
-    setDialog((prev) =>
-      prev ? { ...prev, line: { ...prev.line, ...patch } } : prev,
-    );
-  };
+      const next = { ...prev };
+      delete next[line.key];
 
-  const saveDialog = () => {
-    if (!dialog || !iata) return;
-
-    const officeId = dialog.line.officeId.trim();
-    if (!dialog.line.gds) {
-      setDialogError("Select a GDS Name.");
-      return;
-    }
-    if (!officeId) {
-      setDialogError("Enter an Office ID.");
-      return;
-    }
-
-    /* compare against the lines already saved (except the one being edited) */
-    const duplicate = (linesByIata[iata] ?? []).some(
-      (line) =>
-        line.key !== dialog.editKey &&
-        line.gds === dialog.line.gds &&
-        line.officeId.trim() === officeId,
-    );
-    if (duplicate) {
-      setDialogError("The same GDS and Office ID cannot be added twice.");
-      return;
-    }
-
-    const cleaned: OfficeLine = { ...dialog.line, officeId };
-
-    /* TODO: call your save / update API here with `iata` and `cleaned` */
-    setLinesByIata((prev) => {
-      const current = prev[iata] ?? [];
-      return {
-        ...prev,
-        [iata]:
-          dialog.mode === "edit"
-            ? current.map((line) =>
-                line.key === dialog.editKey ? cleaned : line,
-              )
-            : [...current, cleaned],
-      };
+      return next;
     });
-    toast.success(
-      dialog.mode === "edit"
-        ? "IATA Office ID updated successfully."
-        : "IATA Office ID saved successfully.",
-    );
-    closeDialog();
   };
 
-  /* ----- grid / footer actions ----- */
-  const deleteLine = async (line: OfficeLine, index: number) => {
+  /* ------------------------------------------------------------------
+     SAVE
+  ------------------------------------------------------------------ */
+
+  const saveLines = () => {
     if (!iata) return;
+
+    const activeLines = lines.filter(
+      (line) => !isEmptyLine(line)
+    );
+
+    const errors: Record<number, string> = {};
+
+    activeLines.forEach((line) => {
+      if (!line.gds) {
+        errors[line.key] = "Select a GDS Name.";
+      } else if (!line.officeId.trim()) {
+        errors[line.key] = "Enter an Office ID.";
+      }
+
+      const duplicate = activeLines.some(
+        (current) =>
+          current.key !== line.key &&
+          current.gds === line.gds &&
+          current.officeId.trim() === line.officeId.trim()
+      );
+
+      if (!errors[line.key] && duplicate) {
+        errors[line.key] =
+          "The same GDS and Office ID cannot be added twice.";
+      }
+    });
+
+    if (Object.keys(errors).length > 0) {
+      setRowErrors(errors);
+      return;
+    }
+
+    const savedLines = activeLines.map((line) => ({
+      ...line,
+      officeId: line.officeId.trim(),
+    }));
+
+    setLinesByIata((prev) => ({
+      ...prev,
+      [iata]: ensureMinimumRows(savedLines),
+    }));
+
+    setRowErrors({});
+
+    // TODO: Call save/update API with iata and savedLines
+
+    toast.success("IATA Office IDs saved successfully.");
+  };
+
+  /* ------------------------------------------------------------------
+     DELETE INDIVIDUAL ROW
+  ------------------------------------------------------------------ */
+
+  const deleteLine = async (
+    line: OfficeLine,
+    index: number,
+  ) => {
+    if (!iata) return;
+
     const confirmed = await confirm(
       deleteConfirm(
         `Do you want to Delete Line ${index + 1}?`,
-        "Set IATA - Office ID",
-      ),
+        "Set IATA - Office ID"
+      )
     );
+
     if (!confirmed) return;
-    /* TODO: call your delete API here */
+
+    // TODO: Call delete API here
+
     setLinesByIata((prev) => ({
       ...prev,
-      [iata]: (prev[iata] ?? []).filter((l) => l.key !== line.key),
+      [iata]: ensureMinimumRows(
+        (prev[iata] ?? []).filter(
+          (current) => current.key !== line.key
+        )
+      ),
     }));
+
+    setRowErrors((prev) => {
+      const next = { ...prev };
+      delete next[line.key];
+
+      return next;
+    });
   };
 
+  /* ------------------------------------------------------------------
+     DELETE ALL
+  ------------------------------------------------------------------ */
+
   const handleClear = async () => {
-    if (!iata || lines.length === 0) return;
+    if (!iata || !lines.some((line) => !isEmptyLine(line))) {
+      return;
+    }
+
     const confirmed = await confirm(
-      deleteConfirm("Do you want to Delete all ?", "Set IATA - Office ID"),
+      deleteConfirm(
+        "Do you want to Delete all ?",
+        "Set IATA - Office ID"
+      )
     );
+
     if (!confirmed) return;
-    setLinesByIata((prev) => ({ ...prev, [iata]: [] }));
+
+    // TODO: Call delete-all API here
+
+    setLinesByIata((prev) => ({
+      ...prev,
+      [iata]: ensureMinimumRows([]),
+    }));
+
+    setRowErrors((prev) => {
+      const next = { ...prev };
+
+      lines.forEach((line) => {
+        delete next[line.key];
+      });
+
+      return next;
+    });
   };
+
+  /* ------------------------------------------------------------------
+     RENDER
+  ------------------------------------------------------------------ */
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
+
       <div className="min-h-fit w-full max-w-200 bg-white p-0">
+
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
+
           <Header Name="Set IATA - Office ID" />
 
           <section className="flex flex-col gap-4 px-3.5 pb-3 pt-3">
+
+            {/* IATA Dropdown */}
             <div className="flex items-center gap-1">
-              <label htmlFor="lkpIata" className={labelClass}>
+
+              <label
+                htmlFor="lkpIata"
+                className={labelClass}
+              >
                 IATA :
               </label>
+
               <div className="w-80 min-w-0 max-w-full">
+
                 <Select<SimpleOption, false>
                   inputId="lkpIata"
                   instanceId="lkpIata"
                   aria-label="IATA"
                   options={IATA_OPTIONS}
                   components={selectComponents}
-                  value={IATA_OPTIONS.find((o) => o.value === iata) ?? null}
-                  onChange={(option) => setIata(option?.value ?? null)}
+                  value={
+                    IATA_OPTIONS.find(
+                      (option) => option.value === iata
+                    ) ?? null
+                  }
+                  onChange={(option) => {
+                    const selectedIata = option?.value ?? null;
+
+                    setIata(selectedIata);
+                    setRowErrors({});
+
+                    if (selectedIata) {
+                      setLinesByIata((prev) => ({
+                        ...prev,
+                        [selectedIata]: ensureMinimumRows(
+                          prev[selectedIata] ?? []
+                        ),
+                      }));
+                    }
+                  }}
                   styles={portalStyles}
                   {...fieldSelectProps}
                   classNames={fieldClassNames}
                 />
+
               </div>
-          
-                             <button
-                       id="btnAdd"
-                type="button"
-                aria-label="Add Office ID"
-                title="Add Office ID"
-                disabled={!iata}
-                onClick={openAdd}
-                  className=" border p-1 rounded-full text-white bg-green-400 border-black cursor-pointer hover:bg-green-500 "
-                      >
-                     <FaPlus/> 
-              
-                      </button>
             </div>
 
+            {/* Grid */}
             <OfficeIdGrid
               lines={lines}
-              onModify={openModify}
-              onDelete={(line, index) => void deleteLine(line, index)}
+              errors={rowErrors}
+              onChange={changeLine}
+              onDelete={(line, index) =>
+                void deleteLine(line, index)
+              }
             />
 
+            {/* Buttons */}
             <div className="flex flex-wrap justify-center gap-2">
+
               <button
-                id="btnClear"
+                id="btnSave"
                 type="button"
-                onClick={() => void handleClear()}
+                onClick={saveLines}
+                disabled={
+                  !iata ||
+                  !lines.some((line) => !isEmptyLine(line))
+                }
                 className="btn-style"
               >
-                <u>D</u>elete
+                <u>S</u>ave
               </button>
+
+             
+
             </div>
+
           </section>
         </main>
       </div>
 
       {confirmDialog}
-      {dialog && (
-        <OfficeIdDialog
-          mode={dialog.mode}
-          iataLabel={iataLabel}
-          line={dialog.line}
-          error={dialogError}
-          onChange={changeDialogLine}
-          onSave={saveDialog}
-          onCancel={closeDialog}
-        />
-      )}
+
     </div>
   );
 };
