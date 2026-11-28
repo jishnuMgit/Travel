@@ -222,7 +222,7 @@ const RptDailyPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-white p-1 sm:p-2">
-      <main className="mx-auto w-full max-w-265 min-w-265 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-263 min-w-263 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
         <Header Name="Daily Sales" />
         <section className="px-4 pb-5 pt-4 sm:px-4.25">
           <div className="grid grid-cols-[minmax(0,1fr)_290px] items-start gap-x-4">
@@ -241,7 +241,7 @@ const RptDailyPage: React.FC = () => {
                   ]}
                 />
                 {branchMode === "One Branch" && (
-                  <div className="w-full max-w-55">
+                  <div className="w-full max-w-55 -mt-8">
                     <CommonTableSelect
                       inputId="lkpBranchID"
                       options={branchOptions}
@@ -269,7 +269,7 @@ const RptDailyPage: React.FC = () => {
                   ]}
                 />
                 {staffMode === "One Staff" && (
-                  <div className="min-w-0">
+                  <div className="min-w-0 -mt-8">
                     <CustomLinkedPairSelect
                       firstInputId="lkpStaffID"
                       secondInputId="lkpStaffName"
