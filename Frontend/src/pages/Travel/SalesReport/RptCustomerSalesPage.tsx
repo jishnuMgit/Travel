@@ -333,7 +333,7 @@ console.log(setPaymentType)
 
   return (
     <div className="min-h-screen w-full bg-white p-1 sm:p-2">
-      <main className="mx-auto w-full max-w-230 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-224 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
         {/* Window title */}
         <Header Name="Customer Sales" />
 
@@ -357,7 +357,7 @@ console.log(setPaymentType)
               />
             </RadioPanel>
 
-            <div className="pt-2.25">
+            <div className="pt-1">
              {branchMode === "One Branch" && (
   <div className="w-62.5 max-w-full">
     <CommonTableSelect
@@ -392,7 +392,7 @@ console.log(setPaymentType)
               />
             </RadioPanel>
 
-            <div className="flex items-start gap-1 pt-2.25">
+            <div className="flex items-start gap-1 pt-1">
               {customerMode === "One Customer" && (
                 <CustomLinkedPairSelect
                   firstInputId="customerId"
@@ -442,7 +442,7 @@ console.log(setPaymentType)
               />
             </RadioPanel>
 
-            <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center -mt-8 justify-between gap-2">
               {divisionMode === "One Division" ? (
                 <div className="w-62.5 max-w-full">
                   <CommonTableSelect
@@ -459,7 +459,7 @@ console.log(setPaymentType)
               ) : (
                 <div />
               )}
-              <RadioPanel className="w-31 shrink-0 absolute right-4 top-89">
+              <RadioPanel className="w-33 shrink-0 absolute right-4 top-89">
                 <CustomRadio
                   name="rdginvoiced"
                   value="Not-Invoiced"
@@ -502,7 +502,7 @@ console.log(setPaymentType)
               />
             </RadioPanel>
 
-            <div className="flex items-start gap-1 pt-2.25">
+            <div className="flex items-start gap-1 pt-1">
               {airlineMode === "One Airline" && (
                 <CustomLinkedPairSelect
                   firstInputId="airlineId"
@@ -552,7 +552,7 @@ console.log(setPaymentType)
               />
             </RadioPanel>
 
-            <div className="flex min-w-0 items-center justify-between gap-1">
+            <div className="flex min-w-0 items-center justify-between gap-1 -mt-8">
               {staffMode === "One Staff" ? (
                 <CustomLinkedPairSelect
                   firstInputId="staffId"
@@ -584,7 +584,7 @@ console.log(setPaymentType)
               )}
          
               
-                <RadioPanel className="w-31 min-h-22.5  absolute right-4 top-4">
+                <RadioPanel className="w-33 min-h-22.5  absolute right-4 top-4">
                   <CustomRadio
                     name="rdgSubModule"
                     value="Travel"
@@ -607,7 +607,7 @@ console.log(setPaymentType)
                     onChange={() => setSalesCategory("All")}
                   />
                 </RadioPanel>
-                     <RadioPanel className="w-31.25 shrink-0 absolute right-4 top-63 ">
+                     <RadioPanel className="w-33 shrink-0 absolute right-4 top-63 ">
                 <CustomRadio
                   name="rdgDI"
                   value="Domestic"
@@ -656,7 +656,7 @@ console.log(setPaymentType)
             </div>
 
             {/* Details */}
-            <RadioPanel className="h-22.5" >
+            <RadioPanel className="h-22.5 " >
               <CustomRadio
                 name="rgdDetSum"
                 value="Detail 1"
@@ -694,7 +694,7 @@ console.log(setPaymentType)
               </div>
 
               <div className="flex shrink-0 gap-1 ">
-                <RadioPanel className="w-31.25 min-h-22.5 absolute right-4 top-30  ">
+                <RadioPanel className="w-33 min-h-22.5 absolute right-4 top-30  ">
                   <CustomRadio
                     name="rdgSR"
                     value="Sales"

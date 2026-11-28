@@ -10,7 +10,7 @@ const Header = ({
   const navigate = useNavigate();
   return (
     <header className="flex h-8.25 items-center bg-[#9fdfbc] text-gray-800 relative">
-      <h1 className="ml-4 text-[17x] font-semibold ">
+      <h1 className="ml-[6px] text-[17x] font-semibold ">
          {Name}
      </h1>
 
