@@ -119,7 +119,7 @@ const CustomRadio: React.FC<RadioProps> = ({
   disabled = false,
 }) => (
   <label
-    className={`flex items-center gap-1.25  whitespace-nowrap select-none ${
+    className={`flex items-center gap-1.25 mb-1  whitespace-nowrap select-none ${
       disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
     }`}
   >
@@ -333,11 +333,11 @@ console.log(setPaymentType)
 
   return (
     <div className="min-h-screen w-full bg-white p-1 sm:p-2">
-      <main className="mx-auto w-full max-w-220 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-230 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
         {/* Window title */}
         <Header Name="Customer Sales" />
 
-        <section className="px-4.25 pb-9.5 pt-4.25 relative">
+        <section className="px-3 pb-3 pt-3 relative">
           <div className="grid grid-cols-[125px_minmax(0,1fr)] gap-x-4.25 gap-y-2.5">
             {/* Branch */}
             <RadioPanel className="h-17.5">
@@ -459,7 +459,7 @@ console.log(setPaymentType)
               ) : (
                 <div />
               )}
-              <RadioPanel className="w-28.75 shrink-0 absolute right-4 top-30">
+              <RadioPanel className="w-31 shrink-0 absolute right-4 top-89">
                 <CustomRadio
                   name="rdginvoiced"
                   value="Not-Invoiced"
@@ -485,7 +485,7 @@ console.log(setPaymentType)
             </div>
 
             {/* Airline */}
-            <RadioPanel className="h-17.5">
+            <RadioPanel className="h-17.5 ">
               <CustomRadio
                 name="rdgairline"
                 value="One Airline"
@@ -582,7 +582,32 @@ console.log(setPaymentType)
               ) : (
                 <div />
               )}
-              <RadioPanel className="w-31.25 shrink-0 absolute right-4 top-4">
+         
+              
+                <RadioPanel className="w-31 min-h-22.5  absolute right-4 top-4">
+                  <CustomRadio
+                    name="rdgSubModule"
+                    value="Travel"
+                    label="Travel"
+                    checked={salesCategory === "Travel"}
+                    onChange={() => setSalesCategory("Travel")}
+                  />
+                  <CustomRadio
+                    name="rdgSubModule"
+                    value="Tourism"
+                    label="Tourism"
+                    checked={salesCategory === "Tourism"}
+                    onChange={() => setSalesCategory("Tourism")}
+                  />
+                  <CustomRadio
+                    name="rdgSubModule"
+                    value="All"
+                    label="All"
+                    checked={salesCategory === "All"}
+                    onChange={() => setSalesCategory("All")}
+                  />
+                </RadioPanel>
+                     <RadioPanel className="w-31.25 shrink-0 absolute right-4 top-63 ">
                 <CustomRadio
                   name="rdgDI"
                   value="Domestic"
@@ -655,21 +680,21 @@ console.log(setPaymentType)
               />
             </RadioPanel>
 
-            <div className="flex items-end justify-between gap-2">
+            <div className="flex items-end justify-center -ml-31 gap-2">
               <div className="flex flex-wrap gap-1">
                 <ActionButton onClick={handlePrint} className="w-20">
                   <u>P</u>rint
                 </ActionButton>
-                <ActionButton onClick={handleExport} className="w-28.5">
+                {/* <ActionButton onClick={handleExport} className="w-28.5">
                <u>E</u>xcel
                 </ActionButton>
                 <ActionButton onClick={handleClose} className="w-20">
                   Close
-                </ActionButton>
+                </ActionButton> */}
               </div>
 
               <div className="flex shrink-0 gap-1 ">
-                <RadioPanel className="w-31.25 min-h-22.5 absolute  right-4 top-81">
+                <RadioPanel className="w-31.25 min-h-22.5 absolute right-4 top-30  ">
                   <CustomRadio
                     name="rdgSR"
                     value="Sales"
@@ -701,29 +726,6 @@ console.log(setPaymentType)
                   />
                 </RadioPanel>
 
-                <RadioPanel className="w-28.75 min-h-22.5 absolute right-4 top-55">
-                  <CustomRadio
-                    name="rdgSubModule"
-                    value="Travel"
-                    label="Travel"
-                    checked={salesCategory === "Travel"}
-                    onChange={() => setSalesCategory("Travel")}
-                  />
-                  <CustomRadio
-                    name="rdgSubModule"
-                    value="Tourism"
-                    label="Tourism"
-                    checked={salesCategory === "Tourism"}
-                    onChange={() => setSalesCategory("Tourism")}
-                  />
-                  <CustomRadio
-                    name="rdgSubModule"
-                    value="All"
-                    label="All"
-                    checked={salesCategory === "All"}
-                    onChange={() => setSalesCategory("All")}
-                  />
-                </RadioPanel>
               </div>
             </div>
           </div>

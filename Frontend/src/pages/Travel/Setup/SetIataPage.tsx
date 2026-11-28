@@ -21,7 +21,7 @@ import Header from "../../../components/common/Header";
 /* ---------------------------------------------------------------------
    1. TYPES, CONSTANTS AND SAMPLE OPTIONS
    --------------------------------------------------------------------- */
-const MIN_ROWS = 8;
+const MIN_ROWS = 10;
 
 type SimpleOption = { value: string; label: string };
 
@@ -114,7 +114,7 @@ const niceScrollbar = [
 ].join(" ");
 
 const thClass =
-  "h-[28px] border border-[#B7ECD0] bg-[#fafbfc] px-2 text-left font-normal text-[#405066]";
+  "h-[28px] border border-[#B7ECD0] bg-[#EEFBF4] px-2 text-left font-normal text-[#405066]";
 const tdClass = "h-6.5 border border-[#B7ECD0] p-0";
 const tableClass =
   "w-full table-fixed border-collapse text-[12px] text-[#24364d]";
@@ -147,7 +147,7 @@ const SetIataGrid: React.FC<{
           <tr>
             <th className={thClass}>IATA Code</th>
             <th className={thClass}>IATA Name</th>
-            <th className={thClass}>Supplier</th>
+            <th className={thClass}>BSP Account</th>
             <th className={thClass}>Position</th>
             <th className={`${thClass} p-0`} />
           </tr>
@@ -280,7 +280,7 @@ const SetIataPage: React.FC = () => {
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
       <div className="min-h-fit w-full max-w-200 bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
-          <Header Name="Set IATA"/>
+          <Header Name="IATA - BSP Account"/>
 
           <section className="flex flex-col gap-3 px-3.5 pb-6 pt-3">
             <SetIataGrid lines={lines} onChange={updateLine} />
