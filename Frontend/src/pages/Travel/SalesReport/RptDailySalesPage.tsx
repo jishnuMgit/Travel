@@ -178,27 +178,25 @@ const ActionButton: React.FC<{
   children: React.ReactNode;
   onClick: () => void;
 }> = ({ children, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="btn-style min-w-20"
-  >
+  <button type="button" onClick={onClick} className="btn-style min-w-20">
     {children}
   </button>
 );
 
 const RptDailyPage: React.FC = () => {
   const [branchMode, setBranchMode] = useState("One Branch");
-  const [branch, setBranch] = useState<TableSelectOption | null>(branchOptions[0]);
+  const [branch, setBranch] = useState<TableSelectOption | null>(
+    branchOptions[0],
+  );
   const [staffMode, setStaffMode] = useState("One Staff");
   const [staff, setStaff] = useState<Option | null>(null);
   const [staffName, setStaffName] = useState<Option | null>(null);
   const [fromDate, setFromDate] = useState("01/10/2026");
   const [toDate, setToDate] = useState(dayjs().format(DATE_FORMAT));
   const [detailMode, setDetailMode] = useState("Detail");
-  const [resultType, setResultType] = useState("Sales");
-  const [travelType, setTravelType] = useState("All");
-  const [salesCategory, setSalesCategory] = useState("All");
+  const [salesCategory, setSalesCategory] = useState("All"); // Travel / Tourism / All
+  const [resultType, setResultType] = useState("Sales"); // Sales / Refund / Sales & Refund / Net
+  const [travelType, setTravelType] = useState("All"); // Domestic / International / All
   const [invoiceStatus, setInvoiceStatus] = useState("All");
   const [onlyAmexTickets, setOnlyAmexTickets] = useState(false);
 
@@ -212,9 +210,9 @@ const RptDailyPage: React.FC = () => {
       fromDate,
       toDate,
       detailMode,
+      salesCategory,
       resultType,
       travelType,
-      salesCategory,
       invoiceStatus,
       onlyAmexTickets,
     });
@@ -224,11 +222,13 @@ const RptDailyPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-white p-1 sm:p-2">
-      <main className="mx-auto w-full max-w-245 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
+      <main className="mx-auto w-full max-w-265 min-w-265 overflow-hidden rounded-[3px] border border-[#91a7bb] bg-white shadow-sm">
         <Header Name="Daily Sales" />
         <section className="px-4 pb-5 pt-4 sm:px-4.25">
-          <div className="space-y-2.5">
-            <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_290px] items-start gap-x-4">
+            {/* LEFT COLUMN: 10px between each block */}
+            <div className="min-w-0 space-y-2.5">
+              {/* Branch */}
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
                   name="dailyBranchMode"
@@ -255,33 +255,8 @@ const RptDailyPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-start justify-end gap-2">
-                <RadioGroup
-                  name="rdgSR"
-                  value={resultType}
-                  onChange={setResultType}
-                  className="w-25"
-                  options={[
-                    { value: "Sales", label: "Sales" },
-                    { value: "Refund", label: "Refund" },
-                    { value: "All", label: "All" },
-                  ]}
-                />
-                <RadioGroup
-                  name="rdgDI"
-                  value={travelType}
-                  onChange={setTravelType}
-                  className="w-27.5"
-                  options={[
-                    { value: "Domestic", label: "Domestic" },
-                    { value: "International", label: "International" },
-                    { value: "All", label: "All" },
-                  ]}
-                />
-              </div>
-            </div>
 
-            <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+              {/* Staff */}
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
                   name="dailyStaffMode"
@@ -323,21 +298,8 @@ const RptDailyPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="flex justify-end">
-                <RadioGroup
-                  name="rdgSubModule"
-                  value={salesCategory}
-                  onChange={setSalesCategory}
-                  className="w-27.5"
-                  options={[
-                    { value: "Travel", label: "Travel" },
-                    { value: "Tourism", label: "Tourism" },
-                    { value: "All", label: "All" },
-                  ]}
-                />
-              </div>
-            </div>
-             <div className="grid min-h-16 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+
+              {/* Period */}
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <FieldLabel>Period :</FieldLabel>
                 <div className="flex gap-1.25">
@@ -346,7 +308,8 @@ const RptDailyPage: React.FC = () => {
                       id="dtpFromDate"
                       label="Period start date"
                       value={fromDate}
-                      onChange={setFromDate} />
+                      onChange={setFromDate}
+                    />
                   </div>
                   <div className="w-25">
                     <AppDatePicker
@@ -358,21 +321,8 @@ const RptDailyPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end">
-                <RadioGroup
-                  name="rdgInvoice"
-                  value={invoiceStatus}
-                  onChange={setInvoiceStatus}
-                  className="w-28.75"
-                  options={[
-                    { value: "Not-Invoiced", label: "Not-Invoiced" },
-                    { value: "Invoiced", label: "Invoiced" },
-                    { value: "All", label: "All" },
-                  ]}
-                />
-              </div>
-            </div>
-            <div className="grid min-h-19 grid-cols-[minmax(0,1fr)_220px] items-center gap-x-3">
+
+              {/* Detail / Summary + buttons */}
               <div className="grid min-w-0 grid-cols-[125px_minmax(0,1fr)] items-center gap-x-3">
                 <RadioGroup
                   name="rdgDetSum"
@@ -385,19 +335,74 @@ const RptDailyPage: React.FC = () => {
                   ]}
                 />
                 <div className="flex min-w-0 items-center gap-2">
-                  <ActionButton onClick={handlePrint}> <u>P</u>rint </ActionButton>
-                  <ActionButton onClick={handleClose}> <u>C</u>lose </ActionButton>
+                  <ActionButton onClick={handlePrint}>
+                    <u>P</u>rint
+                  </ActionButton>
+                  <ActionButton onClick={handleClose}>
+                    <u>C</u>lose
+                  </ActionButton>
                   <label className="flex cursor-pointer items-center gap-1 whitespace-nowrap text-[12px] text-[#30465d]">
                     <input
                       type="checkbox"
                       checked={onlyAmexTickets}
-                      onChange={(event) => setOnlyAmexTickets(event.target.checked)  }
-                      className="accent-emerald-500"  />
+                      onChange={(e) => setOnlyAmexTickets(e.target.checked)}
+                      className="accent-emerald-500"
+                    />
                     Only Amex Tickets
                   </label>
                 </div>
               </div>
-              <div />
+            </div>
+
+            {/* RIGHT AREA: 2 x 2 grid
+                Row 1: Domestic/International/All | Travel/Tourism/All
+                Row 2: Not-Invoiced/Invoiced/All  | Sales/Refund/Sales & Refund/Net */}
+            <div className="grid grid-cols-2 items-start gap-2.5">
+              <RadioGroup
+                name="rdgDI"
+                value={travelType}
+                onChange={setTravelType}
+                className="w-full"
+                options={[
+                  { value: "Domestic", label: "Domestic" },
+                  { value: "International", label: "International" },
+                  { value: "All", label: "All" },
+                ]}
+              />
+              <RadioGroup
+                name="rdgSubModule"
+                value={salesCategory}
+                onChange={setSalesCategory}
+                className="w-full"
+                options={[
+                  { value: "Travel", label: "Travel" },
+                  { value: "Tourism", label: "Tourism" },
+                  { value: "All", label: "All" },
+                ]}
+              />
+              <RadioGroup
+                name="rdgInvoice"
+                value={invoiceStatus}
+                onChange={setInvoiceStatus}
+                className="w-full"
+                options={[
+                  { value: "Not-Invoiced", label: "Not-Invoiced" },
+                  { value: "Invoiced", label: "Invoiced" },
+                  { value: "All", label: "All" },
+                ]}
+              />
+              <RadioGroup
+                name="rdgSR"
+                value={resultType}
+                onChange={setResultType}
+                className="w-full"
+                options={[
+                  { value: "Sales", label: "Sales" },
+                  { value: "Refund", label: "Refund" },
+                  { value: "SalesRefund", label: "Sales & Refund" },
+                  { value: "Net", label: "Net" },
+                ]}
+              />
             </div>
           </div>
         </section>
