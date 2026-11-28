@@ -6,6 +6,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../../components/common/Header";
+import selectComponents from "../../../components/common/selectComponents";
 
 dayjs.extend(customParseFormat);
 
@@ -207,6 +208,7 @@ const Combo: React.FC<{
       inputId={id}
       instanceId={id}
       options={options}
+      components={selectComponents}
       value={options.find((o) => o.value === value) ?? null}
       onChange={(option) => onChange(option?.value ?? null)}
       isDisabled={disabled}
@@ -224,7 +226,7 @@ const PairCombo: React.FC<{
   value: string | null;
   onChange: (value: string | null) => void;
 }> = ({ idId, nameId, idOptions, nameOptions, value, onChange }) => (
-  <div className="flex min-w-0 items-center gap-2">
+  <div className="flex min-w-0 items-center gap-2 -mt-1">
     <Combo
       id={idId}
       options={idOptions}
@@ -323,7 +325,7 @@ const AppDatePicker: React.FC<{
 /* ---------------------------------------------------------------------
    3. PARTS
    --------------------------------------------------------------------- */
-const filterRow = "grid grid-cols-[168px_1fr] items-start gap-x-4";
+const filterRow = "grid grid-cols-[128px_1fr] items-start gap-x-4";
 
 /* 3a. Left filters: IATA, airline, period */
 const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
@@ -434,7 +436,7 @@ const BottomRow: React.FC<
       options={["Detail", "Summary"]}
       value={form.reportType}
       onChange={(v) => set("reportType", v)}
-      className="w-42"
+      className="w-32"
     />
     <div className="flex gap-2">
       <button

@@ -459,7 +459,7 @@ const MoneyInput: React.FC<{
       if (pattern.test(event.target.value)) onChange(event.target.value);
     }}
     onBlur={() => onChange(toNumber(value).toFixed(decimals))}
-    className={`${inputClass} text-right`}
+    className={`${inputClass} text-right `}
   />
 );
 
@@ -972,7 +972,7 @@ const HotelHeaderGroup: React.FC<
           options={carrierOptions}
           value={form.carrier}
           onChange={(v) => set("carrier", v)}
-          className="w-full"
+          className="w-[80%] ml-7.5"
         />
       </Field>
 
@@ -988,23 +988,25 @@ const HotelHeaderGroup: React.FC<
         </div>
       </Field>
       <div className="hidden md:col-span-2 md:block" />
-      <Field label="Void :" labelClassName={HC} className="md:col-span-2">
-        <Combo
-          id="lkpVoid"
-          options={yesNoOptions}
-          value={form.voidFlag}
-          onChange={(v) => set("voidFlag", v)}
-          className="w-full"
-        />
-      </Field>
-      <div className="hidden md:col-span-2 md:block" />
-      <Field label="D/I :" labelClassName={HE} className="md:col-span-2">
+      
+      <Field label="D/I :" labelClassName={HE} className="md:col-span-2 ml-1" >
         <Combo
           id="lkpDI"
           options={diOptions}
           value={form.di}
           onChange={(v) => set("di", v)}
-          className="w-full"
+          className="w-[40%]"
+        />
+      </Field>
+            <div className="hidden md:col-span-2 md:block" />
+
+      <Field label="Void :" labelClassName={HC} className="md:col-span-2 ml-6.5">
+        <Combo
+          id="lkpVoid"
+          options={yesNoOptions}
+          value={form.voidFlag}
+          onChange={(v) => set("voidFlag", v)}
+          className="w-[40%]"
         />
       </Field>
 
@@ -1345,16 +1347,16 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
   <div className={groupGrid}>
     {/* Row 1: Guest | Adults | Childs | Infants */}
     <Field
-      label="Guest :"
+      label="Guest Name :"
       htmlFor="txtGuest"
       labelClassName={HA}
-      className="md:col-span-6 ml-15"
+      className="md:col-span-6 ml-10"
     >
       <input
         id="txtGuest"
         value={form.guest}
         onChange={(event) => set("guest", event.target.value)}
-        className={inputClass}
+        className={`${inputClass} ml-5`}
       />
     </Field>
 
@@ -1428,15 +1430,16 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         nameOptions={supplierNameOptions}
         value={form.supplier}
         onChange={(v) => set("supplier", v)}
-        idWidth="w-[100px]"
+        idWidth="w-[120px]"
       />
     </Field>
 
     <Field
       label="FOP :"
       labelClassName={SB}
-      className="md:col-span-3"
+      className="md:col-span-2 w-[85%]"
     >
+    
       <Combo
         id="lkpFOP"
         options={fopOptions}
@@ -1444,11 +1447,13 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         onChange={(v) => set("fop", v)}
       />
     </Field>
+   
+      
 
     <Field
       label="CC Type :"
       labelClassName={SC}
-      className="md:col-span-3 ml-5"
+      className="md:col-span-3 ml-35"
     >
       <Combo
         id="lkpCCType"
@@ -1487,19 +1492,16 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
         }}
         className="w-16 shrink-0"
       />
-
-      <MoneyInput
-        id="txtRate"
-        value={form.rate}
-        decimals={4}
-        onChange={(v) => set("rate", v)}
-      />
+<div className="w-[20%]">
+  <input type="text" className="input-style w-[160px]" />
+</div>
+      {/*  */}
     </Field>
 
       <Field
         label="Supplier Amt. :"
         labelClassName={SC}
-        className="md:col-span-3"
+        className="md:col-span-3 ml-12"
       >
         <MoneyInput
           id="txtSupplierAmtFc"
@@ -1521,7 +1523,7 @@ const SupplierGroup: React.FC<PartProps & { supplierAmt: number }> = ({
           nameOptions={supPaymentNameOptions}
           value={form.supPayment}
           onChange={(v) => set("supPayment", v)}
-          idWidth="w-[100px]"
+          idWidth="w-[120px]"
         />
       </Field>
     
@@ -1690,7 +1692,7 @@ const CustomersGroup: React.FC<{
     },
     {
       id: "type",
-      header: "Type",
+      header: "B.Type",
       width: "w-[84px]",
       render: (row) => (
         <TextCell

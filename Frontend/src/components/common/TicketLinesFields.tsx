@@ -137,14 +137,15 @@ const TicketLinesFields: React.FC<{
     </Field>
 
     {/* row 2 : Post No. + KB. Amt. | KB. Account | Profit Amt. */}
-    <div className="flex min-w-0 items-center gap-3 md:col-span-2 lg:col-span-3">
+    <div className="flex min-w-0 items-center gap-3 md:col-span-2 lg:col-span-2">
      
       <Field
         label="KB. Amt. :"
         htmlFor="txtKbAmt"
         className="min-w-0 flex-1"
       >
-        <input
+      <div className="w-[100px]">
+          <input
           id="txtKbAmt"
           inputMode="numeric"
           value={form.txtKbAmt}
@@ -155,8 +156,9 @@ const TicketLinesFields: React.FC<{
             if (/^\d*\.?\d{0,2}$/.test(event.target.value))
               set("txtKbAmt", event.target.value);
           }}
-          className={`${inputClass} text-right ${kbAmtDisabled ? "!bg-[#eef1f4]" : ""}`}
+          className={`${inputClass}  w-[200px] text-right ${kbAmtDisabled ? "!bg-[#eef1f4]" : ""}`}
         />
+      </div>
       </Field>
     </div>
     <Field label="KB. Account :" labelClassName={LB} className="lg:col-span-3">
@@ -192,7 +194,7 @@ const TicketLinesFields: React.FC<{
       </Field>
 
     {onAction && (
-      <div className="flex flex-col items-stretch justify-center gap-2 md:col-span-2 lg:col-span-2 lg:row-span-2">
+      <div className="flex flex-col items-stretch justify-center gap-2 md:col-span-2 lg:col-span-2 lg:row-span-2 ml-15">
         <button
           id="btnCustomerAttach"
           type="button"
@@ -217,7 +219,7 @@ const TicketLinesFields: React.FC<{
       label="INV. Note :"
       htmlFor="txtInvNote"
       labelClassName={LA}
-      className="lg:col-span-4 -ml-3"
+      className="lg:col-span-4 -ml-2"
     >
       <input
         id="txtInvNote"
@@ -230,7 +232,7 @@ const TicketLinesFields: React.FC<{
       label="Note :"
       htmlFor="txtNote"
       labelClassName={LB}
-      className="md:col-span-2 lg:col-span-6"
+      className="md:col-span-2 lg:col-span-6 -ml-2"
     >
       <input
         id="txtNote"

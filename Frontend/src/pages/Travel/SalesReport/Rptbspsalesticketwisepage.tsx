@@ -6,6 +6,7 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import Header from "../../../components/common/Header";
+import selectComponents from "../../../components/common/selectComponents";
 
 dayjs.extend(customParseFormat);
 
@@ -164,7 +165,7 @@ const PanelGroup: React.FC<{
   onChange: (value: string) => void;
   className?: string;
 }> = ({ name, options, value, onChange, className = "" }) => (
-  <div className={`border border-[#e0e5ea] bg-white px-3.5 py-3 ${className}`}>
+  <div className={`border border-[#d0d5db] bg-white p-2 rounded-sm ${className}`}>
     <div className="flex flex-col gap-3">
       {options.map((option) => (
         <CustomRadio
@@ -206,6 +207,7 @@ const Combo: React.FC<{
     <Select
       inputId={id}
       instanceId={id}
+      components={selectComponents}
       options={options}
       value={options.find((o) => o.value === value) ?? null}
       onChange={(option) => onChange(option?.value ?? null)}
@@ -224,7 +226,7 @@ const PairCombo: React.FC<{
   value: string | null;
   onChange: (value: string | null) => void;
 }> = ({ idId, nameId, idOptions, nameOptions, value, onChange }) => (
-  <div className="flex min-w-0 items-center gap-2">
+  <div className="flex min-w-0 items-center gap-2 -mt-1">
     <Combo
       id={idId}
       options={idOptions}
@@ -323,7 +325,7 @@ const AppDatePicker: React.FC<{
 /* ---------------------------------------------------------------------
    3. PARTS
    --------------------------------------------------------------------- */
-const filterRow = "grid grid-cols-[168px_1fr] items-start gap-x-4";
+const filterRow = "grid grid-cols-[128px_1fr] items-start gap-x-4";
 
 /* 3a. Left filters: IATA, airline, period */
 const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
@@ -396,7 +398,7 @@ const LeftFilters: React.FC<PartProps> = ({ form, set }) => (
 /* 3b. Right column: Sales / Refund on top, Branchwise in the middle,
    Not-Reported / Reported / All at the bottom.                           */
 const RightFilters: React.FC<PartProps> = ({ form, set }) => (
-  <div className="flex w-32.5 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
+  <div className="flex w-33 shrink-0 flex-col justify-between gap-3 max-[640px]:w-full">
     <PanelGroup
       name="rdgSR"
       options={["Sales", "Refund","Sales & Refund"]}
@@ -431,13 +433,13 @@ const RightFilters: React.FC<PartProps> = ({ form, set }) => (
 const BottomRow: React.FC<
   PartProps & { onPrint: () => void; onClose: () => void }
 > = ({ form, set, onPrint, onClose }) => (
-  <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+  <div className="flex flex-wrap items-end gap-x-4 gap-y-3 ">
     <PanelGroup
       name="rdgDetSum"
       options={["Detail", "Summary"]}
       value={form.reportType}
       onChange={(v) => set("reportType", v)}
-      className="w-42"
+      className="w-32"
     />
     <div className="flex gap-2">
       <button
@@ -491,7 +493,7 @@ const RptBspSalesTicketwisePage: React.FC<RptBspSalesTicketwisePageProps> = ({
 
   return (
     <div className="flex min-h-screen w-full items-start justify-center bg-white px-4 py-4">
-      <div className="min-h-fit w-240 max-w-full bg-white p-0">
+      <div className="min-h-fit w-225 min-w-225 max-w-full bg-white p-0">
         <main className="w-full overflow-hidden border border-gray-400 bg-white">
          <Header Name="BSP Sales Ticketwise"/>
 

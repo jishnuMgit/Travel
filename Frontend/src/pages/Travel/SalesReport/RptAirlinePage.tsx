@@ -267,7 +267,7 @@ const RptAirlinePage: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <div className="min-h-screen w-full bg-white p-1.5 ">
-        <main className="mx-auto h-fit w-full max-w-220 relative overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
+        <main className="mx-auto h-fit w-full max-w-218 relative overflow-visible rounded-[3px] border border-[#9ca9b8] bg-white shadow-sm">
           <Header Name="Airline Sales" />
           <section className="px-3 pb-3 pt-3">
             <div className="grid grid-cols-[minmax(0,1fr)_125px] items-start gap-x-3.5">
@@ -282,7 +282,7 @@ const RptAirlinePage: React.FC = () => {
                       { value: "One Branch", label: "One Branch" },
                       { value: "All Branch", label: "All Branch" },
                     ]} />
-                  <div className="w-62.5 max-w-full -mt-5">
+                  <div className="w-62.5 max-w-full -mt-8">
                     {rdgbranch === "One Branch" && (
                       <CommonTableSelect
                         inputId="lpkBranch"
@@ -307,7 +307,7 @@ const RptAirlinePage: React.FC = () => {
                       { value: "One Airline", label: "One Airline" },
                       { value: "All Airline", label: "All Airline" },
                     ]} />
-                  <div className="min-w-0 -mt-5">
+                  <div className="min-w-0 -mt-8">
                     {rdgairline === "One Airline" && (
                       <CustomLinkedPairSelect
                         firstInputId="lkpairlineId"
@@ -389,17 +389,6 @@ const RptAirlinePage: React.FC = () => {
                     { value: "Net", label: "Net" },
                   ]}
                 />
-                {/* Invoice Status */}
-                <RadioGroup
-                  name="rdginvoiced"
-                  value={rdginvoiced}
-                  onChange={setrdginvoiced}
-                  className="min-h-20.75"
-                  options={[
-                    { value: "Not-Invoiced", label: "Not-Invoiced" },
-                    { value: "Invoiced", label: "Invoiced" },
-                    { value: "All", label: "All" },
-                  ]} />
                 {/* Domestic / International */}
                 <RadioGroup
                   name="rdgDI"
@@ -411,6 +400,18 @@ const RptAirlinePage: React.FC = () => {
                     { value: "International", label: "International" },
                     { value: "All", label: "All" },
                   ]}  />
+                {/* Invoice Status */}
+                <RadioGroup
+                  name="rdginvoiced"
+                  value={rdginvoiced}
+                  onChange={setrdginvoiced}
+                  className="min-h-20.75"
+                  options={[
+                    { value: "Not-Invoiced", label: "Not-Invoiced" },
+                    { value: "Invoiced", label: "Invoiced" },
+                    { value: "All", label: "All" },
+                  ]} />
+                
                 <AirlineOrderGroup
                   value={orderBy}
                   onChange={setOrderBy}  />
